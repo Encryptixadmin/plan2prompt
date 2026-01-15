@@ -160,6 +160,28 @@ router.post("/accept", async (req, res) => {
       });
     }
 
+    // Validate that the source idea artifact exists and is in VALIDATED_IDEA stage
+    const ideaArtifact = await artifactService.getById(requirements.ideaArtifactId);
+    if (!ideaArtifact) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Source idea artifact not found",
+        },
+      });
+    }
+
+    if (ideaArtifact.metadata.stage !== "VALIDATED_IDEA") {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "INVALID_STAGE",
+          message: "Requirements can only be accepted from validated ideas. The source idea must be in VALIDATED_IDEA stage.",
+        },
+      });
+    }
+
     const acceptedRequirements = await requirementsService.acceptRequirements(requirements);
 
     res.json({
