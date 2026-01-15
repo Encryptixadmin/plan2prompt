@@ -59,6 +59,7 @@ import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useAdminStatus } from "@/hooks/use-admin-status";
+import { useRequireProject } from "@/components/require-project-guard";
 
 interface IdeaOption {
   id: string;
@@ -575,6 +576,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
 
 export default function RequirementsPage() {
   const { isAdmin } = useAdminStatus();
+  const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [ideaPreview, setIdeaPreview] = useState<IdeaPreview | null>(null);
   const [requirements, setRequirements] = useState<RequirementsDocument | null>(null);
@@ -588,7 +590,7 @@ export default function RequirementsPage() {
 
   const previewMutation = useMutation({
     mutationFn: async (ideaId: string) => {
-      const response = await fetch(`/api/requirements/ideas/${ideaId}/preview`);
+      const response = await apiRequest("GET", `/api/requirements/ideas/${ideaId}/preview`);
       return response.json() as Promise<{ success: boolean; data: IdeaPreview }>;
     },
     onSuccess: (data) => {
@@ -630,7 +632,9 @@ export default function RequirementsPage() {
 
   const handleIdeaSelect = (ideaId: string) => {
     setSelectedIdeaId(ideaId);
-    previewMutation.mutate(ideaId);
+    requireProject(() => {
+      previewMutation.mutate(ideaId);
+    });
   };
 
   const handleGenerateClick = () => {
@@ -638,10 +642,12 @@ export default function RequirementsPage() {
   };
 
   const confirmGenerate = () => {
-    if (selectedIdeaId) {
-      generateMutation.mutate(selectedIdeaId);
-    }
     setShowGenerateDialog(false);
+    if (selectedIdeaId) {
+      requireProject(() => {
+        generateMutation.mutate(selectedIdeaId);
+      });
+    }
   };
 
   const handleAccept = () => {
@@ -649,15 +655,19 @@ export default function RequirementsPage() {
   };
 
   const confirmAccept = () => {
-    if (requirements) {
-      acceptMutation.mutate(requirements);
-    }
     setShowAcceptDialog(false);
+    if (requirements) {
+      requireProject(() => {
+        acceptMutation.mutate(requirements);
+      });
+    }
   };
 
   const handleRegenerate = () => {
     if (selectedIdeaId) {
-      generateMutation.mutate(selectedIdeaId);
+      requireProject(() => {
+        generateMutation.mutate(selectedIdeaId);
+      });
     }
   };
 
@@ -912,6 +922,8 @@ export default function RequirementsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProjectRequiredDialog />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useRequireProject } from "@/components/require-project-guard";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,6 +42,7 @@ export function StepFeedbackForm({
   const [rawOutput, setRawOutput] = useState("");
   const [response, setResponse] = useState<PromptFeedbackResponse | null>(null);
   const { toast } = useToast();
+  const { requireProject, ProjectRequiredDialog } = useRequireProject();
 
   const feedbackMutation = useMutation({
     mutationFn: async (data: {
@@ -82,11 +84,13 @@ export function StepFeedbackForm({
       return;
     }
 
-    feedbackMutation.mutate({
-      promptDocumentId,
-      stepNumber,
-      ide,
-      rawIdeOutput: rawOutput,
+    requireProject(() => {
+      feedbackMutation.mutate({
+        promptDocumentId,
+        stepNumber,
+        ide,
+        rawIdeOutput: rawOutput,
+      });
     });
   };
 
@@ -202,6 +206,8 @@ export function StepFeedbackForm({
           </Button>
         </div>
       </CardContent>
+
+      <ProjectRequiredDialog />
     </Card>
   );
 }

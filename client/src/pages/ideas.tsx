@@ -62,6 +62,7 @@ import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useAdminStatus } from "@/hooks/use-admin-status";
+import { useRequireProject } from "@/components/require-project-guard";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -351,11 +352,13 @@ function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, i
 
 export default function IdeasPage() {
   const { isAdmin } = useAdminStatus();
+  const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [pendingFormValues, setPendingFormValues] = useState<IdeaFormValues | null>(null);
 
   const form = useForm<IdeaFormValues>({
     resolver: zodResolver(ideaFormSchema),
@@ -411,7 +414,9 @@ export default function IdeasPage() {
   });
 
   const onSubmit = (values: IdeaFormValues) => {
-    analyzeMutation.mutate(values);
+    requireProject(() => {
+      analyzeMutation.mutate(values);
+    });
   };
 
   const handleAccept = () => {
@@ -419,10 +424,12 @@ export default function IdeasPage() {
   };
 
   const confirmAccept = () => {
-    if (analysis) {
-      acceptMutation.mutate(analysis);
-    }
     setShowAcceptDialog(false);
+    if (analysis) {
+      requireProject(() => {
+        acceptMutation.mutate(analysis);
+      });
+    }
   };
 
   const handleEdit = () => {
@@ -767,6 +774,8 @@ export default function IdeasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProjectRequiredDialog />
     </div>
   );
 }

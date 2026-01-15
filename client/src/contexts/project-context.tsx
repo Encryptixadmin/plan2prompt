@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, setActiveProjectId as setApiActiveProjectId } from "@/lib/queryClient";
 import type { ProjectWithRole, CreateProjectInput } from "@shared/types/project";
 import { getRolePermissions } from "@shared/types/project";
 
@@ -11,6 +11,7 @@ interface ProjectContextType {
   permissions: ReturnType<typeof getRolePermissions> | null;
   setActiveProject: (project: ProjectWithRole) => void;
   createProject: (input: CreateProjectInput) => Promise<ProjectWithRole>;
+  ensureDefaultProject: () => Promise<ProjectWithRole>;
   refreshProjects: () => void;
 }
 
@@ -21,7 +22,11 @@ const ACTIVE_PROJECT_KEY = "active-project-id";
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(ACTIVE_PROJECT_KEY);
+      const stored = localStorage.getItem(ACTIVE_PROJECT_KEY);
+      if (stored) {
+        setApiActiveProjectId(stored);
+      }
+      return stored;
     }
     return null;
   });
@@ -38,7 +43,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const response = await apiRequest("POST", "/api/projects/ensure-default");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.success && data.data) {
+        const project = data.data;
+        setActiveProjectId(project.id);
+        localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+        setApiActiveProjectId(project.id);
+      }
       refetch();
     },
   });
@@ -75,8 +86,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const firstProject = projects[0];
       setActiveProjectId(firstProject.id);
       localStorage.setItem(ACTIVE_PROJECT_KEY, firstProject.id);
+      setApiActiveProjectId(firstProject.id);
     }
   }, [isLoading, projects, activeProjectId]);
+
+  useEffect(() => {
+    setApiActiveProjectId(activeProjectId);
+  }, [activeProjectId]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0] || null;
 
@@ -85,6 +101,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const setActiveProject = useCallback((project: ProjectWithRole) => {
     setActiveProjectId(project.id);
     localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+    setApiActiveProjectId(project.id);
     queryClient.invalidateQueries({ queryKey: ["/api/ideas"] });
     queryClient.invalidateQueries({ queryKey: ["/api/requirements"] });
     queryClient.invalidateQueries({ queryKey: ["/api/prompts"] });
@@ -100,6 +117,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
   }, [createProjectMutation]);
 
+  const ensureDefaultProject = useCallback(async (): Promise<ProjectWithRole> => {
+    const result = await ensureDefaultMutation.mutateAsync();
+    if (!result.success || !result.data) {
+      throw new Error("Failed to ensure default project");
+    }
+    return {
+      ...result.data,
+      role: "owner" as const,
+      memberCount: 1,
+    };
+  }, [ensureDefaultMutation]);
+
   const refreshProjects = useCallback(() => {
     refetch();
   }, [refetch]);
@@ -113,6 +142,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         permissions,
         setActiveProject,
         createProject,
+        ensureDefaultProject,
         refreshProjects,
       }}
     >

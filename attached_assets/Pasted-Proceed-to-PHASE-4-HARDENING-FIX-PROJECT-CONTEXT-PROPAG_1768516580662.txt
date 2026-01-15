@@ -1,0 +1,131 @@
+Proceed to PHASE 4 — HARDENING FIX: PROJECT CONTEXT PROPAGATION & UX GATING.
+
+EXECUTION MODE:
+Correctness and consistency.
+NO backend relaxations.
+NO invariant changes.
+
+OBJECTIVE:
+Ensure all project-scoped API calls include X-Project-Id
+and ensure the UI never allows users to initiate idea analysis
+without a valid active project.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Project context is mandatory.
+The UI must guide the user — not bypass the backend.
+
+--------------------------------
+PART 1 — GLOBAL API CLIENT FIX (REQUIRED)
+--------------------------------
+
+Identify the central API client abstraction
+(e.g. fetch wrapper, Axios instance, api.ts).
+
+Implement a SINGLE, GLOBAL mechanism that:
+
+1. Retrieves the current activeProjectId from:
+   - ProjectContext / ProjectProvider
+   - Or equivalent state/store
+
+2. Automatically injects the header:
+   X-Project-Id: <activeProjectId>
+
+into ALL outgoing API requests.
+
+--------------------------------
+REQUIREMENTS
+--------------------------------
+- Header injection must be automatic
+- No per-call manual header wiring
+- No fallback to a default or first project
+- If activeProjectId is undefined:
+  - Do NOT send the request
+  - Throw a controlled client-side error
+
+--------------------------------
+PART 2 — IDEA ANALYSIS FLOW GUARD (UI)
+--------------------------------
+
+Before allowing POST /api/ideas/analyze:
+
+1. Check if activeProjectId exists.
+2. If NOT:
+   - Block the action
+   - Display a clear, user-friendly message:
+     "You need a project before analysing an idea."
+
+3. Provide TWO explicit options:
+   - "Create a project"
+   - "Cancel"
+
+--------------------------------
+PROJECT CREATION BEHAVIOUR
+--------------------------------
+- If user chooses "Create a project":
+  - Call POST /api/projects/ensure-default
+  - Set returned project as activeProjectId
+  - Resume the original action automatically
+- Do NOT silently create a project without user intent
+- Do NOT retry analysis until project is confirmed active
+
+--------------------------------
+PART 3 — CONSISTENT BEHAVIOUR ACROSS MODULES
+--------------------------------
+
+Apply the same guard logic to:
+
+- Ideas → Analyze
+- Ideas → Accept
+- Requirements → Generate
+- Requirements → Accept
+- Prompts → Generate
+- Prompts → Feedback submission
+
+If no active project:
+- Block action
+- Prompt project creation or selection
+
+--------------------------------
+PART 4 — ERROR MAPPING IMPROVEMENT (OPTIONAL BUT RECOMMENDED)
+--------------------------------
+
+When backend returns:
+  code === "MISSING_PROJECT_CONTEXT"
+
+Map to a user-facing message:
+  "Please select or create a project before continuing."
+
+Do NOT expose header names or technical language.
+
+--------------------------------
+DO NOT
+--------------------------------
+- Relax requireProjectContext middleware
+- Auto-create projects silently
+- Infer a project implicitly
+- Add backend fallbacks
+- Add new backend routes
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+
+1. Attempt to analyze an idea with no active project:
+   - UI blocks action before API call
+
+2. Create a project via UI:
+   - Project becomes active
+   - X-Project-Id is present in subsequent requests
+
+3. Inspect Network tab:
+   - Confirm X-Project-Id header is included
+     on ALL project-scoped requests
+
+4. Confirm backend no longer returns:
+   MISSING_PROJECT_CONTEXT for valid flows
+
+STOP.
+WAIT for confirmation.

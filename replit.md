@@ -94,6 +94,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: Project Context Propagation (January 2026)
+- X-Project-Id header now automatically injected by API client for all project-scoped routes
+- queryClient.ts maintains module-level activeProjectId state synchronized from ProjectContext
+- getProjectHeaders() automatically injects X-Project-Id for routes matching /api/ideas, /api/requirements, /api/prompts, /api/artifacts
+- MissingProjectContextError thrown if project-scoped route called without activeProjectId
+- useRequireProject hook gates all project-scoped mutations with dialog prompt
+- ensureDefaultProject() uses /api/projects/ensure-default flow for project creation
+- RequireProjectGuard dialog offers to create project before resuming action
+- Guards applied to: Ideas (analyze, accept), Requirements (preview, generate, accept, regenerate), Prompts (generate), StepFeedback (submit)
+- All guarded mutations use apiRequest for proper X-Project-Id header injection
+- Session cookie security adapts to environment (secure: true only in production)
+
 ### Phase 4, Hardening Step: Persist Audit & Feedback Logs (January 2026)
 - Admin audit logs now persisted to PostgreSQL `admin_action_log` table
 - Prompt feedback events now persisted to PostgreSQL `prompt_feedback_events` table

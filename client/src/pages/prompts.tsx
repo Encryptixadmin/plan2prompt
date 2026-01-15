@@ -39,6 +39,7 @@ import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useAdminStatus } from "@/hooks/use-admin-status";
+import { useRequireProject } from "@/components/require-project-guard";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -97,6 +98,7 @@ type FlowStep = "select-requirements" | "select-ide" | "view-prompts";
 
 export default function Prompts() {
   const { isAdmin } = useAdminStatus();
+  const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [flowStep, setFlowStep] = useState<FlowStep>("select-requirements");
   const [selectedRequirements, setSelectedRequirements] = useState<string>("");
   const [selectedRequirementsTitle, setSelectedRequirementsTitle] = useState<string>("");
@@ -150,9 +152,11 @@ export default function Prompts() {
 
   const handleGenerate = () => {
     if (!selectedRequirements || !selectedIDE) return;
-    generateMutation.mutate({
-      requirementsArtifactId: selectedRequirements,
-      ide: selectedIDE as IDEType,
+    requireProject(() => {
+      generateMutation.mutate({
+        requirementsArtifactId: selectedRequirements,
+        ide: selectedIDE as IDEType,
+      });
     });
   };
 
@@ -557,6 +561,8 @@ export default function Prompts() {
           </div>
         )}
       </main>
+
+      <ProjectRequiredDialog />
     </div>
   );
 }
