@@ -1,0 +1,91 @@
+Proceed to STEP 6 — IDEAS MODULE SIGNAL SHARPENING.
+
+EXECUTION MODE:
+Judgement quality improvement.
+No new UI flows.
+No new modules.
+
+OBJECTIVE:
+Make idea validation more decisive, honest, and useful
+by sharpening signals and reducing encouragement bias.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+The Ideas Module exists to prevent bad ideas from becoming expensive builds.
+
+--------------------------------
+IDEA OUTPUT ENHANCEMENTS
+--------------------------------
+
+Enhance idea validation output to ALWAYS include:
+
+--------------------------------
+1. CONFIDENCE SCORE WITH RATIONALE
+--------------------------------
+- Numerical score (0–100)
+- Clear explanation of WHY this score was assigned
+- Avoid vague language
+
+--------------------------------
+2. PRIMARY RISK DRIVERS (RANKED)
+--------------------------------
+- Top 3–5 risks, ordered by impact
+- Each risk must include:
+  - Why it matters
+  - What would trigger failure
+  - Whether it is controllable
+
+--------------------------------
+3. SCOPE & COMPLEXITY WARNINGS
+--------------------------------
+- Explicit callouts where scope may be underestimated
+- Highlight hidden complexity (tech, UX, ops, compliance)
+
+--------------------------------
+4. ASSUMPTION DEPENDENCY SNAPSHOT
+--------------------------------
+- List the top assumptions the idea depends on
+- Indicate which assumptions are:
+  - Validated
+  - Unvalidated
+  - Risky
+
+--------------------------------
+5. FAILURE MODE NARRATIVE
+--------------------------------
+Include a short section titled:
+"How this idea is most likely to fail"
+
+This must be:
+- Direct
+- Specific
+- Non-alarmist
+
+--------------------------------
+QUALITY BAR
+--------------------------------
+A user should be able to decide:
+- “Proceed”
+- “Revise”
+- “Stop”
+based on this output alone.
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add market size calculations
+- Add business model templates
+- Add diagrams or visuals
+- Add encouragement language
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Show before/after idea validation output
+- Explain how false positives are reduced
+- Confirm no changes to sequencing or gating logic
+
+STOP.
+WAIT for confirmation before proceeding.

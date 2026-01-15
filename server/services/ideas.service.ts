@@ -7,6 +7,11 @@ import type {
   IdeaRisk,
   IdeaFeasibility,
   IdeaNextStep,
+  ConfidenceAssessment,
+  RiskDriver,
+  ScopeWarning,
+  AssumptionDependency,
+  FailureModeNarrative,
 } from "@shared/types/ideas";
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
@@ -94,13 +99,36 @@ export class IdeasService {
   
   /**
    * Get the system prompt for idea analysis
+   * Enhanced for signal sharpening - reduces encouragement bias
    */
   private getSystemPrompt(): string {
-    return `You are an expert startup advisor and product strategist. Analyze business and app ideas with a balanced perspective, identifying both opportunities and risks. Be constructive but honest about challenges. Focus on actionable insights.`;
+    return `You are a critical-minded startup advisor and product strategist. Your job is to prevent bad ideas from becoming expensive builds.
+
+CORE MANDATE:
+- Be direct and specific, not diplomatic
+- Identify reasons this idea could FAIL, not just succeed
+- Call out hidden complexity and scope underestimation
+- Flag unvalidated assumptions explicitly
+- Reduce false positives - it's better to caution a good idea than to encourage a bad one
+
+ANALYSIS PRINCIPLES:
+1. Assume constraints are tighter than stated
+2. Assume timelines will be longer than planned
+3. Assume technical complexity is underestimated
+4. Assume market assumptions are unvalidated
+
+OUTPUT REQUIREMENTS:
+- No encouragement language ("great idea", "promising", "exciting")
+- Every positive must be balanced with a specific risk
+- Confidence scores must be justified with specific evidence
+- Failure modes must be specific to THIS idea, not generic
+
+The user should be able to decide: Proceed, Revise, or Stop based on your analysis alone.`;
   }
   
   /**
    * Parse AI consensus into structured analysis
+   * Enhanced with signal sharpening for decisive outputs
    */
   private parseConsensusToAnalysis(
     input: IdeaInput,
@@ -109,20 +137,37 @@ export class IdeasService {
     const id = randomUUID();
     
     // Generate mock structured analysis based on consensus
-    // In production, this would parse the actual AI response
     const strengths = this.generateStrengths(input, consensus);
     const weaknesses = this.generateWeaknesses(input, consensus);
     const feasibility = this.generateFeasibility(input, consensus);
     const risks = this.generateRisks(input, consensus);
     const nextSteps = this.generateNextSteps(input, consensus);
     
-    // Calculate overall score
+    // Signal Sharpening: Generate enhanced assessment fields
+    const confidenceAssessment = this.generateConfidenceAssessment(input, consensus, feasibility);
+    const primaryRiskDrivers = this.generatePrimaryRiskDrivers(input, consensus);
+    const scopeWarnings = this.generateScopeWarnings(input);
+    const assumptionDependencies = this.generateAssumptionDependencies(input);
+    const failureModeNarrative = this.generateFailureModeNarrative(input, primaryRiskDrivers);
+    
+    // Calculate overall score with stricter criteria
+    const highRiskCount = primaryRiskDrivers.filter(r => !r.isControllable).length;
+    const unvalidatedAssumptions = assumptionDependencies.filter(a => a.status === "unvalidated" || a.status === "risky").length;
+    
     const overallScore = Math.round(
-      (feasibility.score * 0.4) +
-      (strengths.length * 10) -
-      (weaknesses.filter(w => w.severity === "high").length * 15) -
-      (risks.filter(r => r.severity === "high").length * 10) +
-      (consensus.confidence * 20)
+      (feasibility.score * 0.3) +
+      (confidenceAssessment.score * 0.3) -
+      (highRiskCount * 12) -
+      (unvalidatedAssumptions * 5) -
+      (scopeWarnings.filter(w => w.underestimationRisk === "high").length * 8)
+    );
+    
+    // Determine recommendation based on signals
+    const { recommendation, rationale } = this.determineRecommendation(
+      overallScore,
+      primaryRiskDrivers,
+      assumptionDependencies,
+      scopeWarnings
     );
     
     return {
@@ -138,6 +183,14 @@ export class IdeasService {
       consensusConfidence: consensus.confidence,
       providerAgreement: consensus.agreementScore,
       createdAt: new Date().toISOString(),
+      // Signal Sharpening fields
+      confidenceAssessment,
+      primaryRiskDrivers,
+      scopeWarnings,
+      assumptionDependencies,
+      failureModeNarrative,
+      recommendation,
+      recommendationRationale: rationale,
     };
   }
   
@@ -385,33 +438,387 @@ export class IdeasService {
   }
   
   /**
-   * Generate summary text
+   * Generate summary text (enhanced - no encouragement language)
    */
   private generateSummary(
     input: IdeaInput,
     consensus: AIConsensusResult,
     overallScore: number
   ): string {
-    let sentiment: string;
-    if (overallScore >= 75) {
-      sentiment = "shows strong potential";
-    } else if (overallScore >= 50) {
-      sentiment = "has merit but requires refinement";
+    let assessment: string;
+    if (overallScore >= 70) {
+      assessment = "Analysis indicates viability pending assumption validation.";
+    } else if (overallScore >= 45) {
+      assessment = "Analysis reveals significant gaps requiring resolution before proceeding.";
     } else {
-      sentiment = "needs significant development before proceeding";
+      assessment = "Analysis suggests fundamental issues that question viability.";
     }
     
-    return `"${input.title}" ${sentiment} with an overall score of ${overallScore}/100. ` +
-      `Analysis was conducted with ${(consensus.confidence * 100).toFixed(0)}% confidence across ` +
-      `${consensus.providerResponses.length} AI providers with ${(consensus.agreementScore * 100).toFixed(0)}% agreement. ` +
-      `Key focus areas include validation, market definition, and iterative development.`;
+    return `"${input.title}" scored ${overallScore}/100. ${assessment} ` +
+      `Confidence: ${(consensus.confidence * 100).toFixed(0)}% across ${consensus.providerResponses.length} providers ` +
+      `(${(consensus.agreementScore * 100).toFixed(0)}% agreement). See risk drivers and failure modes below.`;
+  }
+
+  // ===============================================
+  // SIGNAL SHARPENING METHODS (Step 6)
+  // ===============================================
+
+  /**
+   * Generate confidence assessment with clear rationale
+   */
+  private generateConfidenceAssessment(
+    input: IdeaInput,
+    consensus: AIConsensusResult,
+    feasibility: IdeaFeasibility
+  ): ConfidenceAssessment {
+    const keyFactors: string[] = [];
+    const limitations: string[] = [];
+    
+    // Positive factors
+    if (input.description.length > 150) {
+      keyFactors.push("Detailed description suggests clear thinking about the problem");
+    }
+    if (input.context?.targetMarket) {
+      keyFactors.push(`Target market defined: ${input.context.targetMarket}`);
+    }
+    if (input.context?.skills && input.context.skills.length >= 2) {
+      keyFactors.push("Multiple relevant skills available for execution");
+    }
+    if (consensus.agreementScore > 0.7) {
+      keyFactors.push("High agreement across AI providers on core assessment");
+    }
+    
+    // Limitations (what we couldn't assess)
+    limitations.push("Market demand not validated with real users");
+    limitations.push("Competitor analysis based on stated information only");
+    if (!input.context?.budget) {
+      limitations.push("Budget constraints unknown - feasibility uncertain");
+    }
+    if (!input.context?.timeline) {
+      limitations.push("Timeline not specified - cannot assess execution risk");
+    }
+    limitations.push("Technical complexity estimated without detailed requirements");
+    
+    // Calculate confidence score
+    let score = 50; // Start neutral
+    score += keyFactors.length * 8;
+    score -= limitations.length * 3;
+    score += (consensus.confidence - 0.5) * 30;
+    score = Math.max(15, Math.min(85, score)); // Cap between 15-85
+    
+    // Build rationale
+    let rationale = `Score of ${Math.round(score)} reflects `;
+    if (score >= 65) {
+      rationale += "sufficient information to assess feasibility, though key assumptions remain unvalidated. ";
+    } else if (score >= 40) {
+      rationale += "incomplete information with significant unknowns affecting reliability. ";
+    } else {
+      rationale += "insufficient information to provide reliable assessment. ";
+    }
+    rationale += `Analysis based on ${keyFactors.length} positive factors against ${limitations.length} assessment limitations.`;
+    
+    return {
+      score: Math.round(score),
+      rationale,
+      keyFactors,
+      limitations,
+    };
+  }
+
+  /**
+   * Generate primary risk drivers ranked by impact
+   */
+  private generatePrimaryRiskDrivers(
+    input: IdeaInput,
+    consensus: AIConsensusResult
+  ): RiskDriver[] {
+    const drivers: RiskDriver[] = [];
+    let rank = 1;
+    
+    // Market validation risk (almost always #1)
+    if (!input.context?.targetMarket || input.context.targetMarket.length < 20) {
+      drivers.push({
+        rank: rank++,
+        title: "Unvalidated Market Demand",
+        whyItMatters: "Building for a market that doesn't exist or doesn't want this solution wastes all invested resources.",
+        failureTrigger: "Launch to discover no one is willing to pay, or that the problem isn't painful enough to drive adoption.",
+        isControllable: true,
+        controllabilityNote: "Controllable through customer discovery before building. Talk to 15+ potential users.",
+      });
+    }
+    
+    // Scope creep / complexity risk
+    drivers.push({
+      rank: rank++,
+      title: "Scope Underestimation",
+      whyItMatters: "Most ideas are 3-5x more complex than initially perceived, leading to timeline and budget overruns.",
+      failureTrigger: "Discovery of 'obvious' features that weren't planned: auth, notifications, admin panels, edge cases.",
+      isControllable: true,
+      controllabilityNote: "Controllable through ruthless MVP scoping. Cut features aggressively.",
+    });
+    
+    // Competitive risk
+    if (input.context?.competitors) {
+      drivers.push({
+        rank: rank++,
+        title: "Competitive Moat Weakness",
+        whyItMatters: `Existing players (${input.context.competitors}) have resources, users, and iteration advantage.`,
+        failureTrigger: "Competitors copy differentiating features or acquire key distribution channels.",
+        isControllable: false,
+        controllabilityNote: "Not directly controllable. Requires unique positioning or speed advantage.",
+      });
+    }
+    
+    // Resource/execution risk
+    if (input.context?.budget === "low" || !input.context?.skills?.length) {
+      drivers.push({
+        rank: rank++,
+        title: "Resource-Ambition Mismatch",
+        whyItMatters: "Insufficient resources to reach minimum viability before running out of runway.",
+        failureTrigger: "Running out of time/money at 60% completion with no path to revenue.",
+        isControllable: true,
+        controllabilityNote: "Controllable by reducing scope or increasing resources before starting.",
+      });
+    }
+    
+    // Technical risk
+    drivers.push({
+      rank: rank++,
+      title: "Technical Feasibility Unknown",
+      whyItMatters: "Core technical assumptions may be wrong, requiring fundamental rearchitecture.",
+      failureTrigger: "Discovering a key feature is technically infeasible or requires expertise not available.",
+      isControllable: true,
+      controllabilityNote: "Controllable through technical spike/prototype before full build.",
+    });
+    
+    return drivers.slice(0, 5); // Top 5 only
+  }
+
+  /**
+   * Generate scope and complexity warnings
+   */
+  private generateScopeWarnings(input: IdeaInput): ScopeWarning[] {
+    const warnings: ScopeWarning[] = [];
+    
+    // Technical complexity
+    warnings.push({
+      area: "technical",
+      warning: "Authentication, authorization, and session management add 20-40 hours minimum",
+      hiddenComplexity: "Password reset, email verification, OAuth integrations, security headers, rate limiting",
+      underestimationRisk: "high",
+    });
+    
+    // UX complexity
+    warnings.push({
+      area: "ux",
+      warning: "Error states, loading states, and edge cases typically double frontend work",
+      hiddenComplexity: "Empty states, offline handling, form validation, accessibility, responsive design",
+      underestimationRisk: "medium",
+    });
+    
+    // Operations complexity
+    warnings.push({
+      area: "operations",
+      warning: "Production infrastructure requires monitoring, logging, backups, and incident response",
+      hiddenComplexity: "Deployment pipelines, database migrations, environment management, secret rotation",
+      underestimationRisk: "medium",
+    });
+    
+    // Data complexity
+    warnings.push({
+      area: "data",
+      warning: "Data modeling decisions made early become expensive to change later",
+      hiddenComplexity: "Schema migrations, data validation, referential integrity, audit trails, GDPR compliance",
+      underestimationRisk: "high",
+    });
+    
+    // Integration complexity (if competitors mentioned, likely needs integrations)
+    if (input.context?.competitors) {
+      warnings.push({
+        area: "integration",
+        warning: "Third-party integrations require ongoing maintenance as APIs change",
+        hiddenComplexity: "API versioning, rate limits, error handling, authentication tokens, webhook reliability",
+        underestimationRisk: "medium",
+      });
+    }
+    
+    return warnings;
+  }
+
+  /**
+   * Generate assumption dependencies with validation status
+   */
+  private generateAssumptionDependencies(input: IdeaInput): AssumptionDependency[] {
+    const assumptions: AssumptionDependency[] = [];
+    
+    // Core assumption: problem exists
+    assumptions.push({
+      assumption: "The problem described is painful enough that users will pay/adopt a solution",
+      status: "unvalidated",
+      validationMethod: "Conduct 15+ customer discovery interviews asking about current workarounds and willingness to pay",
+      riskIfWrong: "Complete project failure - building something nobody wants",
+    });
+    
+    // Target market assumption
+    if (input.context?.targetMarket) {
+      assumptions.push({
+        assumption: `"${input.context.targetMarket}" is the right target market for initial launch`,
+        status: "unvalidated",
+        validationMethod: "Interview representatives from this segment specifically. Validate size and accessibility.",
+        riskIfWrong: "Wasted marketing spend and misaligned product features",
+      });
+    } else {
+      assumptions.push({
+        assumption: "A viable target market exists and is accessible",
+        status: "risky",
+        riskIfWrong: "No clear path to first users, acquisition costs may be prohibitive",
+      });
+    }
+    
+    // Technical feasibility
+    assumptions.push({
+      assumption: "The core functionality can be built with available technology and skills",
+      status: input.context?.skills?.length ? "unvalidated" : "risky",
+      validationMethod: "Build a technical spike proving the hardest technical component",
+      riskIfWrong: "Project stalls at technical blocker, requiring pivot or hiring",
+    });
+    
+    // Resource assumption
+    assumptions.push({
+      assumption: "Available resources (time, money, team) are sufficient to reach MVP",
+      status: input.context?.budget && input.context.budget !== "low" ? "unvalidated" : "risky",
+      validationMethod: "Create detailed project estimate with 2x buffer. Compare against available resources.",
+      riskIfWrong: "Project abandoned at 60% completion with nothing to show",
+    });
+    
+    // Differentiation assumption
+    if (input.context?.competitors) {
+      assumptions.push({
+        assumption: "The proposed differentiation is meaningful to users and defensible",
+        status: "risky",
+        validationMethod: "Ask potential users to compare your value proposition against existing solutions",
+        riskIfWrong: "Users see no reason to switch from existing solutions",
+      });
+    }
+    
+    // Revenue model assumption
+    assumptions.push({
+      assumption: "Users will pay for this solution at a price point that makes the business viable",
+      status: "unvalidated",
+      validationMethod: "Test pricing in customer interviews. Look for reactions, not just agreement.",
+      riskIfWrong: "Product works but cannot sustain itself financially",
+    });
+    
+    return assumptions;
+  }
+
+  /**
+   * Generate failure mode narrative
+   */
+  private generateFailureModeNarrative(
+    input: IdeaInput,
+    riskDrivers: RiskDriver[]
+  ): FailureModeNarrative {
+    const topRisk = riskDrivers[0];
+    const secondRisk = riskDrivers[1];
+    
+    // Build specific failure narrative based on top risks
+    let narrative = `This idea is most likely to fail by: `;
+    
+    if (topRisk?.title.includes("Market")) {
+      narrative += `Building a complete product only to discover the target users don't have the problem, ` +
+        `don't prioritize solving it, or won't pay for a solution. `;
+      narrative += `The team spends 3-6 months building features based on assumptions, launches to silence, ` +
+        `and realizes too late that customer discovery should have come first. `;
+    } else if (topRisk?.title.includes("Scope")) {
+      narrative += `Underestimating complexity and running out of resources at 60% completion. `;
+      narrative += `Initial estimates of "a few weeks" stretch to months as edge cases, authentication, ` +
+        `error handling, and "obvious" features are discovered. The team burns out or pivots prematurely. `;
+    } else if (topRisk?.title.includes("Competitive")) {
+      narrative += `Launching an adequate product into a market where established competitors have ` +
+        `distribution, brand recognition, and resources to respond quickly. `;
+      narrative += `The product gains minimal traction, and attempts to differentiate are countered ` +
+        `by competitors who have faster iteration cycles. `;
+    } else {
+      narrative += `Encountering a fundamental blocker (technical, market, or resource) that wasn't ` +
+        `identified during planning because key assumptions weren't validated upfront. `;
+    }
+    
+    // Add prevention hint
+    const preventionHint = topRisk?.isControllable
+      ? `Prevention: ${topRisk.controllabilityNote}`
+      : `Mitigation: Focus on speed to market and rapid iteration to outpace uncontrollable factors.`;
+    
+    return {
+      title: "How This Idea Is Most Likely to Fail",
+      narrative,
+      likelihood: riskDrivers.filter(r => !r.isControllable).length >= 2 ? "high" : "medium",
+      preventionHint,
+    };
+  }
+
+  /**
+   * Determine recommendation based on signals
+   */
+  private determineRecommendation(
+    overallScore: number,
+    riskDrivers: RiskDriver[],
+    assumptions: AssumptionDependency[],
+    scopeWarnings: ScopeWarning[]
+  ): { recommendation: "proceed" | "revise" | "stop"; rationale: string } {
+    const uncontrollableRisks = riskDrivers.filter(r => !r.isControllable).length;
+    const riskyAssumptions = assumptions.filter(a => a.status === "risky").length;
+    const highScopeRisk = scopeWarnings.filter(w => w.underestimationRisk === "high").length;
+    
+    // STOP conditions
+    if (overallScore < 30) {
+      return {
+        recommendation: "stop",
+        rationale: `Score of ${overallScore} indicates fundamental viability concerns. ` +
+          `${riskyAssumptions} assumptions are flagged as risky with no clear path to validation. ` +
+          `Recommend pivoting to a different approach or idea.`,
+      };
+    }
+    
+    if (uncontrollableRisks >= 3) {
+      return {
+        recommendation: "stop",
+        rationale: `${uncontrollableRisks} uncontrollable risk factors exceed acceptable threshold. ` +
+          `Success depends too heavily on external factors outside your influence.`,
+      };
+    }
+    
+    // REVISE conditions
+    if (overallScore < 60 || riskyAssumptions >= 3 || highScopeRisk >= 2) {
+      return {
+        recommendation: "revise",
+        rationale: `Analysis identified ${riskyAssumptions} risky assumptions and ${highScopeRisk} high-risk ` +
+          `scope areas. Before proceeding: validate core assumptions through customer interviews, ` +
+          `reduce scope aggressively, and address the top risk driver.`,
+      };
+    }
+    
+    // PROCEED conditions (still with caution)
+    return {
+      recommendation: "proceed",
+      rationale: `Score of ${overallScore} suggests viability, but ${assumptions.filter(a => a.status === "unvalidated").length} ` +
+        `assumptions remain unvalidated. Proceed with caution: prioritize assumption validation ` +
+        `in parallel with early development. Build the smallest possible version first.`,
+    };
   }
   
   /**
    * Save analysis as Markdown artifact
+   * Enhanced with signal sharpening sections
    */
   private async saveAsArtifact(analysis: IdeaAnalysis) {
     const sections = [
+      // Decision summary at the top
+      {
+        heading: "Decision",
+        level: 2 as const,
+        content: `**Recommendation:** ${analysis.recommendation.toUpperCase()}\n\n${analysis.recommendationRationale}`,
+      },
       {
         heading: "Executive Summary",
         level: 2 as const,
@@ -421,6 +828,50 @@ export class IdeasService {
         heading: "Idea Overview",
         level: 2 as const,
         content: `**Title:** ${analysis.input.title}\n\n**Description:** ${analysis.input.description}\n\n**Overall Score:** ${analysis.overallScore}/100`,
+      },
+      // Confidence Assessment (Signal Sharpening)
+      {
+        heading: "Confidence Assessment",
+        level: 2 as const,
+        content: `**Score:** ${analysis.confidenceAssessment.score}/100\n\n` +
+          `**Rationale:** ${analysis.confidenceAssessment.rationale}\n\n` +
+          `### Key Factors\n${analysis.confidenceAssessment.keyFactors.map(f => `- ${f}`).join("\n")}\n\n` +
+          `### Analysis Limitations\n${analysis.confidenceAssessment.limitations.map(l => `- ${l}`).join("\n")}`,
+      },
+      // Primary Risk Drivers (Signal Sharpening)
+      {
+        heading: "Primary Risk Drivers (Ranked)",
+        level: 2 as const,
+        content: analysis.primaryRiskDrivers
+          .map(r => `### ${r.rank}. ${r.title}\n` +
+            `**Why it matters:** ${r.whyItMatters}\n\n` +
+            `**Failure trigger:** ${r.failureTrigger}\n\n` +
+            `**Controllable:** ${r.isControllable ? "Yes" : "No"} — ${r.controllabilityNote}`)
+          .join("\n\n---\n\n"),
+      },
+      // Failure Mode Narrative (Signal Sharpening)
+      {
+        heading: "How This Idea Is Most Likely to Fail",
+        level: 2 as const,
+        content: `**Likelihood:** ${analysis.failureModeNarrative.likelihood.toUpperCase()}\n\n` +
+          `${analysis.failureModeNarrative.narrative}\n\n` +
+          `**${analysis.failureModeNarrative.preventionHint}**`,
+      },
+      // Assumption Dependencies (Signal Sharpening)
+      {
+        heading: "Assumption Dependencies",
+        level: 2 as const,
+        content: this.formatAssumptionDependencies(analysis.assumptionDependencies),
+      },
+      // Scope Warnings (Signal Sharpening)
+      {
+        heading: "Scope & Complexity Warnings",
+        level: 2 as const,
+        content: analysis.scopeWarnings
+          .map(w => `### ${w.area.charAt(0).toUpperCase() + w.area.slice(1)} (${w.underestimationRisk} underestimation risk)\n` +
+            `**Warning:** ${w.warning}\n\n` +
+            `**Hidden complexity:** ${w.hiddenComplexity}`)
+          .join("\n\n"),
       },
       {
         heading: "Strengths",
@@ -475,15 +926,49 @@ export class IdeasService {
       aiNotes: [
         {
           provider: "system",
-          note: `Analysis generated with ${(analysis.consensusConfidence * 100).toFixed(0)}% consensus confidence from ${3} AI providers.`,
+          note: `Analysis: ${analysis.recommendation.toUpperCase()}. Score: ${analysis.overallScore}/100. Confidence: ${analysis.confidenceAssessment.score}/100.`,
           confidence: analysis.consensusConfidence,
         },
       ],
-      tags: ["idea", "analysis", "requirements-ready"],
+      tags: ["idea", "analysis", analysis.recommendation, "requirements-ready"],
       stage,
     });
     
     return artifact;
+  }
+
+  /**
+   * Format assumption dependencies for artifact output
+   */
+  private formatAssumptionDependencies(assumptions: AssumptionDependency[]): string {
+    const validated = assumptions.filter(a => a.status === "validated");
+    const unvalidated = assumptions.filter(a => a.status === "unvalidated");
+    const risky = assumptions.filter(a => a.status === "risky");
+    
+    let content = "";
+    
+    if (risky.length > 0) {
+      content += `### Risky Assumptions (${risky.length})\n`;
+      content += risky.map(a => 
+        `- **${a.assumption}**\n  - Risk if wrong: ${a.riskIfWrong || "Unknown"}`
+      ).join("\n") + "\n\n";
+    }
+    
+    if (unvalidated.length > 0) {
+      content += `### Unvalidated Assumptions (${unvalidated.length})\n`;
+      content += unvalidated.map(a => 
+        `- **${a.assumption}**\n  - Validation method: ${a.validationMethod || "TBD"}\n  - Risk if wrong: ${a.riskIfWrong || "Unknown"}`
+      ).join("\n") + "\n\n";
+    }
+    
+    if (validated.length > 0) {
+      content += `### Validated Assumptions (${validated.length})\n`;
+      content += validated.map(a => 
+        `- **${a.assumption}**\n  - Evidence: ${a.evidence || "Stated"}`
+      ).join("\n");
+    }
+    
+    return content || "No assumptions identified.";
   }
 }
 
