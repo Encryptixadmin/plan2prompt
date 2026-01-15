@@ -12,6 +12,9 @@ export * from "./artifact";
 // Re-export AI types
 export * from "./ai";
 
+// Re-export Ideas module types
+export * from "./ideas";
+
 // Health check response type
 export interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";
