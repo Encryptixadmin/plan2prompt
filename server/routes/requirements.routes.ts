@@ -130,11 +130,16 @@ router.post(
       }
 
       if (ideaArtifact.metadata.stage !== "VALIDATED_IDEA") {
+        const currentStage = ideaArtifact.metadata.stage;
+        const hint = currentStage
+          ? `Current stage: ${currentStage}. Complete the Ideas Module to validate this idea first.`
+          : "Stage metadata missing. This idea may have been created before validation tracking. Please re-run idea validation.";
         return res.status(400).json({
           success: false,
           error: {
-            code: "INVALID_STAGE",
-            message: "Only validated ideas can be used to generate requirements. The idea must be in VALIDATED_IDEA stage.",
+            code: "PIPELINE_VIOLATION",
+            message: "Requirements can only be generated from a validated idea.",
+            hint,
           },
         });
       }

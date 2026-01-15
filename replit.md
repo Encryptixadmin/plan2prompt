@@ -139,6 +139,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 3, Enforcement Step 1: Backend Pipeline Hardening (January 2026)
+- POST /api/requirements/generate now enforces stage === VALIDATED_IDEA with PIPELINE_VIOLATION error
+- POST /api/prompts/generate now enforces stage === LOCKED_REQUIREMENTS with PIPELINE_VIOLATION error
+- Added isArtifactOutdated() check to block prompts from requirements with newer source ideas
+- Clear error messages distinguish between wrong stage vs missing stage metadata
+- Version invalidation: downstream artifacts are detected as outdated when source has newer version
+- Backend is source of truth - UI controls are advisory only
+- No new routes, no UI changes, existing permissions unchanged
+
 ### Phase 3, Step 2D: Billing Foundations - No Payments (January 2026)
 - Created BillingPlan model with: id, name, description, softLimits (monthlyGenerations, monthlyTokenBudget), status
 - Initial plans: Free (default), Pro (future), Team (future) - all active status

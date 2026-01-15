@@ -547,6 +547,41 @@ export class ArtifactService {
     return downstream.length > 0;
   }
 
+  // Check if an artifact is outdated (its source artifact has a newer version)
+  async isArtifactOutdated(id: string): Promise<{ outdated: boolean; reason?: string }> {
+    const artifact = await this.getById(id);
+    if (!artifact) {
+      return { outdated: false };
+    }
+
+    const sourceArtifactId = artifact.metadata.sourceArtifactId;
+    const sourceArtifactVersion = artifact.metadata.sourceArtifactVersion;
+
+    if (!sourceArtifactId) {
+      return { outdated: false };
+    }
+
+    const sourceArtifact = await this.getById(sourceArtifactId);
+    if (!sourceArtifact) {
+      return { outdated: false };
+    }
+
+    const versions = await this.getVersionHistory(sourceArtifactId);
+    const latestVersion = Math.max(
+      sourceArtifact.metadata.version,
+      ...versions.map((v) => v.version)
+    );
+
+    if (sourceArtifactVersion !== undefined && sourceArtifactVersion < latestVersion) {
+      return {
+        outdated: true,
+        reason: `This artifact was derived from version ${sourceArtifactVersion} of "${sourceArtifact.metadata.title}", but version ${latestVersion} is now available. Regenerate from the latest version.`,
+      };
+    }
+
+    return { outdated: false };
+  }
+
   // Get all .md files in artifacts directory
   private async getAllFiles(module?: string): Promise<string[]> {
     const searchDir = module ? path.join(ARTIFACTS_DIR, module) : ARTIFACTS_DIR;

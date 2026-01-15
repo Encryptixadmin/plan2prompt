@@ -87,9 +87,31 @@ router.post(
       }
 
       if (requirementsArtifact.metadata.stage !== "LOCKED_REQUIREMENTS") {
+        const currentStage = requirementsArtifact.metadata.stage;
+        const hint = currentStage
+          ? `Current stage: ${currentStage}. Complete the Requirements Module first.`
+          : "Stage metadata missing. These requirements may have been created before stage tracking. Please regenerate requirements from a validated idea.";
         return res.status(400).json({
           success: false,
-          error: "Only locked requirements can be used to generate prompts. Complete the Requirements Module first.",
+          error: {
+            code: "PIPELINE_VIOLATION",
+            message: "Build prompts require locked, up-to-date requirements.",
+            hint,
+          },
+        });
+      }
+
+      // Check if this requirements artifact is outdated (source idea has newer version)
+      const isOutdated = await artifactService.isArtifactOutdated(requirementsArtifactId);
+      if (isOutdated.outdated) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "PIPELINE_VIOLATION",
+            message: "Build prompts require locked, up-to-date requirements.",
+            hint: isOutdated.reason,
+            sourceArtifactId: requirementsArtifact.metadata.sourceArtifactId,
+          },
         });
       }
 
