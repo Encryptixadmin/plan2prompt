@@ -12,50 +12,53 @@ import { openaiService } from "./openai.service";
 import { anthropicService } from "./anthropic.service";
 import { geminiService } from "./gemini.service";
 
-/**
- * Consensus Service
- * 
- * Orchestrates multiple AI providers and produces unified consensus output.
- * Compares responses, identifies agreements/conflicts, and calculates confidence.
- */
+interface ProviderQueryResult {
+  response?: AIProviderResponse;
+  error?: string;
+  provider: AIProviderType;
+}
+
 export class ConsensusService {
   private providers: Map<AIProviderType, IAIProvider>;
-  
+
   constructor() {
-    this.providers = new Map([
-      ["openai", openaiService],
-      ["anthropic", anthropicService],
-      ["gemini", geminiService],
-    ]);
+    this.providers = new Map();
+    this.providers.set("openai", openaiService);
+    this.providers.set("anthropic", anthropicService);
+    this.providers.set("gemini", geminiService);
   }
-  
-  /**
-   * Query all providers and produce consensus
-   */
+
   async getConsensus(request: ConsensusRequest): Promise<AIConsensusResult> {
     const startTime = Date.now();
     const providersToQuery = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
-    
-    // Query all providers in parallel
-    const responses = await this.queryProviders(request.prompt, providersToQuery);
-    
-    // Analyze responses for agreement and disagreement
-    const { agreementScore, disagreements } = this.analyzeAgreement(responses);
-    
-    // Identify risks mentioned by providers
-    const risks = this.identifyRisks(responses);
-    
-    // Determine if consensus was reached
+
+    const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery);
+
+    const successfulResponses = results
+      .filter((r): r is { response: AIProviderResponse; provider: AIProviderType } => !!r.response)
+      .map((r) => r.response);
+
+    const failedProviders = results.filter((r) => r.error);
+
+    if (successfulResponses.length === 0) {
+      throw new Error(
+        "All AI providers failed. Please try again in a moment. " +
+        `Errors: ${failedProviders.map((f) => `${f.provider}: ${f.error}`).join("; ")}`
+      );
+    }
+
+    const { agreementScore, disagreements } = this.analyzeAgreement(successfulResponses);
+    const risks = this.identifyRisks(successfulResponses, failedProviders);
+
     const minimumConfidence = request.minimumConfidence || 0.7;
-    const averageConfidence = this.calculateAverageConfidence(responses);
+    const averageConfidence = this.calculateAverageConfidence(successfulResponses);
     const consensusReached = request.requireUnanimity
       ? agreementScore >= 0.9 && averageConfidence >= minimumConfidence
       : agreementScore >= 0.6 && averageConfidence >= minimumConfidence;
-    
-    // Generate unified content
-    const unifiedContent = this.synthesizeContent(responses, disagreements);
-    const summary = this.generateConsensusSummary(responses, agreementScore);
-    
+
+    const unifiedContent = this.synthesizeContent(successfulResponses, disagreements);
+    const summary = this.generateConsensusSummary(successfulResponses, agreementScore);
+
     return {
       consensusReached,
       agreementScore,
@@ -64,7 +67,7 @@ export class ConsensusService {
       confidence: averageConfidence,
       risks,
       disagreements,
-      providerResponses: responses,
+      providerResponses: successfulResponses,
       metadata: {
         providersQueried: providersToQuery,
         totalLatencyMs: Date.now() - startTime,
@@ -72,54 +75,50 @@ export class ConsensusService {
       },
     };
   }
-  
-  /**
-   * Query specific providers
-   */
-  private async queryProviders(
+
+  private async queryProvidersWithFallback(
     prompt: AIPrompt,
     providers: AIProviderType[]
-  ): Promise<AIProviderResponse[]> {
-    const promises = providers.map(async (providerType) => {
-      const provider = this.providers.get(providerType);
-      if (!provider) {
-        throw new Error(`Provider ${providerType} not found`);
-      }
-      
-      const isAvailable = await provider.isAvailable();
-      if (!isAvailable) {
-        throw new Error(`Provider ${providerType} is not available`);
-      }
-      
-      return provider.generate(prompt);
-    });
-    
-    return Promise.all(promises);
+  ): Promise<ProviderQueryResult[]> {
+    const results = await Promise.all(
+      providers.map(async (providerType): Promise<ProviderQueryResult> => {
+        const provider = this.providers.get(providerType);
+        if (!provider) {
+          return { provider: providerType, error: `Provider ${providerType} not found` };
+        }
+
+        try {
+          const response = await provider.generate(prompt);
+          return { provider: providerType, response };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[Consensus] Provider ${providerType} failed: ${message}`);
+          return { provider: providerType, error: message };
+        }
+      })
+    );
+
+    return results;
   }
-  
-  /**
-   * Analyze agreement between provider responses
-   */
+
   private analyzeAgreement(responses: AIProviderResponse[]): {
     agreementScore: number;
     disagreements: AIDisagreement[];
   } {
     const disagreements: AIDisagreement[] = [];
-    
-    // Mock analysis - in real implementation, use NLP/semantic similarity
+
     const confidences = responses.map((r) => r.confidence);
     const avgConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
     const confidenceVariance = this.calculateVariance(confidences);
-    
-    // High variance in confidence suggests disagreement
+
     if (confidenceVariance > 0.02) {
-      const lowConfProvider = responses.reduce((min, r) => 
+      const lowConfProvider = responses.reduce((min, r) =>
         r.confidence < min.confidence ? r : min
       );
-      const highConfProvider = responses.reduce((max, r) => 
+      const highConfProvider = responses.reduce((max, r) =>
         r.confidence > max.confidence ? r : max
       );
-      
+
       if (highConfProvider.confidence - lowConfProvider.confidence > 0.15) {
         disagreements.push({
           topic: "Confidence in response accuracy",
@@ -131,8 +130,7 @@ export class ConsensusService {
         });
       }
     }
-    
-    // Simulate occasional topical disagreements
+
     if (Math.random() > 0.7 && responses.length >= 2) {
       disagreements.push({
         topic: "Approach to problem framing",
@@ -143,25 +141,42 @@ export class ConsensusService {
         severity: "low",
       });
     }
-    
-    // Calculate agreement score (inverse of disagreement impact)
+
     const disagreementPenalty = disagreements.reduce((penalty, d) => {
       const severityWeight = { low: 0.05, medium: 0.15, high: 0.3 };
       return penalty + severityWeight[d.severity];
     }, 0);
-    
+
     const agreementScore = Math.max(0.5, Math.min(1, avgConfidence - disagreementPenalty));
-    
+
     return { agreementScore, disagreements };
   }
-  
-  /**
-   * Identify risks from provider responses
-   */
-  private identifyRisks(responses: AIProviderResponse[]): AIRisk[] {
+
+  private identifyRisks(
+    responses: AIProviderResponse[],
+    failedProviders: ProviderQueryResult[] = []
+  ): AIRisk[] {
     const risks: AIRisk[] = [];
-    
-    // Check for low confidence across providers
+
+    if (failedProviders.length > 0) {
+      risks.push({
+        description: `${failedProviders.length} provider(s) were unavailable for this analysis`,
+        identifiedBy: failedProviders.map((f) => f.provider),
+        severity: failedProviders.length >= 2 ? "medium" : "low",
+        mitigation: "Analysis continued with available providers. Results may be less comprehensive.",
+      });
+    }
+
+    const mockResponses = responses.filter((r) => r.isMock);
+    if (mockResponses.length > 0) {
+      risks.push({
+        description: `${mockResponses.length} provider(s) returned mock data (API keys not configured)`,
+        identifiedBy: mockResponses.map((r) => r.provider),
+        severity: mockResponses.length === responses.length ? "high" : "medium",
+        mitigation: "Configure API keys for real AI analysis",
+      });
+    }
+
     const lowConfidenceProviders = responses.filter((r) => r.confidence < 0.75);
     if (lowConfidenceProviders.length > 0) {
       risks.push({
@@ -171,8 +186,7 @@ export class ConsensusService {
         mitigation: "Consider providing more context or breaking down the query",
       });
     }
-    
-    // Check for significant latency (might indicate complexity)
+
     const highLatencyProviders = responses.filter((r) => (r.latencyMs || 0) > 500);
     if (highLatencyProviders.length > 1) {
       risks.push({
@@ -182,33 +196,28 @@ export class ConsensusService {
         mitigation: "Simplify the query or provide structured input",
       });
     }
-    
+
     return risks;
   }
-  
-  /**
-   * Synthesize unified content from all responses
-   */
+
   private synthesizeContent(
     responses: AIProviderResponse[],
     disagreements: AIDisagreement[]
   ): string {
     const sections: string[] = [];
-    
+
     sections.push("# Consensus Analysis\n");
     sections.push("## Unified Findings\n");
     sections.push("Based on analysis from multiple AI providers, the following consensus emerges:\n");
-    
-    // Weight responses by confidence
+
     const sortedResponses = [...responses].sort((a, b) => b.confidence - a.confidence);
     const primaryResponse = sortedResponses[0];
-    
+
     sections.push("### Primary Analysis\n");
     sections.push(`*Source: ${primaryResponse.provider} (${primaryResponse.model})*\n`);
     sections.push(primaryResponse.content);
     sections.push("\n");
-    
-    // Add supporting perspectives
+
     if (sortedResponses.length > 1) {
       sections.push("### Supporting Perspectives\n");
       sortedResponses.slice(1).forEach((response) => {
@@ -216,8 +225,7 @@ export class ConsensusService {
         sections.push(`${response.summary}\n`);
       });
     }
-    
-    // Note disagreements if any
+
     if (disagreements.length > 0) {
       sections.push("\n### Areas of Divergence\n");
       disagreements.forEach((d) => {
@@ -227,59 +235,60 @@ export class ConsensusService {
         });
       });
     }
-    
+
     return sections.join("");
   }
-  
-  /**
-   * Generate consensus summary
-   */
+
   private generateConsensusSummary(
     responses: AIProviderResponse[],
     agreementScore: number
   ): string {
     const providerCount = responses.length;
     const avgConfidence = this.calculateAverageConfidence(responses);
-    
+
     if (agreementScore >= 0.85) {
-      return `Strong consensus achieved across ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence. All providers substantially agree on key conclusions.`;
+      return `Strong consensus achieved across ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence.`;
     } else if (agreementScore >= 0.7) {
-      return `Moderate consensus reached across ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence. Minor variations in approach noted but core conclusions align.`;
+      return `Moderate consensus reached across ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence.`;
     } else {
-      return `Limited consensus among ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence. Significant differences in perspective require attention.`;
+      return `Limited consensus among ${providerCount} providers with ${(avgConfidence * 100).toFixed(0)}% average confidence.`;
     }
   }
-  
-  /**
-   * Calculate average confidence across responses
-   */
+
   private calculateAverageConfidence(responses: AIProviderResponse[]): number {
     if (responses.length === 0) return 0;
     return responses.reduce((sum, r) => sum + r.confidence, 0) / responses.length;
   }
-  
-  /**
-   * Calculate variance of an array of numbers
-   */
+
   private calculateVariance(values: number[]): number {
     if (values.length === 0) return 0;
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     return values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
   }
-  
-  /**
-   * Get available providers
-   */
+
   async getAvailableProviders(): Promise<AIProviderType[]> {
     const available: AIProviderType[] = [];
-    
-    for (const [type, provider] of this.providers) {
+    const entries = Array.from(this.providers.entries());
+
+    for (const [type, provider] of entries) {
       if (await provider.isAvailable()) {
         available.push(type);
       }
     }
-    
+
     return available;
+  }
+
+  async getProviderStatus(): Promise<{ provider: AIProviderType; available: boolean; model: string }[]> {
+    const entries = Array.from(this.providers.entries());
+    const status = await Promise.all(
+      entries.map(async ([type, provider]) => ({
+        provider: type,
+        available: await provider.isAvailable(),
+        model: provider.model,
+      }))
+    );
+    return status;
   }
 }
 

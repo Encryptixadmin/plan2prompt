@@ -1,71 +1,124 @@
-import type { AIPrompt, AIProviderResponse } from "@shared/types/ai";
-import { BaseAIProvider } from "./provider.interface";
+import Anthropic from "@anthropic-ai/sdk";
+import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/ai";
+import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
 
-/**
- * Anthropic Service (Mock Implementation)
- * 
- * Provides mock responses simulating Claude behavior.
- * Will be replaced with real API calls when API keys are configured.
- */
+const ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022";
+
 export class AnthropicService extends BaseAIProvider {
   readonly provider = "anthropic" as const;
-  readonly model = "claude-3-opus";
-  
+  readonly model = ANTHROPIC_MODEL;
+  private client: Anthropic | null = null;
+
+  constructor(config: Partial<ProviderConfig> = {}) {
+    super(config);
+    this.initializeClient();
+  }
+
+  private initializeClient(): void {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      this.client = new Anthropic({ apiKey });
+    }
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return this.client !== null;
+  }
+
   async generate(prompt: AIPrompt): Promise<AIProviderResponse> {
     const startTime = Date.now();
-    
-    // Simulate API latency
-    await this.simulateLatency(180, 350);
-    
-    const content = this.generateMockResponse(prompt);
-    const summary = this.generateSummary(prompt);
-    const confidence = this.calculateMockConfidence(prompt);
-    
+
+    if (!this.client) {
+      return this.generateMockResponse(prompt, startTime);
+    }
+
+    try {
+      const response = await this.withRetry(() =>
+        this.withTimeout(
+          this.client!.messages.create({
+            model: this.model,
+            max_tokens: prompt.maxTokens ?? this.config.maxTokens,
+            system: prompt.system,
+            messages: this.buildMessages(prompt),
+          })
+        )
+      );
+
+      const content = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("\n");
+
+      const tokenUsage: AITokenUsage = {
+        inputTokens: response.usage?.input_tokens || 0,
+        outputTokens: response.usage?.output_tokens || 0,
+        totalTokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0),
+      };
+
+      const summary = this.extractSummary(content);
+      const confidence = this.calculateConfidence(content, tokenUsage);
+
+      return this.createResponse(
+        content,
+        summary,
+        confidence,
+        "Reasoning based on constitutional AI principles.",
+        Date.now() - startTime,
+        tokenUsage,
+        false
+      );
+    } catch (error) {
+      console.error(`[Anthropic] API error: ${error instanceof Error ? error.message : error}`);
+      return this.generateMockResponse(prompt, startTime);
+    }
+  }
+
+  private buildMessages(prompt: AIPrompt): Anthropic.MessageParam[] {
+    let userContent = prompt.user;
+    if (prompt.context) {
+      userContent = `Context:\n${prompt.context}\n\n${prompt.user}`;
+    }
+
+    return [{ role: "user", content: userContent }];
+  }
+
+  private extractSummary(content: string): string {
+    const firstParagraph = content.split("\n\n")[0] || content;
+    return firstParagraph.slice(0, 200) + (firstParagraph.length > 200 ? "..." : "");
+  }
+
+  private calculateConfidence(content: string, usage: AITokenUsage): number {
+    const baseConfidence = 0.82;
+    const lengthBonus = Math.min(0.12, content.length / 6000);
+    return Math.min(0.95, baseConfidence + lengthBonus);
+  }
+
+  private async generateMockResponse(prompt: AIPrompt, startTime: number): Promise<AIProviderResponse> {
+    await this.delay(180 + Math.random() * 170);
+
+    const inputTokens = this.estimateInputTokens(prompt.user + (prompt.context || "") + (prompt.system || ""));
+    const mockContent = this.createMockContent(prompt);
+    const outputTokens = this.estimateInputTokens(mockContent);
+
     return this.createResponse(
-      content,
-      summary,
-      confidence,
-      "Reasoning based on constitutional AI principles and careful consideration of nuances.",
-      Date.now() - startTime
+      mockContent,
+      `Anthropic analyzed: ${prompt.user.slice(0, 100)}`,
+      0.82 + Math.random() * 0.1,
+      "Mock response - no API key configured.",
+      Date.now() - startTime,
+      { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens },
+      true
     );
   }
-  
-  async isAvailable(): Promise<boolean> {
-    // In real implementation: check if ANTHROPIC_API_KEY is set
-    return true;
-  }
-  
-  private async simulateLatency(min: number, max: number): Promise<void> {
-    const delay = Math.random() * (max - min) + min;
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
-  
-  private generateMockResponse(prompt: AIPrompt): string {
-    const userQuery = prompt.user.toLowerCase();
-    
-    if (userQuery.includes("analyze") || userQuery.includes("analysis")) {
-      return `[Anthropic Analysis]\n\nI've carefully examined the information provided. Here's my analysis:\n\n**Contextual Understanding**\nThe situation presents several dimensions worth exploring. Each aspect interconnects with others in meaningful ways.\n\n**Critical Considerations**\n- The primary factors require balanced evaluation\n- Secondary elements provide supporting context\n- Potential implications extend across multiple domains\n\n**Thoughtful Conclusions**\nA nuanced approach that considers various stakeholder perspectives would be most beneficial. I'd recommend taking time to evaluate each option against stated objectives.`;
+
+  private createMockContent(prompt: AIPrompt): string {
+    const query = prompt.user.toLowerCase();
+
+    if (query.includes("analyze") || query.includes("analysis")) {
+      return `[Anthropic Analysis]\n\nI've carefully examined the information provided. Here's my analysis:\n\n**Contextual Understanding**\nThe situation presents several dimensions worth exploring.\n\n**Critical Considerations**\n- The primary factors require balanced evaluation\n- Secondary elements provide supporting context\n\n**Thoughtful Conclusions**\nA nuanced approach that considers various perspectives would be most beneficial.`;
     }
-    
-    if (userQuery.includes("summarize") || userQuery.includes("summary")) {
-      return `[Anthropic Summary]\n\nLet me provide a thoughtful summary:\n\n**Essence**: The core matter revolves around careful consideration of multiple factors.\n\n**Key Elements**:\n1. Primary considerations have been identified\n2. Context shapes the interpretation significantly\n3. Nuanced understanding is essential\n\n**Takeaway**: A balanced, well-reasoned approach will yield the best outcomes.`;
-    }
-    
-    return `[Anthropic Response]\n\nThank you for your query. I've thought carefully about this:\n\n"${prompt.user.substring(0, 50)}..."\n\nThis is a mock response from Claude. In the actual implementation, I would provide a thoughtful, nuanced response that:\n\n1. Considers multiple perspectives\n2. Acknowledges complexity and uncertainty where appropriate\n3. Aims to be genuinely helpful while being honest about limitations\n\nI strive to be helpful, harmless, and honest in my responses.`;
-  }
-  
-  private generateSummary(prompt: AIPrompt): string {
-    return `Anthropic provided a nuanced analysis with careful consideration of: ${prompt.user.substring(0, 100)}`;
-  }
-  
-  private calculateMockConfidence(prompt: AIPrompt): number {
-    // Claude tends to be more conservative in confidence
-    const baseConfidence = 0.82;
-    const hasContext = prompt.context ? 0.06 : 0;
-    const hasSystem = prompt.system ? 0.04 : 0;
-    const randomVariation = (Math.random() - 0.5) * 0.12;
-    
-    return Math.min(0.95, Math.max(0.68, baseConfidence + hasContext + hasSystem + randomVariation));
+
+    return `[Anthropic Response]\n\nThank you for your query. I've thought carefully about this.\n\nThis is a mock response from Claude. In the actual implementation, I would provide a thoughtful, nuanced response that:\n\n1. Considers multiple perspectives\n2. Acknowledges complexity where appropriate\n3. Aims to be genuinely helpful`;
   }
 }
 
