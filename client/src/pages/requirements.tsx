@@ -34,6 +34,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
+import { StageCard } from "@/components/stage-indicator";
 
 interface IdeaOption {
   id: string;
@@ -63,6 +64,12 @@ function PriorityBadge({ priority }: { priority: "must-have" | "should-have" | "
 function RequirementsResults({ requirements }: { requirements: RequirementsDocument }) {
   return (
     <div className="space-y-6">
+      <StageCard 
+        currentStage="LOCKED_REQUIREMENTS" 
+        artifactId={requirements.artifactId}
+        sourceArtifactId={requirements.ideaArtifactId}
+      />
+      
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4 flex-wrap">

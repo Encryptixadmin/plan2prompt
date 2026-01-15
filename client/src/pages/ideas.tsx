@@ -41,6 +41,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
+import { StageCard } from "@/components/stage-indicator";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -86,6 +87,11 @@ function SeverityBadge({ severity }: { severity: "low" | "medium" | "high" }) {
 function AnalysisResults({ analysis }: { analysis: IdeaAnalysis }) {
   return (
     <div className="space-y-6">
+      <StageCard 
+        currentStage="VALIDATED_IDEA" 
+        artifactId={analysis.artifactId}
+      />
+      
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">

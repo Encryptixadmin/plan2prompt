@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
+import { StageCard } from "@/components/stage-indicator";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -291,8 +292,15 @@ export default function Prompts() {
             </Button>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             {generatedPrompts ? (
+              <>
+              <StageCard 
+                currentStage="PROMPTS_GENERATED" 
+                artifactId={generatedPrompts.artifactId}
+                sourceArtifactId={generatedPrompts.requirementsArtifactId}
+              />
+              
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
@@ -337,6 +345,7 @@ export default function Prompts() {
                   </ScrollArea>
                 </CardContent>
               </Card>
+              </>
             ) : (
               <Card className="h-full min-h-[400px] flex items-center justify-center">
                 <div className="text-center space-y-4 p-8">
