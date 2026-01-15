@@ -9,6 +9,7 @@ import Home from "@/pages/home";
 import Ideas from "@/pages/ideas";
 import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
+import Admin from "@/pages/admin";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
 import { ProjectProvider } from "@/contexts/project-context";
 
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/ideas" component={Ideas} />
       <Route path="/requirements" component={Requirements} />
       <Route path="/prompts" component={Prompts} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

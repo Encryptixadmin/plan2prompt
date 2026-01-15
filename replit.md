@@ -108,12 +108,45 @@ Preferred communication style: Simple, everyday language.
 - **Blocked States**: Clear UI explanations when prerequisites not met
 - **STOP Recommendations**: Require explicit acknowledgment via `acknowledgeStopRecommendation` flag
 
+### Admin Console
+- **Location**: `/admin` route with admin middleware protection (`server/middleware/admin.ts`)
+- **Access Control**: `requireAdmin` middleware checks user admin status via `adminService`
+- **Tabs**: Providers (health/disable/enable), Usage (costs/tokens), Artifacts (pipeline integrity), Actions (audit log)
+- **Confirmation Pattern**: All destructive admin actions require `confirm: true` flag
+- **Soft-Disable**: Users and projects can have generation disabled without losing existing content
+- **Action Logging**: All admin operations recorded with actor, target, timestamp, and reason
+
+### Admin API Endpoints
+- `GET /api/admin/health` - Provider status and error counts
+- `POST /api/admin/providers/:provider/disable` - Disable AI provider (requires confirmation)
+- `POST /api/admin/providers/:provider/enable` - Enable AI provider (requires confirmation)
+- `GET /api/admin/usage` - Usage summary and cost breakdown
+- `GET /api/admin/users` - List users with generation status
+- `POST /api/admin/users/:userId/disable-generation` - Soft-disable user generation
+- `POST /api/admin/users/:userId/enable-generation` - Re-enable user generation
+- `GET /api/admin/projects` - List projects with generation status
+- `POST /api/admin/projects/:projectId/disable-generation` - Soft-disable project generation
+- `POST /api/admin/projects/:projectId/enable-generation` - Re-enable project generation
+- `GET /api/admin/artifacts/integrity` - Pipeline stage counts and artifact totals
+- `GET /api/admin/actions` - Admin action audit log
+
 ## Documentation
 
 - **Alpha Readiness Checklist**: `docs/ALPHA_READINESS_CHECKLIST.md` - Internal testing checklist
 - **Design Guidelines**: `design_guidelines.md` - UI/UX standards for the platform
 
 ## Recent Changes
+
+### Phase 3, Step 2: Admin Console (January 2026)
+- Added admin role to user schema with generation disabled flags
+- Created admin middleware for /api/admin/* route protection
+- Built admin action logging service with full audit trail
+- Implemented provider health endpoints with disable/enable (confirmation required)
+- Added usage and cost oversight endpoint with per-provider breakdown
+- Created user/project soft-disable endpoints for generation control
+- Implemented artifact pipeline integrity endpoint with stage counts
+- Built admin console UI with tabbed interface (Providers, Usage, Artifacts, Actions)
+- All admin actions require explicit confirmation to prevent accidents
 
 ### Phase 3, Step 1: Real AI Provider Integration (January 2026)
 - Implemented real API support for OpenAI, Anthropic, and Gemini providers
