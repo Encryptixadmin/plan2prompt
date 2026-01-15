@@ -3,6 +3,7 @@ import { requirementsService } from "../services/requirements.service";
 import { artifactService } from "../services/artifact.service";
 import type { GenerateRequirementsRequest, RequirementsDocument } from "@shared/types/requirements";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
+import { validateRequirementsGenerationStage } from "../validation/pipeline.validation";
 
 const router = Router();
 
@@ -129,18 +130,11 @@ router.post(
         });
       }
 
-      if (ideaArtifact.metadata.stage !== "VALIDATED_IDEA") {
-        const currentStage = ideaArtifact.metadata.stage;
-        const hint = currentStage
-          ? `Current stage: ${currentStage}. Complete the Ideas Module to validate this idea first.`
-          : "Stage metadata missing. This idea may have been created before validation tracking. Please re-run idea validation.";
+      const stageValidation = validateRequirementsGenerationStage(ideaArtifact.metadata.stage);
+      if (!stageValidation.valid) {
         return res.status(400).json({
           success: false,
-          error: {
-            code: "PIPELINE_VIOLATION",
-            message: "Requirements can only be generated from a validated idea.",
-            hint,
-          },
+          error: stageValidation.error,
         });
       }
 

@@ -7,6 +7,7 @@ import { billingService } from "../services/billing.service";
 import { feedbackService } from "../services/feedback.service";
 import { classifierService } from "../services/classifier.service";
 import { feedbackMetricsService } from "../services/feedback-metrics.service";
+import { validatePromptGenerationStage, validateNotOutdated } from "../validation/pipeline.validation";
 import type { PromptFeedbackRequest, BuildPrompt } from "@shared/types/prompts";
 
 const router = Router();
@@ -91,30 +92,22 @@ router.post(
         });
       }
 
-      if (requirementsArtifact.metadata.stage !== "LOCKED_REQUIREMENTS") {
-        const currentStage = requirementsArtifact.metadata.stage;
-        const hint = currentStage
-          ? `Current stage: ${currentStage}. Complete the Requirements Module first.`
-          : "Stage metadata missing. These requirements may have been created before stage tracking. Please regenerate requirements from a validated idea.";
+      const stageValidation = validatePromptGenerationStage(requirementsArtifact.metadata.stage);
+      if (!stageValidation.valid) {
         return res.status(400).json({
           success: false,
-          error: {
-            code: "PIPELINE_VIOLATION",
-            message: "Build prompts require locked, up-to-date requirements.",
-            hint,
-          },
+          error: stageValidation.error,
         });
       }
 
       // Check if this requirements artifact is outdated (source idea has newer version)
       const isOutdated = await artifactService.isArtifactOutdated(requirementsArtifactId);
-      if (isOutdated.outdated) {
+      const outdatedValidation = validateNotOutdated(isOutdated.outdated, isOutdated.reason);
+      if (!outdatedValidation.valid) {
         return res.status(400).json({
           success: false,
           error: {
-            code: "PIPELINE_VIOLATION",
-            message: "Build prompts require locked, up-to-date requirements.",
-            hint: isOutdated.reason,
+            ...outdatedValidation.error,
             sourceArtifactId: requirementsArtifact.metadata.sourceArtifactId,
           },
         });

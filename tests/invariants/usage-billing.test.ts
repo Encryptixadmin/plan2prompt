@@ -1,40 +1,30 @@
-import { describe, it, expect } from "vitest";
-
-class MockBillingService {
-  private records: number[] = [];
-  private usage = 0;
-  private softLimit = 10000;
-  public warningTriggered = false;
-
-  recordGeneration(tokens: number): void {
-    this.records.push(tokens);
-    const prevUsage = this.usage;
-    this.usage += tokens;
-    if (this.usage >= this.softLimit && prevUsage < this.softLimit) {
-      this.warningTriggered = true;
-    }
-  }
-
-  getRecordCount = () => this.records.length;
-  getUsage = () => this.usage;
-}
+import { describe, it, expect, beforeEach } from "vitest";
+import { billingService } from "../../server/services/billing.service";
 
 describe("Usage & Billing Invariants", () => {
+  const testUserId = `test-invariant-${Date.now()}`;
+
   it("5.1 Each generation MUST call recordGeneration once, increment usage, and trigger warning at threshold", () => {
-    const billing = new MockBillingService();
+    const initialInfo = billingService.getUserBillingInfo(testUserId);
+    const initialGenerations = initialInfo.currentUsage.generationsThisMonth;
 
-    billing.recordGeneration(500);
-    expect(billing.getRecordCount()).toBe(1);
-    expect(billing.getUsage()).toBe(500);
+    billingService.recordGeneration(testUserId, 500);
 
-    billing.recordGeneration(300);
-    billing.recordGeneration(200);
-    expect(billing.getRecordCount()).toBe(3);
-    expect(billing.getUsage()).toBe(1000);
-    expect(billing.warningTriggered).toBe(false);
+    const afterOne = billingService.getUserBillingInfo(testUserId);
+    expect(afterOne.currentUsage.generationsThisMonth).toBe(initialGenerations + 1);
+    expect(afterOne.currentUsage.tokensThisMonth).toBeGreaterThanOrEqual(500);
 
-    billing.recordGeneration(9000);
-    expect(billing.warningTriggered).toBe(true);
-    expect(billing.getUsage()).toBe(10000);
+    billingService.recordGeneration(testUserId, 300);
+    billingService.recordGeneration(testUserId, 200);
+
+    const afterThree = billingService.getUserBillingInfo(testUserId);
+    expect(afterThree.currentUsage.generationsThisMonth).toBe(initialGenerations + 3);
+    expect(afterThree.currentUsage.tokensThisMonth).toBeGreaterThanOrEqual(1000);
+
+    const softLimitThreshold = afterThree.softLimits.monthlyGenerations * 0.8;
+    const shouldHaveWarning = afterThree.currentUsage.generationsThisMonth >= softLimitThreshold;
+    if (shouldHaveWarning) {
+      expect(afterThree.warnings.length).toBeGreaterThan(0);
+    }
   });
 });

@@ -94,6 +94,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Step 3: Invariant Test Harness (January 2026)
+- Added Vitest-based test harness in /tests/invariants/
+- Exactly 12 invariant tests protecting core platform behavior
+- Pipeline Sequencing: 4 tests (stage validation, outdated blocking)
+- STOP Recommendation: 2 tests (acknowledgment enforcement, audit logging)
+- Permission Boundaries: 3 tests (viewer, collaborator, admin restrictions)
+- Failure Classification: 2 tests (determinism, unknown classification)
+- Usage & Billing: 1 test (recordGeneration, usage increment, threshold warning)
+- No UI tests, no snapshot tests, no coverage tooling
+
 ### Phase 4, Step 2: Feedback Metrics & Failure Pattern Taxonomy (January 2026)
 - Added PromptFeedbackEvent schema for write-once metrics logging
 - Added FailureCategory enum and FailurePatternDefinition schema
