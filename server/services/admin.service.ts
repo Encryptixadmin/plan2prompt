@@ -33,9 +33,17 @@ interface ProviderStatus {
 interface UserSummary {
   id: string;
   username: string;
+  email?: string;
+  role: "viewer" | "collaborator" | "owner" | "admin";
   isAdmin: boolean;
   generationDisabled: boolean;
   generationDisabledReason?: string;
+  projectCount: number;
+  lastActivityAt?: string;
+  usageSummary: {
+    totalRequests: number;
+    estimatedCost: number;
+  };
   createdAt: string;
 }
 
@@ -78,9 +86,53 @@ class AdminService {
     this.users.set("default-user", {
       id: "default-user",
       username: "admin",
+      email: "admin@platform.local",
+      role: "admin",
       isAdmin: true,
       generationDisabled: false,
+      projectCount: 1,
+      lastActivityAt: new Date().toISOString(),
+      usageSummary: { totalRequests: 12, estimatedCost: 0.0045 },
       createdAt: new Date().toISOString(),
+    });
+
+    this.users.set("user-alice", {
+      id: "user-alice",
+      username: "alice",
+      email: "alice@example.com",
+      role: "owner",
+      isAdmin: false,
+      generationDisabled: false,
+      projectCount: 3,
+      lastActivityAt: new Date(Date.now() - 3600000).toISOString(),
+      usageSummary: { totalRequests: 8, estimatedCost: 0.0032 },
+      createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+    });
+
+    this.users.set("user-bob", {
+      id: "user-bob",
+      username: "bob",
+      email: "bob@company.org",
+      role: "collaborator",
+      isAdmin: false,
+      generationDisabled: false,
+      projectCount: 1,
+      lastActivityAt: new Date(Date.now() - 86400000).toISOString(),
+      usageSummary: { totalRequests: 3, estimatedCost: 0.0012 },
+      createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
+    });
+
+    this.users.set("user-carol", {
+      id: "user-carol",
+      username: "carol",
+      email: "carol@startup.io",
+      role: "viewer",
+      isAdmin: false,
+      generationDisabled: false,
+      projectCount: 0,
+      lastActivityAt: undefined,
+      usageSummary: { totalRequests: 0, estimatedCost: 0 },
+      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     });
   }
 
@@ -199,8 +251,13 @@ class AdminService {
       user = {
         id: userId,
         username: `user-${userId.slice(0, 8)}`,
+        email: undefined,
+        role: "owner",
         isAdmin: false,
         generationDisabled: false,
+        projectCount: 0,
+        lastActivityAt: undefined,
+        usageSummary: { totalRequests: 0, estimatedCost: 0 },
         createdAt: new Date().toISOString(),
       };
       this.users.set(userId, user);

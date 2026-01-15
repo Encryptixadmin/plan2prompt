@@ -139,6 +139,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 3, Step 2C: User Management Read-Only + Soft Control (January 2026)
+- Added Users tab to Admin Console with full user list display
+- User list shows: User ID, username, email, role, status, project count, last activity, usage summary
+- Role badges: admin (default), owner (secondary), collaborator/viewer (outline)
+- Status indicators: Active (green) or Disabled (red) with clear visual distinction
+- Soft-disable/enable generation with confirmation dialogs and required reason for disable
+- Admin users cannot have generation disabled (button disabled)
+- All actions logged to admin action log with actor, target, timestamp, and reason
+- No destructive actions: no deletion, no role changes, no password resets
+
 ### Phase 3, Step 2B: Admin Re-Entry Navigation (January 2026)
 - Created `useAdminStatus` hook to check admin access via `/api/admin/health` endpoint
 - Added "Admin" navigation link to all main page headers (Home, Ideas, Requirements, Prompts)

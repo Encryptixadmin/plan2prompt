@@ -1,0 +1,93 @@
+Proceed to PHASE 3 — STEP 2C: USER MANAGEMENT (READ-ONLY + SOFT CONTROL).
+
+EXECUTION MODE:
+Observability and safety.
+No destructive actions.
+
+OBJECTIVE:
+Give admins visibility into signed-up users
+and the ability to safely intervene when necessary,
+without introducing full user management complexity.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Admins observe users.
+Admins do NOT manage accounts (yet).
+
+--------------------------------
+ADMIN USER LIST (REQUIRED)
+--------------------------------
+
+Display a list of all signed-up users showing:
+
+- User ID
+- Email / identifier
+- Role (viewer / collaborator / owner / admin)
+- Account status:
+  - Active
+  - Generation disabled
+- Number of projects
+- Recent activity timestamp
+- Aggregate usage summary (high-level)
+
+--------------------------------
+ADMIN ACTIONS (LIMITED)
+--------------------------------
+
+Admins may:
+- Soft-disable generation for a user
+- Re-enable generation for a user
+
+Soft-disable means:
+- User can still log in
+- User can still view artefacts
+- User cannot generate new artefacts
+
+--------------------------------
+SAFETY RULES
+--------------------------------
+- No deletion
+- No role changes
+- No password resets
+- No impersonation
+- No email changes
+
+--------------------------------
+ACTION CONFIRMATION & LOGGING
+--------------------------------
+- Every admin action must:
+  - Require explicit confirmation
+  - Be logged with:
+    - Admin ID
+    - Target user ID
+    - Action
+    - Timestamp
+
+--------------------------------
+ERROR & STATUS MESSAGING
+--------------------------------
+- If a user is disabled:
+  - User-facing message must be calm and clear:
+    "Generation for this account has been temporarily disabled."
+- No technical language exposed
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add search or filters yet
+- Add bulk actions
+- Add exports
+- Add editing capabilities
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Confirm admins can see all users
+- Confirm only soft-disable is possible
+- Confirm all actions are logged
+- Confirm no destructive actions exist
+
+STOP.
+WAIT for confirmation before proceeding.

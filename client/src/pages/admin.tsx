@@ -87,6 +87,23 @@ interface ArtifactIntegrity {
   };
 }
 
+interface UserSummary {
+  id: string;
+  username: string;
+  email?: string;
+  role: "viewer" | "collaborator" | "owner" | "admin";
+  isAdmin: boolean;
+  generationDisabled: boolean;
+  generationDisabledReason?: string;
+  projectCount: number;
+  lastActivityAt?: string;
+  usageSummary: {
+    totalRequests: number;
+    estimatedCost: number;
+  };
+  createdAt: string;
+}
+
 interface ProviderHealthPanelProps {
   onActionStateChange?: (isActive: boolean) => void;
 }
@@ -406,6 +423,262 @@ function ArtifactIntegrityPanel() {
   );
 }
 
+interface UsersPanelProps {
+  onActionStateChange?: (isActive: boolean) => void;
+}
+
+function UsersPanel({ onActionStateChange }: UsersPanelProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [disableReason, setDisableReason] = useState("");
+  const [hasOpenDialog, setHasOpenDialog] = useState(false);
+
+  useEffect(() => {
+    onActionStateChange?.(hasOpenDialog);
+  }, [hasOpenDialog, onActionStateChange]);
+
+  const { data, isLoading } = useQuery<{ success: boolean; data: { users: UserSummary[] } }>({
+    queryKey: ["/api/admin/users"],
+  });
+
+  const disableGeneration = useMutation({
+    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/admin/users/${userId}/disable-generation`, { reason, confirm: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      toast({ title: "Generation disabled", description: "The user can no longer generate new content." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const enableGeneration = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/admin/users/${userId}/enable-generation`, { confirm: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      toast({ title: "Generation enabled", description: "The user can now generate content again." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const users = data?.data?.users || [];
+
+  if (isLoading) {
+    return <div className="animate-pulse h-40 bg-muted rounded-lg" data-testid="loading-users" />;
+  }
+
+  if (users.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground" data-testid="empty-users">
+        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <p>No users found</p>
+      </div>
+    );
+  }
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case "admin": return "default";
+      case "owner": return "secondary";
+      case "collaborator": return "outline";
+      default: return "outline";
+    }
+  };
+
+  const formatLastActivity = (timestamp?: string) => {
+    if (!timestamp) return "Never";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold">User Management</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] })}
+          data-testid="button-refresh-users"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      <Card data-testid="card-users-list">
+        <CardContent className="pt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User ID</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Projects</TableHead>
+                <TableHead>Last Activity</TableHead>
+                <TableHead className="text-right">Usage</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {user.id.slice(0, 12)}...
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{user.username}</div>
+                      {user.email && (
+                        <div className="text-xs text-muted-foreground">
+                          {user.email}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
+                      {user.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.generationDisabled ? (
+                      <Badge variant="destructive" className="text-xs">
+                        <PowerOff className="h-3 w-3 mr-1" />
+                        Disabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">{user.projectCount}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatLastActivity(user.lastActivityAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="text-xs">
+                      <div>{user.usageSummary.totalRequests} requests</div>
+                      <div className="text-muted-foreground">${user.usageSummary.estimatedCost.toFixed(4)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {user.generationDisabled ? (
+                      <AlertDialog onOpenChange={setHasOpenDialog}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid={`button-enable-user-${user.id}`}>
+                            <Power className="h-4 w-4 mr-1" />
+                            Enable
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Enable generation for {user.username}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will allow the user to generate new content again.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          {user.generationDisabledReason && (
+                            <div className="py-2 px-3 bg-muted rounded text-sm">
+                              <span className="font-medium">Previously disabled:</span> {user.generationDisabledReason}
+                            </div>
+                          )}
+                          <AlertDialogFooter>
+                            <AlertDialogCancel data-testid="button-cancel-enable-user">Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => enableGeneration.mutate(user.id)}
+                              data-testid="button-confirm-enable-user"
+                            >
+                              Enable
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <AlertDialog onOpenChange={setHasOpenDialog}>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={user.isAdmin}
+                            data-testid={`button-disable-user-${user.id}`}
+                          >
+                            <PowerOff className="h-4 w-4 mr-1" />
+                            Disable
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Disable generation for {user.username}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              The user will still be able to log in and view existing content, but cannot generate new content.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-4">
+                            <Label htmlFor="disable-reason">Reason (required)</Label>
+                            <Input
+                              id="disable-reason"
+                              value={disableReason}
+                              onChange={(e) => setDisableReason(e.target.value)}
+                              placeholder="Enter reason for disabling..."
+                              data-testid="input-disable-user-reason"
+                            />
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel 
+                              onClick={() => setDisableReason("")}
+                              data-testid="button-cancel-disable-user"
+                            >
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              disabled={!disableReason.trim()}
+                              onClick={() => {
+                                disableGeneration.mutate({ userId: user.id, reason: disableReason });
+                                setDisableReason("");
+                              }}
+                              data-testid="button-confirm-disable-user"
+                            >
+                              Disable
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function ActionLogPanel() {
   const { data, isLoading } = useQuery<{ success: boolean; data: { actions: AdminActionLog[] } }>({
     queryKey: ["/api/admin/actions"],
@@ -558,10 +831,14 @@ export default function Admin() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="providers" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
             <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
               <Activity className="h-4 w-4" />
               Providers
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
+              <Users className="h-4 w-4" />
+              Users
             </TabsTrigger>
             <TabsTrigger value="usage" className="flex items-center gap-2" data-testid="tab-usage">
               <DollarSign className="h-4 w-4" />
@@ -579,6 +856,10 @@ export default function Admin() {
 
           <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
             <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6" data-testid="panel-users">
+            <UsersPanel onActionStateChange={setHasActiveAction} />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-6" data-testid="panel-usage">
