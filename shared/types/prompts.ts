@@ -86,6 +86,56 @@ export interface GeneratePromptsResponse {
 
 // === FEEDBACK LOOP TYPES ===
 
+// Failure Category Taxonomy (fixed enum - do not extend without governance)
+export type FailureCategory =
+  | "environment"
+  | "dependency"
+  | "configuration"
+  | "syntax"
+  | "runtime"
+  | "tooling"
+  | "permission"
+  | "network"
+  | "unknown";
+
+// Scope of failure pattern applicability
+export type FailureScope = "single_step" | "multiple_steps" | "environment_wide";
+
+// Instruction type for feedback events
+export type FeedbackInstructionType = "retry_step" | "stop_execution" | "regenerate_prompts";
+
+// Structured Failure Pattern (known failure definition)
+export interface FailurePatternDefinition {
+  id: string;
+  category: FailureCategory;
+  name: string;
+  detectionHints: string[]; // string contains or regex patterns
+  cause: string;
+  recoverySteps: string[];
+  retryAllowed: boolean;
+  regenerateSuggested: boolean;
+  appliesTo: FailureScope;
+}
+
+// Prompt Feedback Event (write-once metrics log)
+export interface PromptFeedbackEvent {
+  id: string;
+  timestamp: string;
+  // Context
+  userId: string;
+  projectId: string;
+  promptArtifactId: string;
+  promptStepNumber: number;
+  ide: IDEType;
+  // Classification
+  classification: "known_failure" | "unknown_failure";
+  failurePatternId?: string;
+  // Outcome
+  instructionType: FeedbackInstructionType;
+  // Meta (no raw output stored)
+  rawOutputHash: string;
+}
+
 // Feedback request from user
 export interface PromptFeedbackRequest {
   promptDocumentId: string;

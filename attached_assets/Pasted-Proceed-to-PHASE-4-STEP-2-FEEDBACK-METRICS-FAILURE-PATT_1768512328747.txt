@@ -1,0 +1,199 @@
+Proceed to PHASE 4 — STEP 2: FEEDBACK METRICS & FAILURE PATTERN TAXONOMY.
+
+EXECUTION MODE:
+Instrumentation and classification only.
+NO UI dashboards.
+NO conversational logic.
+
+OBJECTIVE:
+Implement:
+1. A minimal, write-once feedback metrics schema
+2. A deterministic failure pattern taxonomy
+that together turn the prompt feedback loop into a learning system.
+
+--------------------------------
+CORE PRINCIPLES (NON-NEGOTIABLE)
+--------------------------------
+- Classify, do not speculate
+- Log minimally, derive later
+- Unknown failures must remain unknown
+- No free-form debugging
+
+--------------------------------
+PART 1 — FEEDBACK LOOP METRICS
+--------------------------------
+
+Implement a new backend-only schema:
+
+--------------------------------
+PromptFeedbackEvent
+--------------------------------
+
+Fields (REQUIRED):
+
+- id: string (uuid)
+- timestamp: Date
+
+Context:
+- userId: string
+- projectId: string
+- promptArtifactId: string
+- promptStepNumber: number
+- ide: enum (
+    "replit",
+    "cursor",
+    "lovable",
+    "antigravity",
+    "warp",
+    "generic"
+  )
+
+Classification:
+- classification: enum (
+    "known_failure",
+    "unknown_failure"
+  )
+- failurePatternId?: string
+
+Outcome:
+- instructionType: enum (
+    "retry_step",
+    "stop_execution",
+    "regenerate_prompts"
+  )
+
+Meta:
+- rawOutputHash: string
+
+--------------------------------
+IMPLEMENTATION RULES
+--------------------------------
+1. Create a service to record PromptFeedbackEvent entries.
+2. Store events in a write-once log structure:
+   - In-memory or file-based is acceptable for alpha.
+3. DO NOT store:
+   - Raw IDE output
+   - Stack traces
+   - User commentary
+4. rawOutputHash must be a deterministic hash of the pasted output.
+5. Recording a feedback event MUST NOT:
+   - Affect billing
+   - Affect usage limits
+   - Affect prompt execution state
+
+--------------------------------
+PART 2 — FAILURE PATTERN TAXONOMY
+--------------------------------
+
+Define a fixed FailureCategory enum:
+
+- environment
+- dependency
+- configuration
+- syntax
+- runtime
+- tooling
+- permission
+- network
+- unknown
+
+--------------------------------
+FailurePattern Schema
+--------------------------------
+
+Each known failure pattern MUST include:
+
+- id: string
+- category: FailureCategory
+- name: string
+- detectionHints: string[]   // string contains or regex
+- cause: string
+- recoverySteps: string[]
+- retryAllowed: boolean
+- regenerateSuggested: boolean
+- appliesTo: enum (
+    "single_step",
+    "multiple_steps",
+    "environment_wide"
+  )
+
+--------------------------------
+CLASSIFICATION LOGIC
+--------------------------------
+
+Implement a classifier service that:
+
+1. Accepts:
+   - promptStepNumber
+   - ide
+   - raw IDE output (string)
+2. Attempts to match output against detectionHints
+   of known FailurePatterns.
+3. Selects ONE best match only.
+4. If confidence is insufficient:
+   - Classify as UNKNOWN_UNCLASSIFIED
+5. NEVER:
+   - Combine patterns
+   - Invent new patterns
+   - Ask follow-up questions
+
+--------------------------------
+UNKNOWN FAILURE HANDLING
+--------------------------------
+
+Implement a default failure pattern:
+
+- id: "UNKNOWN_UNCLASSIFIED"
+- category: "unknown"
+- recoverySteps MUST instruct:
+  - STOP execution
+  - Do not continue
+  - Regenerate prompts only if appropriate
+
+--------------------------------
+INTEGRATION WITH FEEDBACK LOOP
+--------------------------------
+
+When a user submits step feedback:
+
+1. Classify the failure using the taxonomy.
+2. Generate a fixed-format recovery response.
+3. Record a PromptFeedbackEvent with:
+   - classification
+   - failurePatternId (if known)
+   - instructionType
+   - rawOutputHash
+
+--------------------------------
+PROMOTION RULE (DOCUMENT ONLY)
+--------------------------------
+Document (do NOT automate):
+
+A failure may only be promoted from unknown → known if:
+- It appears 3+ times
+- Across at least 2 projects
+- With matching rawOutputHash clusters
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add dashboards
+- Add analytics charts
+- Add conversational AI
+- Store raw logs
+- Modify prompt execution logic
+- Modify UI beyond existing feedback flow
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+- Demonstrate logging of PromptFeedbackEvent
+- Demonstrate known failure classification
+- Demonstrate UNKNOWN failure STOP response
+- Confirm no raw output is stored
+- Confirm no UI changes beyond feedback flow
+
+STOP.
+WAIT for confirmation.
