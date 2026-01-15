@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import type { HealthCheckResponse } from "@shared/types";
+import artifactRoutes from "./routes/artifact.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -18,7 +19,8 @@ export async function registerRoutes(
     res.json(response);
   });
 
-  // Additional routes will be added here as modules are implemented
+  // Artifact management routes
+  app.use("/api/artifacts", artifactRoutes);
 
   return httpServer;
 }

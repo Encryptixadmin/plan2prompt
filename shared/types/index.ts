@@ -6,6 +6,9 @@
  * to ensure type safety across the application.
  */
 
+// Re-export artifact types
+export * from "./artifact";
+
 // Health check response type
 export interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";

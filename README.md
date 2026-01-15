@@ -46,9 +46,21 @@ This platform serves as a foundation for building production-grade web applicati
 
 ## API Endpoints
 
+### Health Check
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Backend health check |
+
+### Artifact Management
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/artifacts` | List all artefacts (query: `?module=x`) |
+| GET | `/api/artifacts/:id` | Get artefact by ID |
+| GET | `/api/artifacts/:id/reference` | Get artefact reference for module passing |
+| GET | `/api/artifacts/:id/versions` | Get version history |
+| GET | `/api/artifacts/path/*` | Load artefact by file path |
+| POST | `/api/artifacts` | Create new artefact |
+| PUT | `/api/artifacts/:id` | Update artefact (creates new version) |
 
 ## Development
 
