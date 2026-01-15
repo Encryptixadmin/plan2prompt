@@ -58,6 +58,8 @@ import { StageCard } from "@/components/stage-indicator";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
+import { ArtifactPreview } from "@/components/artifact-preview";
+import { ConfidenceCopy } from "@/components/commitment-confirmation";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -701,14 +703,35 @@ export default function IdeasPage() {
       </main>
 
       <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Accept this idea as validated?</AlertDialogTitle>
             <AlertDialogDescription>
-              Accepting saves the analysis as a validated idea. It will then be available for requirements generation. You are confirming this idea is ready to proceed.
+              You're about to save this validated idea as an artifact.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          
+          {analysis && (
+            <div className="my-4">
+              <ArtifactPreview
+                title={analysis.input.title}
+                metadata={{
+                  version: 1,
+                  createdAt: new Date().toISOString(),
+                  stage: "VALIDATED_IDEA",
+                }}
+                rawContent={`# ${analysis.input.title}\n\n## Summary\n${analysis.summary}\n\n## Overall Score\n${analysis.overallScore}/100\n\n## Strengths\n${analysis.strengths.map(s => `- **${s.title}**: ${s.description}`).join('\n')}\n\n## Risks\n${analysis.risks.map(r => `- **${r.category}** (${r.severity}): ${r.description}`).join('\n')}`}
+                maxHeight="250px"
+              />
+            </div>
+          )}
+
+          <div className="bg-muted/50 rounded-md p-3 text-sm text-muted-foreground">
+            <strong className="text-foreground">What happens next:</strong>
+            <p className="mt-1">This creates a stable reference that can be used to generate detailed requirements.</p>
+          </div>
+
+          <AlertDialogFooter className="mt-4">
             <AlertDialogCancel data-testid="button-accept-cancel">Review Again</AlertDialogCancel>
             <AlertDialogAction onClick={confirmAccept} data-testid="button-accept-confirm">
               Yes, Validate This Idea

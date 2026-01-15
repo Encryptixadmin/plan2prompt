@@ -55,6 +55,8 @@ import { ModuleBlockedState } from "@/components/module-blocked-state";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
+import { ArtifactPreview } from "@/components/artifact-preview";
+import { ConfidenceCopy } from "@/components/commitment-confirmation";
 
 interface IdeaOption {
   id: string;
@@ -825,14 +827,35 @@ export default function RequirementsPage() {
       </main>
 
       <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Generate Requirements Document?</AlertDialogTitle>
             <AlertDialogDescription>
-              This creates a requirements document based on the selected idea. You will review the output before accepting. Generation does not commit anything.
+              You're about to generate detailed requirements from this idea.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+
+          {ideaPreview && (
+            <div className="my-4">
+              <ArtifactPreview
+                title={ideaPreview.title}
+                metadata={{
+                  version: ideaPreview.version,
+                  createdAt: ideaPreview.createdAt,
+                  stage: ideaPreview.stage === "validated" ? "VALIDATED_IDEA" : ideaPreview.stage === "draft" ? "DRAFT_IDEA" : undefined,
+                }}
+                rawContent={`# ${ideaPreview.title}\n\n## Summary\n${ideaPreview.summary}\n\n## Overview\n${ideaPreview.overview}\n\n## Strengths\n${ideaPreview.strengths}`}
+                maxHeight="200px"
+              />
+            </div>
+          )}
+
+          <div className="bg-muted/50 rounded-md p-3 text-sm text-muted-foreground">
+            <strong className="text-foreground">What happens next:</strong>
+            <p className="mt-1">Comprehensive requirements will be generated based on the idea analysis. You can review them before accepting.</p>
+          </div>
+
+          <AlertDialogFooter className="mt-4">
             <AlertDialogCancel data-testid="button-generate-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmGenerate} data-testid="button-generate-confirm">
               Generate Requirements
@@ -842,14 +865,35 @@ export default function RequirementsPage() {
       </AlertDialog>
 
       <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Lock these requirements?</AlertDialogTitle>
             <AlertDialogDescription>
-              Locking saves the requirements as your project's formal specification. Changes to the source idea after this point will not update these requirements. A new version would be needed instead.
+              You're about to lock these requirements as final.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+
+          {requirements && (
+            <div className="my-4">
+              <ArtifactPreview
+                title={requirements.ideaTitle}
+                metadata={{
+                  version: 1,
+                  createdAt: new Date().toISOString(),
+                  stage: "LOCKED_REQUIREMENTS",
+                }}
+                rawContent={`# ${requirements.ideaTitle}\n\n## Summary\n${requirements.summary}\n\n## Functional Requirements\n${requirements.functionalRequirements?.slice(0, 3).map(r => `- ${r.title}`).join('\n') || 'None'}\n\n## Architecture\n${requirements.architecture?.pattern || 'Not specified'}`}
+                maxHeight="200px"
+              />
+            </div>
+          )}
+
+          <div className="bg-muted/50 rounded-md p-3 text-sm text-muted-foreground">
+            <strong className="text-foreground">What happens next:</strong>
+            <p className="mt-1">This creates a stable reference for generating build prompts. The requirements will remain available, but the locked version serves as the baseline.</p>
+          </div>
+
+          <AlertDialogFooter className="mt-4">
             <AlertDialogCancel data-testid="button-accept-cancel">Review Again</AlertDialogCancel>
             <AlertDialogAction onClick={confirmAccept} data-testid="button-accept-confirm">
               Yes, Lock Requirements

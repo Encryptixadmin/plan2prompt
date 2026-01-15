@@ -34,6 +34,7 @@ import { ModuleBlockedState } from "@/components/module-blocked-state";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
+import { ConfidenceCopy } from "@/components/commitment-confirmation";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {

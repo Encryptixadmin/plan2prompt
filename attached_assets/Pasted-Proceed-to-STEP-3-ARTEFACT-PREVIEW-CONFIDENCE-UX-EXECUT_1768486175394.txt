@@ -1,0 +1,87 @@
+Proceed to STEP 3 — ARTEFACT PREVIEW & CONFIDENCE UX.
+
+EXECUTION MODE:
+Read-only clarity and trust.
+No new generation logic.
+
+OBJECTIVE:
+Ensure users can clearly understand, review, and compare artefacts
+BEFORE making irreversible decisions (accept, lock, generate).
+
+--------------------------------
+CORE UX PRINCIPLE
+--------------------------------
+Users should never commit blind.
+
+Every “Accept” or “Lock” action must be preceded by clear visibility.
+
+--------------------------------
+REQUIRED FEATURES
+--------------------------------
+
+1. READ-ONLY ARTEFACT PREVIEW
+
+Implement a reusable ArtefactPreview component that:
+- Renders Markdown cleanly
+- Is strictly read-only
+- Supports long documents gracefully
+- Is used consistently across all modules
+
+--------------------------------
+
+2. PRE-COMMIT PREVIEW STATES
+
+Before these actions:
+- Accept Idea
+- Lock Requirements
+- Generate Prompts
+
+Users MUST see:
+- A full artefact preview
+- A short “What happens next” explanation
+
+No auto-scroll. No forced reading.
+
+--------------------------------
+
+3. VERSION AWARENESS (LIGHTWEIGHT)
+
+Where multiple versions exist:
+- Show version number and creation time
+- Allow switching between versions (read-only)
+- Clearly label which version is “active”
+
+DO NOT implement full diff yet.
+
+--------------------------------
+
+4. CONTEXTUAL CONFIDENCE COPY
+
+Add short, neutral copy near commitment actions, e.g.:
+
+"You’re about to lock these requirements.
+This creates a stable reference for build prompts."
+
+Language must be:
+- Calm
+- Professional
+- Non-alarmist
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add editing inside previews
+- Add comments
+- Add highlighting or annotations
+- Add visual diffing
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Summarise preview locations
+- Confirm no commitment happens without visibility
+- Confirm sequencing remains enforced
+
+STOP.
+WAIT for confirmation before proceeding.
