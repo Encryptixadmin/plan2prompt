@@ -29,13 +29,13 @@ export class IdeasService {
    * Analyze an idea using AI consensus (without saving)
    * Returns analysis results for user review before acceptance
    */
-  async analyzeIdea(input: IdeaInput, projectId?: string): Promise<IdeaAnalysis> {
+  async analyzeIdea(input: IdeaInput, projectId?: string, userId?: string): Promise<IdeaAnalysis> {
     // Build prompt for AI analysis
     const prompt = this.buildAnalysisPrompt(input);
 
     // Build usage context if projectId is provided
     const usageContext = projectId
-      ? { projectId, module: "ideas" as UsageModule }
+      ? { projectId, module: "ideas" as UsageModule, userId }
       : undefined;
     
     // Get consensus from all providers

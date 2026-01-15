@@ -27,7 +27,8 @@ router.post(
       }
 
       const projectId = req.headers["x-project-id"] as string | undefined;
-      const analysis = await ideasService.analyzeIdea(request.idea, projectId);
+      const userId = req.userId;
+      const analysis = await ideasService.analyzeIdea(request.idea, projectId, userId);
 
       res.json({
         success: true,

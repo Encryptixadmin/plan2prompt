@@ -13,6 +13,7 @@ import { openaiService } from "./openai.service";
 import { anthropicService } from "./anthropic.service";
 import { geminiService } from "./gemini.service";
 import { usageService } from "./usage.service";
+import { billingService } from "../billing.service";
 
 interface ProviderQueryResult {
   response?: AIProviderResponse;
@@ -32,7 +33,7 @@ export class ConsensusService {
 
   async getConsensus(
     request: ConsensusRequest,
-    usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number }
+    usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
   ): Promise<AIConsensusResult> {
     const startTime = Date.now();
     const providersToQuery = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
@@ -302,8 +303,10 @@ export class ConsensusService {
 
   private recordUsageForResults(
     results: ProviderQueryResult[],
-    context: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number }
+    context: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
   ): void {
+    let totalTokens = 0;
+    
     for (const result of results) {
       const tokenUsage = result.response?.tokenUsage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
       const model = result.response?.model || "unknown";
@@ -322,6 +325,16 @@ export class ConsensusService {
         success: !result.error,
         errorMessage: result.error,
       });
+      
+      // Accumulate tokens for billing
+      if (!result.error) {
+        totalTokens += tokenUsage.totalTokens;
+      }
+    }
+    
+    // Record to billing service for user usage tracking
+    if (context.userId && totalTokens > 0) {
+      billingService.recordGeneration(context.userId, totalTokens);
     }
   }
 }

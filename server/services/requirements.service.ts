@@ -29,7 +29,7 @@ export class RequirementsService {
    * Generate requirements from an idea artifact (without saving)
    * Returns requirements for user review before acceptance
    */
-  async generateRequirements(ideaArtifactId: string, projectId?: string): Promise<RequirementsDocument> {
+  async generateRequirements(ideaArtifactId: string, projectId?: string, userId?: string): Promise<RequirementsDocument> {
     // Load the idea artifact as read-only reference
     const ideaArtifact = await artifactService.getById(ideaArtifactId);
     if (!ideaArtifact) {
@@ -45,7 +45,7 @@ export class RequirementsService {
 
     // Build usage context if projectId is provided
     const usageContext = projectId
-      ? { projectId, module: "requirements" as UsageModule, artifactId: ideaArtifactId }
+      ? { projectId, module: "requirements" as UsageModule, artifactId: ideaArtifactId, userId }
       : undefined;
 
     // Get consensus from all providers

@@ -69,20 +69,8 @@ class BillingService {
   private userUsage: Map<string, UserUsageTracker> = new Map();
 
   constructor() {
-    this.initializeDefaultUsers();
-  }
-
-  private initializeDefaultUsers(): void {
-    this.userPlans.set("default-user", "free");
-    this.userPlans.set("user-alice", "free");
-    this.userPlans.set("user-bob", "free");
-    this.userPlans.set("user-carol", "free");
-
-    const currentMonth = new Date().getMonth();
-    this.userUsage.set("default-user", { generationsThisMonth: 3, tokensThisMonth: 12500, lastResetMonth: currentMonth });
-    this.userUsage.set("user-alice", { generationsThisMonth: 8, tokensThisMonth: 32000, lastResetMonth: currentMonth });
-    this.userUsage.set("user-bob", { generationsThisMonth: 2, tokensThisMonth: 8000, lastResetMonth: currentMonth });
-    this.userUsage.set("user-carol", { generationsThisMonth: 0, tokensThisMonth: 0, lastResetMonth: currentMonth });
+    // No demo data - real usage starts at zero
+    // User plans default to "free" when not explicitly set
   }
 
   getAllPlans(): BillingPlan[] {

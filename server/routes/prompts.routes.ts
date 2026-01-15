@@ -3,6 +3,7 @@ import { z } from "zod";
 import { promptsService } from "../services/prompts.service";
 import { artifactService } from "../services/artifact.service";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
+import { billingService } from "../services/billing.service";
 
 const router = Router();
 
@@ -119,6 +120,11 @@ router.post(
         requirementsArtifactId,
         ide
       );
+
+      // Record generation to billing service (prompts are template-based, estimate ~500 tokens)
+      if (req.userId) {
+        billingService.recordGeneration(req.userId, 500);
+      }
 
       res.json({
         success: true,
