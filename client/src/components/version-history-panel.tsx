@@ -20,16 +20,25 @@ interface VersionHistoryPanelProps {
   onCompareVersions?: (v1: ArtifactVersion, v2: ArtifactVersion) => void;
 }
 
+async function fetchVersionHistory(artifactId: string): Promise<ArtifactVersion[]> {
+  const response = await fetch(`/api/artifacts/${artifactId}/versions`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch version history");
+  }
+  const result = await response.json();
+  return result.data || [];
+}
+
 export function VersionHistoryPanel({
   artifactId,
   currentVersion,
   onSelectVersion,
 }: VersionHistoryPanelProps) {
-  const { data, isLoading, error } = useQuery<{ success: boolean; data: ArtifactVersion[] }>({
+  const { data: versions = [], isLoading, error } = useQuery({
     queryKey: ["/api/artifacts", artifactId, "versions"],
+    queryFn: () => fetchVersionHistory(artifactId),
+    enabled: !!artifactId,
   });
-
-  const versions = data?.data || [];
 
   if (isLoading) {
     return (

@@ -37,6 +37,9 @@ export class PromptsService {
       throw new Error(`Requirements artifact not found: ${requirementsArtifactId}`);
     }
 
+    // Capture source version for downstream tracking
+    const sourceArtifactVersion = artifact.metadata.version;
+
     // Extract idea title from artifact
     const ideaTitle = this.extractIdeaTitle(artifact);
 
@@ -55,6 +58,7 @@ export class PromptsService {
       totalSteps: prompts.length,
       estimatedTotalTime: this.calculateTotalTime(prompts),
       createdAt: new Date().toISOString(),
+      sourceArtifactVersion,
     };
 
     // Save as artifact
@@ -746,6 +750,7 @@ WARP-SPECIFIC NOTES:
       tags: ["prompts", "build", document.ide, "executable"],
       stage,
       sourceArtifactId: document.requirementsArtifactId,
+      sourceArtifactVersion: document.sourceArtifactVersion,
     });
 
     return artifact;

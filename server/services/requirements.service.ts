@@ -64,8 +64,12 @@ export class RequirementsService {
    * This is the commitment point for the user
    */
   async acceptRequirements(requirements: RequirementsDocument): Promise<RequirementsDocument> {
+    // Get the source idea artifact to capture its version for downstream tracking
+    const ideaArtifact = await artifactService.getById(requirements.ideaArtifactId);
+    const sourceVersion = ideaArtifact?.metadata.version;
+    
     // Save as artifact only when user explicitly accepts
-    const artifact = await this.saveAsArtifact(requirements);
+    const artifact = await this.saveAsArtifact(requirements, sourceVersion);
     requirements.artifactId = artifact.metadata.id;
 
     return requirements;
@@ -787,7 +791,7 @@ export class RequirementsService {
   /**
    * Save requirements as Markdown artifact
    */
-  private async saveAsArtifact(requirements: RequirementsDocument) {
+  private async saveAsArtifact(requirements: RequirementsDocument, sourceVersion?: number) {
     const sections = [
       {
         heading: "Executive Summary",
@@ -874,6 +878,7 @@ export class RequirementsService {
       tags: ["requirements", "specification", "development-ready"],
       stage,
       sourceArtifactId: requirements.ideaArtifactId,
+      sourceArtifactVersion: sourceVersion,
     });
 
     return artifact;

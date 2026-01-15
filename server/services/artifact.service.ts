@@ -109,6 +109,9 @@ function buildFrontmatter(metadata: ArtifactMetadata): string {
   if (metadata.sourceArtifactId) {
     lines.push(`sourceArtifactId: ${metadata.sourceArtifactId}`);
   }
+  if (metadata.sourceArtifactVersion !== undefined) {
+    lines.push(`sourceArtifactVersion: ${metadata.sourceArtifactVersion}`);
+  }
 
   lines.push("---");
   return lines.join("\n");
@@ -224,6 +227,7 @@ function parseMarkdown(content: string, filePath: string): Artifact {
       author: metadata.author as string | undefined,
       stage: metadata.stage as PipelineStage | undefined,
       sourceArtifactId: metadata.sourceArtifactId as string | undefined,
+      sourceArtifactVersion: metadata.sourceArtifactVersion as number | undefined,
     },
     sections: parseSections(body),
     aiNotes: parseAINotes(body),
@@ -255,6 +259,7 @@ export class ArtifactService {
       author: input.author,
       stage: input.stage,
       sourceArtifactId: input.sourceArtifactId,
+      sourceArtifactVersion: input.sourceArtifactVersion,
     };
 
     const sections: ArtifactSection[] = input.sections.map((s) => ({
@@ -463,20 +468,54 @@ export class ArtifactService {
     const downstream: DownstreamArtifact[] = [];
     const allFiles = await this.getAllFiles();
 
+    // Get the version history for this specific artifact chain
+    const versions = await this.getVersionHistory(id);
+    
+    // Build a map of version ID to version number for this chain
+    const versionMap = new Map<string, number>();
+    for (const v of versions) {
+      versionMap.set(v.id, v.version);
+    }
+    // Include current artifact if not already in version history
+    if (!versionMap.has(id)) {
+      versionMap.set(id, artifact.metadata.version);
+    }
+    
+    // The latest version is the max in this chain
+    const latestVersion = Math.max(...Array.from(versionMap.values()));
+    
+    // Collect all IDs in this artifact chain
+    const chainIds = Array.from(versionMap.keys());
+
     for (const file of allFiles) {
       const content = await fs.readFile(file, "utf-8");
       const { metadata } = parseFrontmatter(content);
+      const sourceArtifactId = metadata.sourceArtifactId as string | undefined;
       
-      if (metadata.sourceArtifactId === id) {
-        // This artifact was derived from the target
+      // Check if this artifact was derived from any version in this chain
+      if (sourceArtifactId && chainIds.includes(sourceArtifactId)) {
         const derivedArtifact = parseMarkdown(content, file);
+        
+        // Get the source version - prefer the explicit field, fall back to looking up from the referenced artifact
+        let sourceVersion = metadata.sourceArtifactVersion as number | undefined;
+        if (sourceVersion === undefined && versionMap.has(sourceArtifactId)) {
+          sourceVersion = versionMap.get(sourceArtifactId);
+        }
+        
+        // Determine if outdated (derived from a non-latest version)
+        const isOutdated = sourceVersion !== undefined && sourceVersion < latestVersion;
+        const derivedFromVersion = sourceVersion ?? artifact.metadata.version;
+        
         downstream.push({
           id: derivedArtifact.metadata.id,
           title: derivedArtifact.metadata.title,
           module: derivedArtifact.metadata.module,
-          stage: derivedArtifact.metadata.stage as PipelineStage,
-          derivedFromVersion: artifact.metadata.version,
-          isOutdated: false, // Will be marked outdated when source is revised
+          stage: derivedArtifact.metadata.stage as PipelineStage | undefined,
+          derivedFromVersion,
+          isOutdated,
+          outdatedReason: isOutdated 
+            ? `Derived from version ${derivedFromVersion}, but version ${latestVersion} is now available`
+            : undefined,
         });
       }
     }

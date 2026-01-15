@@ -42,6 +42,7 @@ export interface PromptDocument {
   estimatedTotalTime: string;
   createdAt: string;
   artifactId?: string;
+  sourceArtifactVersion?: number;
 }
 
 // Prompt generation request
