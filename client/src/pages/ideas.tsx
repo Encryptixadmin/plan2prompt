@@ -347,6 +347,7 @@ export default function IdeasPage() {
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
 
   const form = useForm<IdeaFormValues>({
     resolver: zodResolver(ideaFormSchema),
@@ -376,7 +377,7 @@ export default function IdeasPage() {
           },
         },
       });
-      return response as { success: boolean; data: AnalyzeIdeaResponse };
+      return response as unknown as { success: boolean; data: AnalyzeIdeaResponse };
     },
     onSuccess: (data) => {
       if (data.success) {
@@ -391,7 +392,7 @@ export default function IdeasPage() {
       const response = await apiRequest("POST", "/api/ideas/accept", {
         analysis: analysisData,
       });
-      return response as { success: boolean; data: { analysis: IdeaAnalysis } };
+      return response as unknown as { success: boolean; data: { analysis: IdeaAnalysis } };
     },
     onSuccess: (data) => {
       if (data.success) {
@@ -406,9 +407,14 @@ export default function IdeasPage() {
   };
 
   const handleAccept = () => {
+    setShowAcceptDialog(true);
+  };
+
+  const confirmAccept = () => {
     if (analysis) {
       acceptMutation.mutate(analysis);
     }
+    setShowAcceptDialog(false);
   };
 
   const handleEdit = () => {
@@ -683,6 +689,23 @@ export default function IdeasPage() {
           />
         )}
       </main>
+
+      <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Accept this idea as validated?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will save the analysis as a validated idea artifact. Once saved, it becomes available for the Requirements Module. This is a commitment to proceed with this idea.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-accept-cancel">Review Again</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAccept} data-testid="button-accept-confirm">
+              Yes, Validate This Idea
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
         <AlertDialogContent>
