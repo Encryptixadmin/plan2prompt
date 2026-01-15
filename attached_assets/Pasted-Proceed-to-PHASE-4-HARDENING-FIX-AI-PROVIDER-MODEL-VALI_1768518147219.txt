@@ -1,0 +1,139 @@
+Proceed to PHASE 4 — HARDENING FIX: AI PROVIDER MODEL VALIDATION.
+
+EXECUTION MODE:
+Reliability and transparency.
+NO changes to consensus logic.
+NO UI redesign.
+
+OBJECTIVE:
+Ensure all AI providers use valid, supported model IDs,
+detect misconfiguration at startup,
+and surface provider misconfiguration clearly in the Admin console.
+
+--------------------------------
+CORE PRINCIPLES (NON-NEGOTIABLE)
+--------------------------------
+- Silent provider failure is unacceptable
+- Consensus must be real, not implied
+- Provider health must reflect actual usability
+
+--------------------------------
+PART 1 — CORRECT MODEL IDS (REQUIRED)
+--------------------------------
+
+Update provider configurations to use known-good, supported models.
+
+--------------------------------
+Anthropic
+--------------------------------
+Replace any hardcoded or configured model IDs with:
+
+- claude-3-5-sonnet-latest
+
+Do NOT use date-versioned model IDs.
+
+--------------------------------
+Gemini
+--------------------------------
+Replace any hardcoded or configured model IDs with ONE of:
+
+- gemini-1.5-pro-latest
+OR
+- gemini-1.5-flash
+
+Ensure the selected model:
+- Supports generateContent
+- Is compatible with the API version in use
+
+--------------------------------
+OpenAI
+--------------------------------
+Verify existing model ID is valid.
+No change required unless validation fails.
+
+--------------------------------
+PART 2 — STARTUP MODEL VALIDATION (REQUIRED)
+--------------------------------
+
+At application startup:
+
+1. For EACH AI provider:
+   - Call the provider's model listing endpoint
+   - Validate that the configured model ID:
+     - Exists
+     - Supports text generation
+2. If validation FAILS:
+   - Mark provider as DISABLED
+   - Record a clear validation error message
+   - Do NOT attempt requests to that provider
+
+--------------------------------
+VALIDATION RULES
+--------------------------------
+- Validation runs ONCE at startup
+- Validation errors do NOT crash the server
+- Providers failing validation are excluded from consensus
+- Validation results must be stored in ProviderHealth state
+
+--------------------------------
+PART 3 — ADMIN HEALTH SURFACING (REQUIRED)
+--------------------------------
+
+Update the Admin health endpoint (/api/admin/health) to include:
+
+For each provider:
+- enabled: boolean
+- validated: boolean
+- validationError: string | null
+- modelId: string
+
+--------------------------------
+ADMIN UI BEHAVIOUR
+--------------------------------
+- Clearly indicate when a provider is:
+  - Disabled due to misconfiguration
+  - Enabled but degraded
+- Display the validation error message verbatim
+- Do NOT hide provider failures
+
+--------------------------------
+PART 4 — RUNTIME SAFETY (REQUIRED)
+--------------------------------
+
+At request time:
+
+- Do NOT retry providers that failed startup validation
+- Do NOT log repeated model-not-found errors
+- Consensus must proceed ONLY with validated providers
+
+If ALL providers are invalid:
+- Abort request
+- Return clear error:
+  "No AI providers are currently available due to configuration errors."
+
+--------------------------------
+DO NOT
+--------------------------------
+- Change consensus thresholds
+- Change fallback behaviour
+- Add automatic model switching
+- Add silent retries
+- Add background validation jobs
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+
+1. Restart server
+2. Verify:
+   - Valid providers are marked validated=true
+   - Invalid providers are marked enabled=false with error
+3. Call /api/admin/health
+4. Confirm model ID and validation status are visible
+5. Trigger an idea analysis:
+   - Only validated providers are used
+   - No 404 model errors appear in logs
+
+STOP.
+WAIT for confirmation.

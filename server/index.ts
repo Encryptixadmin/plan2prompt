@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { providerValidationService } from "./services/ai/provider-validation.service";
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,6 +62,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Validate AI providers at startup
+  await providerValidationService.validateAllProvidersAtStartup();
+  
   // Setup Replit Auth BEFORE registering other routes
   await setupAuth(app);
   registerAuthRoutes(app);

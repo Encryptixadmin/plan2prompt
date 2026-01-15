@@ -14,6 +14,7 @@ import { anthropicService } from "./anthropic.service";
 import { geminiService } from "./gemini.service";
 import { usageService } from "./usage.service";
 import { billingService } from "../billing.service";
+import { providerValidationService } from "./provider-validation.service";
 
 interface ProviderQueryResult {
   response?: AIProviderResponse;
@@ -36,7 +37,22 @@ export class ConsensusService {
     usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
   ): Promise<AIConsensusResult> {
     const startTime = Date.now();
-    const providersToQuery = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
+    const requestedProviders = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
+    
+    const validatedProviders = providerValidationService.getValidatedProviders();
+    const providersToQuery = requestedProviders.filter((p) => validatedProviders.includes(p));
+    
+    if (providersToQuery.length === 0) {
+      throw new Error(
+        "No AI providers are currently available due to configuration errors. " +
+        "Please check provider health in the Admin console."
+      );
+    }
+    
+    const skippedProviders = requestedProviders.filter((p) => !validatedProviders.includes(p));
+    if (skippedProviders.length > 0) {
+      console.log(`[Consensus] Skipping unvalidated providers: ${skippedProviders.join(", ")}`);
+    }
 
     const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery);
 
@@ -277,11 +293,12 @@ export class ConsensusService {
   }
 
   async getAvailableProviders(): Promise<AIProviderType[]> {
+    const validatedProviders = providerValidationService.getValidatedProviders();
     const available: AIProviderType[] = [];
     const entries = Array.from(this.providers.entries());
 
     for (const [type, provider] of entries) {
-      if (await provider.isAvailable()) {
+      if (validatedProviders.includes(type) && await provider.isAvailable()) {
         available.push(type);
       }
     }

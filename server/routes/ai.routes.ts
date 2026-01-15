@@ -14,9 +14,9 @@ router.get("/providers", async (_req, res) => {
       data: {
         providers: available,
         models: {
-          openai: "gpt-4-turbo",
-          anthropic: "claude-3-opus",
-          gemini: "gemini-pro",
+          openai: "gpt-4o-mini",
+          anthropic: "claude-3-5-sonnet-latest",
+          gemini: "gemini-1.5-pro",
         },
       },
       metadata: { timestamp: new Date().toISOString() },

@@ -94,6 +94,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: AI Provider Model Validation (January 2026)
+- Updated AI provider model IDs: OpenAI uses gpt-4o-mini, Anthropic uses claude-3-5-sonnet-latest, Gemini uses gemini-1.5-pro
+- Added providerValidationService for startup model validation against each provider's API
+- Validation runs ONCE at application startup (server/index.ts calls validateAllProvidersAtStartup)
+- Distinguishes between "not configured" (no API key - mock mode available) and "misconfigured" (invalid model - disabled)
+- Admin health endpoint (/api/admin/health) now returns: enabled, validated, validationError, modelId, configured for each provider
+- ConsensusService filters to validated providers only - prevents requests to misconfigured providers
+- If all providers are invalid, consensus throws clear error: "No AI providers are currently available due to configuration errors"
+- Admin UI shows validation status prominently with model ID and error message when failed
+- Mock mode providers remain enabled (validated=true, configured=false) to support development without API keys
+- Providers failing validation are automatically disabled (enabled=false) only when configured=true and validated=false
+
 ### Phase 4, Hardening Step: Project Context Propagation (January 2026)
 - X-Project-Id header now automatically injected by API client for all project-scoped routes
 - queryClient.ts maintains module-level activeProjectId state synchronized from ProjectContext

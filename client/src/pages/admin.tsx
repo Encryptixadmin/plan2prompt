@@ -50,6 +50,10 @@ import { getLastNonAdminRoute } from "@/hooks/use-admin-navigation";
 interface ProviderStatus {
   provider: string;
   enabled: boolean;
+  validated: boolean;
+  validationError: string | null;
+  modelId: string;
+  configured: boolean;
   disabledAt?: string;
   disabledBy?: string;
   disabledReason?: string;
@@ -198,16 +202,32 @@ function ProviderHealthPanel({ onActionStateChange }: ProviderHealthPanelProps) 
             <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
               <div>
                 <CardTitle className="text-base capitalize">{provider.provider}</CardTitle>
-                <CardDescription className="text-xs">
-                  {provider.enabled ? "Active" : "Disabled"}
+                <CardDescription className="text-xs font-mono">
+                  {provider.modelId}
                 </CardDescription>
               </div>
-              <Badge variant={provider.enabled ? "default" : "destructive"}>
-                {provider.enabled ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
-                {provider.enabled ? "Enabled" : "Disabled"}
-              </Badge>
+              <div className="flex flex-col items-end gap-1">
+                <Badge 
+                  variant={provider.validated ? "default" : (provider.configured ? "destructive" : "secondary")} 
+                  data-testid={`badge-validation-${provider.provider}`}
+                >
+                  {provider.validated ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                  {provider.validated 
+                    ? (provider.configured ? "Validated" : "Mock Mode") 
+                    : "Invalid"}
+                </Badge>
+                <Badge variant={provider.enabled ? "outline" : "secondary"} className="text-xs">
+                  {provider.enabled ? "Enabled" : "Disabled"}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {provider.validationError && (
+                <div className="p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive" data-testid={`validation-error-${provider.provider}`}>
+                  {provider.validationError}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="text-center p-2 bg-muted rounded">
                   <div className="font-semibold text-destructive">{provider.errorCount}</div>

@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/ai";
 import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
 
-const ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022";
+const ANTHROPIC_MODEL = "claude-3-5-sonnet-latest";
 
 export class AnthropicService extends BaseAIProvider {
   readonly provider = "anthropic" as const;

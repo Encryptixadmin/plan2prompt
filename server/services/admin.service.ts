@@ -7,6 +7,7 @@ import type {
 import { adminActionLog } from "@shared/schema";
 import { db } from "../db";
 import { desc } from "drizzle-orm";
+import { providerValidationService } from "./ai/provider-validation.service";
 
 interface AdminActionLogEntry {
   id: string;
@@ -23,6 +24,10 @@ interface AdminActionLogEntry {
 interface ProviderStatus {
   provider: AIProvider;
   enabled: boolean;
+  validated: boolean;
+  validationError: string | null;
+  modelId: string;
+  configured: boolean;
   disabledAt?: string;
   disabledBy?: string;
   disabledReason?: string;
@@ -73,11 +78,20 @@ class AdminService {
   }
 
   private initializeProviderStatus(): void {
+    const providerModels: Record<AIProvider, string> = {
+      openai: "gpt-4o-mini",
+      anthropic: "claude-3-5-sonnet-latest",
+      gemini: "gemini-1.5-pro",
+    };
     const providers: AIProvider[] = ["openai", "anthropic", "gemini"];
     for (const provider of providers) {
       this.providerStatus.set(provider, {
         provider,
         enabled: true,
+        validated: false,
+        validationError: null,
+        modelId: providerModels[provider],
+        configured: false,
         errorCount: 0,
         timeoutCount: 0,
         retryCount: 0,
@@ -214,7 +228,22 @@ class AdminService {
   }
 
   async getProviderStatus(): Promise<ProviderStatus[]> {
-    return Array.from(this.providerStatus.values());
+    const statuses = Array.from(this.providerStatus.values());
+    
+    for (const status of statuses) {
+      const validationResult = providerValidationService.getValidationResult(status.provider);
+      if (validationResult) {
+        status.validated = validationResult.validated;
+        status.validationError = validationResult.validationError;
+        status.modelId = validationResult.modelId;
+        status.configured = validationResult.configured;
+        if (!validationResult.validated && validationResult.configured) {
+          status.enabled = false;
+        }
+      }
+    }
+    
+    return statuses;
   }
 
   async disableProvider(provider: AIProvider, adminUserId: string, reason?: string): Promise<ProviderStatus> {
