@@ -2,26 +2,42 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen } from "lucide-react";
+import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen, LogOut, User } from "lucide-react";
 import { useOnboardingContext } from "@/App";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useAdminStatus } from "@/hooks/use-admin-status";
 import { BillingStatus } from "@/components/billing-status";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Home() {
   const { openOnboarding } = useOnboardingContext();
   const { isAdmin } = useAdminStatus();
+  const { user } = useAuth();
 
   const handleReopenOnboarding = () => {
     openOnboarding();
   };
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
+  const displayName = user?.firstName 
+    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
+    : user?.email || 'User';
+  
+  const initials = user?.firstName 
+    ? `${user.firstName[0]}${user.lastName?.[0] || ''}`
+    : user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,7 +71,35 @@ export default function Home() {
                 </Button>
               </Link>
             )}
-            <Badge variant="secondary">Development</Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center gap-2 p-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">{displayName}</p>
+                    {user?.email && (
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} data-testid="menu-item-logout">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { projectService } from "../services/project.service";
 import { getRolePermissions } from "@shared/types/project";
 
-const DEFAULT_USER_ID = "default-user";
-
 declare global {
   namespace Express {
     interface Request {
@@ -21,7 +19,20 @@ export async function requireProjectContext(
   next: NextFunction
 ) {
   const projectId = req.headers["x-project-id"] as string;
-  const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+  
+  // Get userId from authenticated session
+  const user = req.user as any;
+  const userId = user?.claims?.sub;
+  
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required. Please log in.",
+      },
+    });
+  }
 
   if (!projectId) {
     return res.status(400).json({

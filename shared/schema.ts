@@ -4,27 +4,12 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // ============================================
-// USERS
+// AUTH (Replit Auth integration)
 // ============================================
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email"),
-  displayName: text("display_name"),
-  isAdmin: text("is_admin").default("false").$type<"true" | "false">(),
-  generationDisabled: text("generation_disabled").default("false").$type<"true" | "false">(),
-  generationDisabledReason: text("generation_disabled_reason"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export * from "./models/auth";
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+// Import users for foreign key references
+import { users } from "./models/auth";
 
 // ============================================
 // PROJECTS

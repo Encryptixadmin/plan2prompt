@@ -10,11 +10,13 @@ import Ideas from "@/pages/ideas";
 import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
 import Admin from "@/pages/admin";
+import Landing from "@/pages/landing";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
 import { ProjectProvider } from "@/contexts/project-context";
 import { useTrackNonAdminRoute } from "@/hooks/use-admin-navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
 
-// Context for reopening onboarding from anywhere
 interface OnboardingContextType {
   openOnboarding: () => void;
 }
@@ -26,7 +28,7 @@ function RouteTracker() {
   return null;
 }
 
-function Router() {
+function AuthenticatedRouter() {
   return (
     <>
       <RouteTracker />
@@ -46,7 +48,6 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { isComplete, markComplete } = useOnboarding();
 
-  // Check if user has any existing artifacts
   const { data: ideasData, isLoading } = useQuery<{ success: boolean; data: unknown[] }>({
     queryKey: ["/api/ideas"],
   });
@@ -57,7 +58,6 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
     const hasArtifacts = ideasData?.data && ideasData.data.length > 0;
     const onboardingComplete = isComplete();
     
-    // Show onboarding if no artifacts AND not completed before
     if (!hasArtifacts && !onboardingComplete) {
       setShowOnboarding(true);
     }
@@ -91,16 +91,43 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function AppContent() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Landing />;
+  }
+
+  return (
+    <ProjectProvider>
+      <OnboardingWrapper>
+        <AuthenticatedRouter />
+      </OnboardingWrapper>
+    </ProjectProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <ProjectProvider>
-          <Toaster />
-          <OnboardingWrapper>
-            <Router />
-          </OnboardingWrapper>
-        </ProjectProvider>
+        <Toaster />
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );

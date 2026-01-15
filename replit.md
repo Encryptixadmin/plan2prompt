@@ -91,3 +91,15 @@ Preferred communication style: Simple, everyday language.
 - **@replit/vite-plugin-runtime-error-modal**: Development error overlay.
 - **@replit/vite-plugin-cartographer**: Development tooling.
 - **@replit/vite-plugin-dev-banner**: Development banner.
+
+## Recent Changes
+
+### Phase 3, Enforcement Step 4: User Authentication (January 2026)
+- Replaced hardcoded default user with Replit Auth (OpenID Connect)
+- User model extended with role, billingPlan, isAdmin, generationDisabled fields
+- Session handling via PostgreSQL-backed sessions with SESSION_SECRET
+- Data persistence: Users, Projects, Memberships now stored in PostgreSQL
+- Artifacts remain file-based as specified
+- Landing page for logged-out users with login via /api/login
+- Home page displays user profile with logout via /api/logout
+- Admin role assignment remains manual (update role field in database)

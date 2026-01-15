@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import type {
   Project,
   CreateProjectInput,
@@ -6,156 +5,112 @@ import type {
   ProjectWithRole,
   ProjectArtifactSummary,
 } from "@shared/types/project";
-import type { ProjectRole } from "@shared/schema";
+import type { ProjectRole, ProjectMember } from "@shared/schema";
 import { artifactService } from "./artifact.service";
-
-interface StoredMember {
-  id: string;
-  projectId: string;
-  userId: string;
-  role: ProjectRole;
-  joinedAt: string;
-}
-
-interface ProjectStore {
-  projects: Map<string, Project>;
-  members: Map<string, StoredMember>;
-}
-
-const store: ProjectStore = {
-  projects: new Map(),
-  members: new Map(),
-};
+import { storage } from "../storage";
 
 export class ProjectService {
   async create(input: CreateProjectInput, ownerId: string): Promise<Project> {
-    const now = new Date().toISOString();
-    const id = randomUUID();
-
-    const project: Project = {
-      id,
+    const project = await storage.createProject({
       name: input.name,
-      description: input.description,
-      createdAt: now,
-      updatedAt: now,
-    };
+      description: input.description ?? null,
+    });
 
-    store.projects.set(id, project);
-
-    const memberId = randomUUID();
-    const member: StoredMember = {
-      id: memberId,
-      projectId: id,
+    await storage.addProjectMember({
+      projectId: project.id,
       userId: ownerId,
       role: "owner",
-      joinedAt: now,
-    };
-    store.members.set(memberId, member);
+    });
 
-    return project;
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description ?? undefined,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+    };
   }
 
   async getById(id: string): Promise<Project | null> {
-    return store.projects.get(id) || null;
+    const project = await storage.getProject(id);
+    if (!project) return null;
+
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description ?? undefined,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+    };
   }
 
   async update(id: string, input: UpdateProjectInput): Promise<Project | null> {
-    const project = store.projects.get(id);
+    const project = await storage.updateProject(id, {
+      name: input.name,
+      description: input.description,
+    });
     if (!project) return null;
 
-    const updated: Project = {
-      ...project,
-      name: input.name ?? project.name,
-      description: input.description ?? project.description,
-      updatedAt: new Date().toISOString(),
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description ?? undefined,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
     };
-
-    store.projects.set(id, updated);
-    return updated;
   }
 
   async delete(id: string): Promise<boolean> {
-    const project = store.projects.get(id);
-    if (!project) return false;
-
-    const entries = Array.from(store.members.entries());
-    for (const [memberId, member] of entries) {
-      if (member.projectId === id) {
-        store.members.delete(memberId);
-      }
-    }
-
-    store.projects.delete(id);
-    return true;
+    return storage.deleteProject(id);
   }
 
   async listForUser(userId: string): Promise<ProjectWithRole[]> {
-    const userProjects: ProjectWithRole[] = [];
-    const members = Array.from(store.members.values());
-
-    for (const member of members) {
-      if (member.userId === userId) {
-        const project = store.projects.get(member.projectId);
-        if (project) {
-          const memberCount = this.getMemberCount(member.projectId);
-          userProjects.push({
-            ...project,
-            role: member.role,
-            memberCount,
-          });
-        }
-      }
+    const userProjects = await storage.listUserProjects(userId);
+    
+    const result: ProjectWithRole[] = [];
+    for (const { project, role } of userProjects) {
+      const members = await storage.listProjectMembers(project.id);
+      result.push({
+        id: project.id,
+        name: project.name,
+        description: project.description ?? undefined,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: project.updatedAt.toISOString(),
+        role,
+        memberCount: members.length,
+      });
     }
 
-    return userProjects.sort(
+    return result.sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }
 
   async getUserRole(projectId: string, userId: string): Promise<ProjectRole | null> {
-    const members = Array.from(store.members.values());
-    for (const member of members) {
-      if (member.projectId === projectId && member.userId === userId) {
-        return member.role;
-      }
-    }
-    return null;
+    const member = await storage.getProjectMember(projectId, userId);
+    return member?.role ?? null;
   }
 
-  async getMembers(projectId: string): Promise<StoredMember[]> {
-    const result: StoredMember[] = [];
-    const members = Array.from(store.members.values());
-    for (const member of members) {
-      if (member.projectId === projectId) {
-        result.push(member);
-      }
-    }
-    return result;
+  async getMembers(projectId: string): Promise<ProjectMember[]> {
+    return storage.listProjectMembers(projectId);
   }
 
   async addMember(
     projectId: string,
     userId: string,
     role: ProjectRole
-  ): Promise<StoredMember | null> {
-    const project = store.projects.get(projectId);
+  ): Promise<ProjectMember | null> {
+    const project = await storage.getProject(projectId);
     if (!project) return null;
 
     const existingRole = await this.getUserRole(projectId, userId);
     if (existingRole) return null;
 
-    const now = new Date().toISOString();
-    const id = randomUUID();
-    const member: StoredMember = {
-      id,
+    return storage.addProjectMember({
       projectId,
       userId,
       role,
-      joinedAt: now,
-    };
-
-    store.members.set(id, member);
-    return member;
+    });
   }
 
   async updateMemberRole(
@@ -163,25 +118,12 @@ export class ProjectService {
     userId: string,
     role: ProjectRole
   ): Promise<boolean> {
-    const entries = Array.from(store.members.entries());
-    for (const [memberId, member] of entries) {
-      if (member.projectId === projectId && member.userId === userId) {
-        store.members.set(memberId, { ...member, role });
-        return true;
-      }
-    }
-    return false;
+    const updated = await storage.updateProjectMemberRole(projectId, userId, role);
+    return !!updated;
   }
 
   async removeMember(projectId: string, userId: string): Promise<boolean> {
-    const entries = Array.from(store.members.entries());
-    for (const [memberId, member] of entries) {
-      if (member.projectId === projectId && member.userId === userId) {
-        store.members.delete(memberId);
-        return true;
-      }
-    }
-    return false;
+    return storage.removeProjectMember(projectId, userId);
   }
 
   async getArtifactSummary(projectId: string): Promise<ProjectArtifactSummary> {
@@ -211,17 +153,6 @@ export class ProjectService {
       return projects[0];
     }
     return this.createDefaultProject(userId);
-  }
-
-  private getMemberCount(projectId: string): number {
-    let count = 0;
-    const members = Array.from(store.members.values());
-    for (const member of members) {
-      if (member.projectId === projectId) {
-        count++;
-      }
-    }
-    return count;
   }
 }
 

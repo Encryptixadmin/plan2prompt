@@ -2,14 +2,24 @@ import { Router } from "express";
 import { projectService } from "../services/project.service";
 import type { CreateProjectInput, UpdateProjectInput } from "@shared/types/project";
 import { getRolePermissions } from "@shared/types/project";
+import { isAuthenticated } from "../replit_integrations/auth";
 
 const router = Router();
 
-const DEFAULT_USER_ID = "default-user";
+function getUserId(req: any): string | undefined {
+  return req.user?.claims?.sub;
+}
 
-router.get("/", async (req, res) => {
+router.get("/", isAuthenticated, async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
+    
     const projects = await projectService.listForUser(userId);
 
     res.json({
@@ -28,7 +38,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", isAuthenticated, async (req, res) => {
   try {
     const project = await projectService.getById(req.params.id);
 
@@ -42,7 +52,14 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
+    
     const role = await projectService.getUserRole(req.params.id, userId);
 
     res.json({
@@ -65,10 +82,17 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", isAuthenticated, async (req, res) => {
   try {
     const input: CreateProjectInput = req.body;
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
 
     if (!input.name) {
       return res.status(400).json({
@@ -98,10 +122,17 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", isAuthenticated, async (req, res) => {
   try {
     const input: UpdateProjectInput = req.body;
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
 
     const role = await projectService.getUserRole(req.params.id, userId);
     if (!role || role !== "owner") {
@@ -142,9 +173,16 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", isAuthenticated, async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
 
     const role = await projectService.getUserRole(req.params.id, userId);
     if (!role || role !== "owner") {
@@ -185,7 +223,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.get("/:id/members", async (req, res) => {
+router.get("/:id/members", isAuthenticated, async (req, res) => {
   try {
     const members = await projectService.getMembers(req.params.id);
 
@@ -205,7 +243,7 @@ router.get("/:id/members", async (req, res) => {
   }
 });
 
-router.get("/:id/summary", async (req, res) => {
+router.get("/:id/summary", isAuthenticated, async (req, res) => {
   try {
     const summary = await projectService.getArtifactSummary(req.params.id);
 
@@ -225,9 +263,17 @@ router.get("/:id/summary", async (req, res) => {
   }
 });
 
-router.post("/ensure-default", async (req, res) => {
+router.post("/ensure-default", isAuthenticated, async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const userId = getUserId(req);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
+    
     const project = await projectService.ensureUserHasProject(userId);
 
     res.json({

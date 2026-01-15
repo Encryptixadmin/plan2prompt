@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { billingService } from "../services/billing.service";
+import { isAuthenticated } from "../replit_integrations/auth";
 
 const router = Router();
 
@@ -22,9 +23,17 @@ router.get("/plans", async (_req, res) => {
   }
 });
 
-router.get("/my-plan", async (req, res) => {
+router.get("/my-plan", isAuthenticated, async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"] as string || "default-user";
+    const user = req.user as any;
+    const userId = user?.claims?.sub;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+    }
     const billingInfo = billingService.getUserBillingInfo(userId);
     res.json({
       success: true,
