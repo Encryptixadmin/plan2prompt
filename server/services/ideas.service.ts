@@ -57,10 +57,11 @@ export class IdeasService {
   /**
    * Accept a validated idea and save as artifact
    * This is the conscious decision point for the user
+   * @param stopAcknowledged - If true, user explicitly acknowledged STOP recommendation
    */
-  async acceptIdea(analysis: IdeaAnalysis): Promise<IdeaAnalysis> {
+  async acceptIdea(analysis: IdeaAnalysis, stopAcknowledged = false): Promise<IdeaAnalysis> {
     // Save as artifact only when user explicitly accepts
-    const artifact = await this.saveAsArtifact(analysis);
+    const artifact = await this.saveAsArtifact(analysis, stopAcknowledged);
     analysis.artifactId = artifact.metadata.id;
     
     return analysis;
@@ -816,8 +817,9 @@ The user should be able to decide: Proceed, Revise, or Stop based on your analys
   /**
    * Save analysis as Markdown artifact
    * Enhanced with signal sharpening sections
+   * @param stopAcknowledged - If true, records that user acknowledged STOP recommendation
    */
-  private async saveAsArtifact(analysis: IdeaAnalysis) {
+  private async saveAsArtifact(analysis: IdeaAnalysis, stopAcknowledged = false) {
     const sections = [
       // Decision summary at the top
       {
@@ -925,22 +927,40 @@ The user should be able to decide: Proceed, Revise, or Stop based on your analys
     ];
     
     const stage: PipelineStage = "VALIDATED_IDEA";
+    
+    // Build AI notes, include STOP acknowledgement if applicable
+    const aiNotes = [
+      {
+        provider: "system" as const,
+        note: `Analysis: ${analysis.recommendation.toUpperCase()}. Score: ${analysis.overallScore}/100. Confidence: ${analysis.confidenceAssessment.score}/100.`,
+        confidence: analysis.consensusConfidence,
+      },
+    ];
+    
+    // Record STOP acknowledgement in metadata if applicable
+    if (stopAcknowledged) {
+      aiNotes.push({
+        provider: "system" as const,
+        note: `STOP RECOMMENDATION ACKNOWLEDGED: User explicitly acknowledged the STOP recommendation and chose to proceed at ${new Date().toISOString()}.`,
+        confidence: 1.0,
+      });
+    }
+    
     const artifact = await artifactService.create({
       title: `Ideas Reference: ${analysis.input.title}`,
       module: "ideas",
       sections,
-      aiNotes: [
-        {
-          provider: "system",
-          note: `Analysis: ${analysis.recommendation.toUpperCase()}. Score: ${analysis.overallScore}/100. Confidence: ${analysis.confidenceAssessment.score}/100.`,
-          confidence: analysis.consensusConfidence,
-        },
-      ],
-      tags: ["idea", "analysis", analysis.recommendation, "requirements-ready"],
+      aiNotes,
+      tags: stopAcknowledged 
+        ? ["idea", "analysis", analysis.recommendation, "stop-acknowledged", "requirements-ready"]
+        : ["idea", "analysis", analysis.recommendation, "requirements-ready"],
       stage,
       // Project isolation (Step 7 - adversarial)
       projectId: analysis.projectId,
       authorId: analysis.authorId,
+      // Record STOP acknowledgement in artifact metadata
+      stopAcknowledged: stopAcknowledged || undefined,
+      stopAcknowledgedAt: stopAcknowledged ? new Date().toISOString() : undefined,
     });
     
     return artifact;

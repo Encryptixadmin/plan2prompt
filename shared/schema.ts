@@ -109,10 +109,11 @@ export const adminActionTypes = [
   "user_generation_enabled",
   "project_generation_disabled",
   "project_generation_enabled",
+  "stop_recommendation_override",
 ] as const;
 export type AdminActionType = typeof adminActionTypes[number];
 
-export const adminActionTargets = ["provider", "user", "project"] as const;
+export const adminActionTargets = ["provider", "user", "project", "idea"] as const;
 export type AdminActionTarget = typeof adminActionTargets[number];
 
 export const adminActionLog = pgTable("admin_action_log", {

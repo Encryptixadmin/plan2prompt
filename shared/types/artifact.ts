@@ -23,6 +23,9 @@ export interface ArtifactMetadata {
   sourceArtifactVersion?: number; // Version of the source artifact when derived
   projectId?: string; // Project this artifact belongs to
   authorId?: string; // User who created this artifact/version
+  // STOP recommendation acknowledgement (for ideas with stop recommendation that were accepted anyway)
+  stopAcknowledged?: boolean;
+  stopAcknowledgedAt?: string;
 }
 
 // A section within the Markdown artefact
@@ -64,6 +67,9 @@ export interface CreateArtifactInput {
   sourceArtifactVersion?: number;
   projectId?: string;
   authorId?: string;
+  // STOP recommendation acknowledgement
+  stopAcknowledged?: boolean;
+  stopAcknowledgedAt?: string;
 }
 
 // Input for updating an artefact (creates new version)

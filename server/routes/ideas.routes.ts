@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ideasService } from "../services/ideas.service";
 import type { AnalyzeIdeaRequest, IdeaAnalysis } from "@shared/types/ideas";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
+import { adminService } from "../services/admin.service";
 
 const router = Router();
 
@@ -72,14 +73,14 @@ router.post(
 
       // ADVERSARIAL CHECK: Block accepting ideas with "stop" recommendation
       // unless user explicitly acknowledges
-      if (analysis.recommendation === "stop" && !acknowledgeStopRecommendation) {
+      if (analysis.recommendation === "stop" && acknowledgeStopRecommendation !== true) {
         return res.status(400).json({
           success: false,
           error: {
-            code: "STOP_RECOMMENDATION",
-            message: "This idea has a STOP recommendation. The analysis suggests fundamental viability concerns.",
+            code: "STOP_RECOMMENDATION_REQUIRED",
+            message: "This idea has a STOP recommendation. You must explicitly acknowledge this before proceeding.",
             details: analysis.recommendationRationale,
-            hint: "If you wish to proceed anyway, set acknowledgeStopRecommendation: true in the request body.",
+            hint: "Set acknowledgeStopRecommendation: true in the request body to override.",
           },
         });
       }
@@ -91,7 +92,22 @@ router.post(
         authorId: req.userId,
       };
 
-      const acceptedAnalysis = await ideasService.acceptIdea(analysisWithProject);
+      // Pass STOP acknowledgement flag to service for metadata recording
+      const stopAcknowledged = analysis.recommendation === "stop" && acknowledgeStopRecommendation === true;
+      const acceptedAnalysis = await ideasService.acceptIdea(analysisWithProject, stopAcknowledged);
+
+      // Log STOP override to admin audit log
+      if (stopAcknowledged) {
+        await adminService.logAction({
+          adminUserId: req.userId || "unknown",
+          actionType: "stop_recommendation_override",
+          targetType: "idea",
+          targetId: acceptedAnalysis.artifactId || acceptedAnalysis.id,
+          reason: `User acknowledged STOP recommendation and proceeded with idea: ${analysis.input.title}`,
+          previousState: "stop_recommendation",
+          newState: "accepted_with_override",
+        });
+      }
 
       res.json({
         success: true,

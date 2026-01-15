@@ -236,6 +236,8 @@ function parseMarkdown(content: string, filePath: string): Artifact {
       sourceArtifactVersion: metadata.sourceArtifactVersion as number | undefined,
       projectId: metadata.projectId as string | undefined,
       authorId: metadata.authorId as string | undefined,
+      stopAcknowledged: metadata.stopAcknowledged as boolean | undefined,
+      stopAcknowledgedAt: metadata.stopAcknowledgedAt as string | undefined,
     },
     sections: parseSections(body),
     aiNotes: parseAINotes(body),
@@ -270,6 +272,9 @@ export class ArtifactService {
       sourceArtifactVersion: input.sourceArtifactVersion,
       projectId: input.projectId,
       authorId: input.authorId,
+      // STOP recommendation acknowledgement
+      stopAcknowledged: input.stopAcknowledged,
+      stopAcknowledgedAt: input.stopAcknowledgedAt,
     };
 
     const sections: ArtifactSection[] = input.sections.map((s) => ({
