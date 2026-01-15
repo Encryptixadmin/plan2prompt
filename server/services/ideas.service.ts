@@ -20,7 +20,8 @@ import type { PipelineStage } from "@shared/types/pipeline";
  */
 export class IdeasService {
   /**
-   * Analyze an idea using AI consensus
+   * Analyze an idea using AI consensus (without saving)
+   * Returns analysis results for user review before acceptance
    */
   async analyzeIdea(input: IdeaInput): Promise<IdeaAnalysis> {
     // Build prompt for AI analysis
@@ -38,7 +39,16 @@ export class IdeasService {
     // Parse consensus into structured analysis
     const analysis = this.parseConsensusToAnalysis(input, consensus);
     
-    // Save as artifact
+    // NOTE: Do NOT save as artifact here - user must explicitly accept
+    return analysis;
+  }
+
+  /**
+   * Accept a validated idea and save as artifact
+   * This is the conscious decision point for the user
+   */
+  async acceptIdea(analysis: IdeaAnalysis): Promise<IdeaAnalysis> {
+    // Save as artifact only when user explicitly accepts
     const artifact = await this.saveAsArtifact(analysis);
     analysis.artifactId = artifact.metadata.id;
     
