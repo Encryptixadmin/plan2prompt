@@ -1,0 +1,161 @@
+Proceed to PHASE 4 — STEP 3: INVARIANT TEST HARNESS.
+
+EXECUTION MODE:
+Regression protection.
+NO feature work.
+NO refactors beyond what is required to enable testing.
+
+OBJECTIVE:
+Introduce a minimal automated test harness that protects
+the core invariants of the platform — and nothing else.
+
+--------------------------------
+CORE PHILOSOPHY (NON-NEGOTIABLE)
+--------------------------------
+These tests exist to prevent regressions,
+not to increase coverage metrics.
+
+If a behaviour is not a platform invariant,
+it must NOT be tested.
+
+--------------------------------
+TEST RUNNER
+--------------------------------
+Use Vitest (preferred) or Jest if Vitest is incompatible.
+
+Requirements:
+- Runs in Node environment
+- Fast execution
+- No browser or DOM setup
+- No E2E or UI testing
+
+--------------------------------
+TEST STRUCTURE
+--------------------------------
+Create a dedicated test folder:
+
+/tests/invariants/
+
+All tests MUST live here.
+
+Do NOT create:
+- Component tests
+- Snapshot tests
+- Provider behaviour tests
+- Prompt content tests
+
+--------------------------------
+INVARIANTS TO TEST (EXACTLY THESE)
+--------------------------------
+
+Write automated tests ONLY for the following invariants:
+
+--------------------------------
+1. PIPELINE SEQUENCING (4 TESTS)
+--------------------------------
+
+Test that:
+
+1.1 Requirements CANNOT be generated unless:
+    - Source artifact exists
+    - Source artifact.stage === VALIDATED_IDEA
+
+1.2 Prompt generation CANNOT proceed unless:
+    - Source artifact.stage === LOCKED_REQUIREMENTS
+
+1.3 Prompt generation is BLOCKED when:
+    - Source artifact is marked isOutdated === true
+
+1.4 Backend rejects out-of-sequence API calls
+    even if frontend checks are bypassed.
+
+--------------------------------
+2. STOP RECOMMENDATION ENFORCEMENT (2 TESTS)
+--------------------------------
+
+2.1 An idea with recommendation === "stop"
+    CANNOT be accepted without acknowledgeStopRecommendation === true.
+
+2.2 When STOP is acknowledged:
+    - Acceptance succeeds
+    - Audit log entry is created
+
+--------------------------------
+3. PERMISSION BOUNDARIES (3 TESTS)
+--------------------------------
+
+3.1 Viewer role:
+    - Cannot generate
+    - Cannot lock
+    - Can view only
+
+3.2 Collaborator role:
+    - Can generate
+    - Cannot lock or delete
+
+3.3 Admin-only routes:
+    - Inaccessible to non-admin users
+
+--------------------------------
+4. FAILURE CLASSIFICATION DETERMINISM (2 TESTS)
+--------------------------------
+
+4.1 Given the same raw output string:
+    - The failure classifier ALWAYS returns the same failurePatternId.
+
+4.2 An output that matches no detectionHints:
+    - ALWAYS classifies as UNKNOWN_UNCLASSIFIED.
+
+--------------------------------
+5. USAGE & BILLING INVARIANTS (1 TEST)
+--------------------------------
+
+5.1 Each successful generation:
+    - Calls recordGeneration exactly once
+    - Increments usage counters correctly
+    - Triggers soft-limit warning at threshold
+
+--------------------------------
+TOTAL TEST COUNT
+--------------------------------
+Target: 10–12 tests TOTAL.
+NO more.
+
+--------------------------------
+IMPLEMENTATION RULES
+--------------------------------
+
+- Use lightweight stubs/mocks ONLY where required
+- Do NOT mock AI providers beyond returning a fixed response
+- Do NOT snapshot responses
+- Do NOT assert UI output
+- Do NOT test prompt text
+- Do NOT test happy-path flows redundantly
+
+--------------------------------
+FAILURE BEHAVIOUR
+--------------------------------
+If any invariant test fails:
+- The failure should be explicit
+- The message should explain WHICH invariant broke
+- Tests must fail fast and clearly
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add coverage tooling
+- Add test utilities beyond what is needed
+- Add CI pipelines yet
+- Add flaky or timing-based tests
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- List all invariant tests added
+- Confirm total test count
+- Confirm no non-invariant tests exist
+- Demonstrate a failing test when an invariant is violated
+
+STOP.
+WAIT for confirmation.
