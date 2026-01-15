@@ -87,10 +87,19 @@ interface ArtifactIntegrity {
   };
 }
 
-function ProviderHealthPanel() {
+interface ProviderHealthPanelProps {
+  onActionStateChange?: (isActive: boolean) => void;
+}
+
+function ProviderHealthPanel({ onActionStateChange }: ProviderHealthPanelProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [disableReason, setDisableReason] = useState("");
+  const [hasOpenDialog, setHasOpenDialog] = useState(false);
+
+  useEffect(() => {
+    onActionStateChange?.(hasOpenDialog);
+  }, [hasOpenDialog, onActionStateChange]);
 
   const { data: healthData, isLoading } = useQuery<{ success: boolean; data: { providers: ProviderStatus[] } }>({
     queryKey: ["/api/admin/health"],
@@ -192,7 +201,7 @@ function ProviderHealthPanel() {
 
               <div className="pt-2">
                 {provider.enabled ? (
-                  <AlertDialog>
+                  <AlertDialog onOpenChange={setHasOpenDialog}>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive" size="sm" className="w-full" data-testid={`button-disable-${provider.provider}`}>
                         <PowerOff className="h-4 w-4 mr-2" />
@@ -231,7 +240,7 @@ function ProviderHealthPanel() {
                     </AlertDialogContent>
                   </AlertDialog>
                 ) : (
-                  <AlertDialog>
+                  <AlertDialog onOpenChange={setHasOpenDialog}>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="w-full" data-testid={`button-enable-${provider.provider}`}>
                         <Power className="h-4 w-4 mr-2" />
@@ -569,7 +578,7 @@ export default function Admin() {
           </TabsList>
 
           <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
-            <ProviderHealthPanel />
+            <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-6" data-testid="panel-usage">

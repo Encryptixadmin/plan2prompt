@@ -115,6 +115,8 @@ Preferred communication style: Simple, everyday language.
 - **Confirmation Pattern**: All destructive admin actions require `confirm: true` flag
 - **Soft-Disable**: Users and projects can have generation disabled without losing existing content
 - **Action Logging**: All admin operations recorded with actor, target, timestamp, and reason
+- **Navigation Safety**: "Admin Mode" indicator badge, "Exit Admin" button with context restoration
+- **Route Tracking**: Last non-admin route stored in sessionStorage via `useTrackNonAdminRoute` hook
 
 ### Admin API Endpoints
 - `GET /api/admin/health` - Provider status and error counts
@@ -136,6 +138,13 @@ Preferred communication style: Simple, everyday language.
 - **Design Guidelines**: `design_guidelines.md` - UI/UX standards for the platform
 
 ## Recent Changes
+
+### Phase 3, Step 2A: Admin Navigation & Safe Exit (January 2026)
+- Added "Admin Mode" indicator badge for visual distinction
+- Implemented "Exit Admin" button with navigation to last non-admin route
+- Created route tracking hook (`useTrackNonAdminRoute`) for context preservation
+- Added exit confirmation dialog when actions may be in progress
+- Context restoration preserves project and module state on exit
 
 ### Phase 3, Step 2: Admin Console (January 2026)
 - Added admin role to user schema with generation disabled flags
