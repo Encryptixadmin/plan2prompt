@@ -102,6 +102,9 @@ Preferred communication style: Simple, everyday language.
 - Permission Boundaries: 3 tests (viewer, collaborator, admin restrictions)
 - Failure Classification: 2 tests (determinism, unknown classification)
 - Usage & Billing: 1 test (recordGeneration, usage increment, threshold warning)
+- Extracted validation modules: server/validation/pipeline.validation.ts, server/validation/stop-recommendation.validation.ts
+- Production routes (requirements.routes.ts, prompts.routes.ts) now use shared validation modules
+- Tests exercise the same validation functions used in production (single source of truth)
 - No UI tests, no snapshot tests, no coverage tooling
 
 ### Phase 4, Step 2: Feedback Metrics & Failure Pattern Taxonomy (January 2026)
