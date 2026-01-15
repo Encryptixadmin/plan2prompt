@@ -11,6 +11,7 @@ import type {
   ArtifactListItem,
   CreateArtifactInput,
   UpdateArtifactInput,
+  DownstreamArtifact,
 } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
 
@@ -452,6 +453,41 @@ export class ArtifactService {
       title: artifact.metadata.title,
       path: getArtifactPath(artifact.metadata.module, slug, artifact.metadata.version),
     };
+  }
+
+  // Get downstream artifacts that were derived from this artifact
+  async getDownstreamArtifacts(id: string): Promise<DownstreamArtifact[]> {
+    const artifact = await this.getById(id);
+    if (!artifact) return [];
+
+    const downstream: DownstreamArtifact[] = [];
+    const allFiles = await this.getAllFiles();
+
+    for (const file of allFiles) {
+      const content = await fs.readFile(file, "utf-8");
+      const { metadata } = parseFrontmatter(content);
+      
+      if (metadata.sourceArtifactId === id) {
+        // This artifact was derived from the target
+        const derivedArtifact = parseMarkdown(content, file);
+        downstream.push({
+          id: derivedArtifact.metadata.id,
+          title: derivedArtifact.metadata.title,
+          module: derivedArtifact.metadata.module,
+          stage: derivedArtifact.metadata.stage as PipelineStage,
+          derivedFromVersion: artifact.metadata.version,
+          isOutdated: false, // Will be marked outdated when source is revised
+        });
+      }
+    }
+
+    return downstream;
+  }
+
+  // Check if artifact has downstream dependencies
+  async hasDownstreamDependencies(id: string): Promise<boolean> {
+    const downstream = await this.getDownstreamArtifacts(id);
+    return downstream.length > 0;
   }
 
   // Get all .md files in artifacts directory

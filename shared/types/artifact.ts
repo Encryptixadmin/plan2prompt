@@ -83,6 +83,17 @@ export interface ArtifactVersion {
   id: string;
   createdAt: string;
   path: string;
+  isCurrent?: boolean;
+}
+
+// Downstream artifact tracking
+export interface DownstreamArtifact {
+  id: string;
+  title: string;
+  module: string;
+  stage: PipelineStage;
+  derivedFromVersion: number;
+  isOutdated: boolean;
 }
 
 // List response for artefacts

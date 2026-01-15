@@ -108,6 +108,48 @@ router.get("/:id/versions", async (req, res) => {
   }
 });
 
+// Get downstream artifacts (artifacts derived from this one)
+router.get("/:id/downstream", async (req, res) => {
+  try {
+    const downstream = await artifactService.getDownstreamArtifacts(req.params.id);
+    
+    res.json({
+      success: true,
+      data: downstream,
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "DOWNSTREAM_ERROR",
+        message: error instanceof Error ? error.message : "Failed to get downstream artifacts",
+      },
+    });
+  }
+});
+
+// Check if artifact has downstream dependencies
+router.get("/:id/has-dependencies", async (req, res) => {
+  try {
+    const hasDependencies = await artifactService.hasDownstreamDependencies(req.params.id);
+    
+    res.json({
+      success: true,
+      data: { hasDependencies },
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "DEPENDENCY_CHECK_ERROR",
+        message: error instanceof Error ? error.message : "Failed to check dependencies",
+      },
+    });
+  }
+});
+
 // Load artefact by file path
 router.get("/path/*", async (req, res) => {
   try {
