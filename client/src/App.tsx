@@ -10,6 +10,7 @@ import Ideas from "@/pages/ideas";
 import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
+import { ProjectProvider } from "@/contexts/project-context";
 
 // Context for reopening onboarding from anywhere
 interface OnboardingContextType {
@@ -83,10 +84,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <OnboardingWrapper>
-          <Router />
-        </OnboardingWrapper>
+        <ProjectProvider>
+          <Toaster />
+          <OnboardingWrapper>
+            <Router />
+          </OnboardingWrapper>
+        </ProjectProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

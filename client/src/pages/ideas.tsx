@@ -55,6 +55,9 @@ import {
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
+import { ActiveProjectIndicator } from "@/components/active-project-indicator";
+import { ProjectSwitcher } from "@/components/project-switcher";
+import { useProject } from "@/contexts/project-context";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -452,11 +455,15 @@ export default function IdeasPage() {
               <p className="text-xs text-muted-foreground">Validate and refine your idea</p>
             </div>
           </div>
-          {(analysis || isAccepted) && (
-            <Button variant="outline" onClick={handleNewIdea} data-testid="button-new-idea">
-              New Idea
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            <ActiveProjectIndicator />
+            <ProjectSwitcher />
+            {(analysis || isAccepted) && (
+              <Button variant="outline" onClick={handleNewIdea} data-testid="button-new-idea">
+                New Idea
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

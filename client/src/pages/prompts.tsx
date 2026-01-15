@@ -31,6 +31,9 @@ import {
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
+import { ActiveProjectIndicator } from "@/components/active-project-indicator";
+import { ProjectSwitcher } from "@/components/project-switcher";
+import { useProject } from "@/contexts/project-context";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -270,11 +273,15 @@ export default function Prompts() {
             <h1 className="text-lg font-semibold">Build Prompts</h1>
           </div>
           <div className="flex-1" />
-          {flowStep !== "select-requirements" && (
-            <Button variant="outline" size="sm" onClick={handleReset} data-testid="button-start-over">
-              Start Over
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            <ActiveProjectIndicator />
+            <ProjectSwitcher />
+            {flowStep !== "select-requirements" && (
+              <Button variant="outline" size="sm" onClick={handleReset} data-testid="button-start-over">
+                Start Over
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

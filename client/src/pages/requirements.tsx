@@ -52,6 +52,9 @@ import {
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
+import { ActiveProjectIndicator } from "@/components/active-project-indicator";
+import { ProjectSwitcher } from "@/components/project-switcher";
+import { useProject } from "@/contexts/project-context";
 
 interface IdeaOption {
   id: string;
@@ -682,11 +685,15 @@ export default function RequirementsPage() {
               <p className="text-xs text-muted-foreground">Generate detailed requirements</p>
             </div>
           </div>
-          {(requirements || isAccepted) && (
-            <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
-              New Requirements
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            <ActiveProjectIndicator />
+            <ProjectSwitcher />
+            {(requirements || isAccepted) && (
+              <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
+                New Requirements
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

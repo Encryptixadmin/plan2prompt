@@ -1,0 +1,85 @@
+Proceed to STEP 2 — FRONTEND PROJECT CONTEXT & MANAGEMENT.
+
+EXECUTION MODE:
+Careful UI composition.
+No visual redesigns.
+No dashboards.
+
+OBJECTIVE:
+Expose multi-project functionality in the UI
+WITHOUT breaking the artefact-driven workflow.
+
+--------------------------------
+CORE UX PRINCIPLE
+--------------------------------
+Projects provide CONTEXT.
+Artefacts remain the focus.
+
+Users should always know:
+- Which project they are in
+- What artefact they are working on
+
+--------------------------------
+REQUIRED UI ELEMENTS
+--------------------------------
+
+1. ACTIVE PROJECT INDICATOR
+- Display current project name persistently (top-level, subtle)
+- This must be visible on all module pages
+- No dropdown yet — indicator first
+
+--------------------------------
+
+2. PROJECT SWITCHER (MINIMAL)
+- Allow users to:
+  - View available projects
+  - Switch active project
+- Switching projects:
+  - Resets visible artefacts
+  - Does NOT auto-navigate modules
+- Confirm project switch clearly
+
+--------------------------------
+
+3. PROJECT CREATION (LIGHTWEIGHT)
+- Allow creating a new project with:
+  - Name (required)
+  - Description (optional)
+- Automatically set as active project
+- Ensure default project behaviour remains intact
+
+--------------------------------
+
+4. PROJECT-SCOPED ARTEFACT LISTING
+- Ideas, requirements, and prompts must:
+  - Only show artefacts from the active project
+  - Clearly label artefact type and status
+- Read-only previews only (no editing here)
+
+--------------------------------
+ROLE-AWARE UI BEHAVIOUR
+--------------------------------
+- Respect backend role permissions
+- If an action is unavailable:
+  - Show it disabled
+  - Explain why (friendly copy)
+- Do NOT introduce role management UI yet
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add dashboards or analytics views
+- Add project-level settings pages
+- Add team management UI
+- Add persistence beyond existing services
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Summarise UI changes
+- Explain how project context is preserved
+- Confirm no sequencing rules were weakened
+
+STOP.
+WAIT for confirmation before proceeding further.

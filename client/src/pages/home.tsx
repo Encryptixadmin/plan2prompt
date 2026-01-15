@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen } from "lucide-react";
 import { useOnboardingContext } from "@/App";
+import { ActiveProjectIndicator } from "@/components/active-project-indicator";
+import { ProjectSwitcher } from "@/components/project-switcher";
 
 export default function Home() {
   const { openOnboarding } = useOnboardingContext();
@@ -27,6 +29,8 @@ export default function Home() {
             <span className="font-semibold text-lg">Platform</span>
           </div>
           <div className="flex items-center gap-3">
+            <ActiveProjectIndicator />
+            <ProjectSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" data-testid="button-help-menu">
