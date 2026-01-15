@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
+import { ModuleBlockedState } from "@/components/module-blocked-state";
 
 interface IdeaOption {
   id: string;
@@ -665,6 +666,8 @@ export default function RequirementsPage() {
   };
 
   const ideas = ideasQuery.data?.data || [];
+  const hasValidatedIdeas = ideas.length > 0;
+  const showBlockedState = !ideasQuery.isLoading && !hasValidatedIdeas && !requirements;
 
   return (
     <div className="min-h-screen bg-background">
@@ -688,7 +691,13 @@ export default function RequirementsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
-        {!requirements ? (
+        {ideasQuery.isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : showBlockedState ? (
+          <ModuleBlockedState type="requirementsNeedsIdea" />
+        ) : !requirements ? (
           <div className="space-y-8">
             <div className="text-center space-y-3">
               <h2 className="text-2xl font-bold">Generate Requirements Document</h2>
@@ -709,18 +718,7 @@ export default function RequirementsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {ideasQuery.isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : ideas.length === 0 ? (
-                  <div className="text-center py-8 space-y-2">
-                    <Lightbulb className="h-10 w-10 text-muted-foreground mx-auto" />
-                    <p className="text-muted-foreground">
-                      No validated ideas found. Go to the Ideas Module to validate an idea first.
-                    </p>
-                  </div>
-                ) : (
+                {ideas.length > 0 && (
                   <Select
                     value={selectedIdeaId || ""}
                     onValueChange={handleIdeaSelect}

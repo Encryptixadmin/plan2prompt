@@ -98,6 +98,28 @@ router.post("/generate", async (req, res) => {
       });
     }
 
+    // Validate that the idea artifact exists and is in VALIDATED_IDEA stage
+    const ideaArtifact = await artifactService.getById(request.ideaArtifactId);
+    if (!ideaArtifact) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Idea artifact not found",
+        },
+      });
+    }
+
+    if (ideaArtifact.metadata.stage !== "VALIDATED_IDEA") {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "INVALID_STAGE",
+          message: "Only validated ideas can be used to generate requirements. The idea must be in VALIDATED_IDEA stage.",
+        },
+      });
+    }
+
     const requirements = await requirementsService.generateRequirements(
       request.ideaArtifactId
     );

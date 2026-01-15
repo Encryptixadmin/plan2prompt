@@ -58,6 +58,22 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     const { requirementsArtifactId, ide } = validation.data;
 
+    // Validate that the requirements artifact exists and is in LOCKED_REQUIREMENTS stage
+    const requirementsArtifact = await artifactService.getById(requirementsArtifactId);
+    if (!requirementsArtifact) {
+      return res.status(404).json({
+        success: false,
+        error: "Requirements artifact not found",
+      });
+    }
+
+    if (requirementsArtifact.metadata.stage !== "LOCKED_REQUIREMENTS") {
+      return res.status(400).json({
+        success: false,
+        error: "Only locked requirements can be used to generate prompts. Complete the Requirements Module first.",
+      });
+    }
+
     const prompts = await promptsService.generatePrompts(
       requirementsArtifactId,
       ide

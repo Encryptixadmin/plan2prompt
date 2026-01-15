@@ -1,0 +1,137 @@
+You are now enforcing NON-BYPASSABLE MODULE SEQUENCING across the platform.
+
+OBJECTIVE:
+Ensure users cannot skip modules, while keeping the experience friendly, educational, and quality-focused.
+
+CORE PRINCIPLE:
+Quality downstream depends on clarity upstream.
+Each module exists to protect the value of the next one.
+
+THIS IS NOT A PERMISSION SYSTEM.
+It is a QUALITY ENFORCEMENT SYSTEM.
+
+--------------------------------
+PIPELINE STATES (AUTHORITATIVE)
+--------------------------------
+- DRAFT_IDEA
+- VALIDATED_IDEA
+- LOCKED_REQUIREMENTS
+- PROMPTS_GENERATED
+
+Each artefact MUST store its current pipeline state.
+All module access MUST be validated against this state.
+
+--------------------------------
+HARD LOGIC RULES (NON-NEGOTIABLE)
+--------------------------------
+1. The Requirements Module MUST NOT operate unless at least one artefact exists in state:
+   - VALIDATED_IDEA
+
+2. The Prompt Module MUST NOT operate unless at least one artefact exists in state:
+   - LOCKED_REQUIREMENTS
+
+3. Modules must NEVER silently fail.
+4. Modules must NEVER allow partial execution.
+5. Modules must NEVER auto-advance the user.
+
+--------------------------------
+UX ENFORCEMENT PATTERN (CRITICAL)
+--------------------------------
+Users MAY navigate to any module route,
+BUT execution MUST be gated with explanatory messaging.
+
+DO NOT:
+- Redirect automatically
+- Show “access denied”
+- Disable the page entirely
+- Use technical language
+
+INSTEAD:
+- Render the module shell
+- Replace the main content with a friendly explanation panel
+
+--------------------------------
+REQUIRED BLOCKED-STATE MESSAGING
+--------------------------------
+
+WHEN A USER ENTERS REQUIREMENTS WITHOUT A VALIDATED IDEA:
+
+Display the following message:
+
+TITLE:
+"Start with an idea first"
+
+BODY:
+"The Requirements module builds on a validated idea.
+
+Spending time clarifying the problem, constraints, and intent upfront dramatically improves the quality and usefulness of the requirements document.
+
+Once an idea is validated, requirements become clearer, more complete, and far easier to turn into build-ready instructions."
+
+PRIMARY CTA:
+"Validate an Idea"
+
+SECONDARY CTA (optional):
+"Why this matters"
+
+--------------------------------
+
+WHEN A USER ENTERS PROMPTS WITHOUT LOCKED REQUIREMENTS:
+
+TITLE:
+"Requirements come first"
+
+BODY:
+"Build prompts are generated directly from a locked requirements document.
+
+Without clear, agreed requirements, prompts become generic, inconsistent, and harder to execute in real tools.
+
+Completing the Requirements step ensures the prompts you generate are precise, sequential, and reliable."
+
+PRIMARY CTA:
+"Generate Requirements"
+
+--------------------------------
+OPTIONAL EXPANDABLE EXPLANATION
+--------------------------------
+
+When a user selects “Why this matters”, display:
+
+"Each module removes ambiguity from the previous step.
+
+• Ideas clarify what you’re building and why  
+• Requirements define exactly how it should work  
+• Prompts translate that clarity into executable build steps  
+
+Skipping steps increases guesswork and reduces the quality of the final output."
+
+--------------------------------
+UI CONSISTENCY RULES
+--------------------------------
+1. Module navigation must remain visible at all times.
+2. Blocked modules must NOT appear broken or disabled.
+3. Blocked states must feel intentional and supportive.
+4. All language must be:
+   - Calm
+   - Professional
+   - Neutral
+   - Non-judgemental
+
+--------------------------------
+IMPLEMENTATION NOTES
+--------------------------------
+- Gating logic must exist in both frontend and backend.
+- Backend must reject invalid execution attempts even if UI is bypassed.
+- Frontend must pre-check artefact state and show messaging before any action.
+
+--------------------------------
+FINAL CHECK
+--------------------------------
+Before completing this task, confirm:
+- No module can be executed out of order
+- Every blocked action explains WHY sequencing matters
+- Users always know what to do next
+
+After implementation:
+STOP.
+WAIT for the next user prompt.

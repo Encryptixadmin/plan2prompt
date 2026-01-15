@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
+import { ModuleBlockedState } from "@/components/module-blocked-state";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -279,34 +280,36 @@ export default function Prompts() {
 
       <main className="container py-8 max-w-4xl mx-auto">
         {flowStep === "select-requirements" && (
-          <div className="space-y-6">
-            <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">Ready to Build</h2>
-              <p className="text-muted-foreground max-w-lg mx-auto">
-                Generate ordered prompts from locked requirements. Each prompt includes a clear goal, 
-                instructions, and guidance on when to pause.
-              </p>
-              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
-                Prompts are text-based instructions. Copy them to your preferred development environment and execute manually.
-              </p>
+          loadingRequirements ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : (!requirements || requirements.length === 0) ? (
+            <ModuleBlockedState type="promptsNeedsRequirements" />
+          ) : (
+            <div className="space-y-6">
+              <div className="text-center space-y-3">
+                <h2 className="text-2xl font-bold">Ready to Build</h2>
+                <p className="text-muted-foreground max-w-lg mx-auto">
+                  Generate ordered prompts from locked requirements. Each prompt includes a clear goal, 
+                  instructions, and guidance on when to pause.
+                </p>
+                <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
+                  Prompts are text-based instructions. Copy them to your preferred development environment and execute manually.
+                </p>
+              </div>
 
-            <Card className="border-2 border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-primary" />
-                  Select Locked Requirements
-                </CardTitle>
-                <CardDescription>
-                  Only locked requirements appear here. Locking happens in the Requirements Module when you accept a generated document.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loadingRequirements ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : requirements && requirements.length > 0 ? (
+              <Card className="border-2 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5 text-primary" />
+                    Select Locked Requirements
+                  </CardTitle>
+                  <CardDescription>
+                    Only locked requirements appear here. Locking happens in the Requirements Module when you accept a generated document.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-3">
                     {requirements.map((req) => (
                       <button
@@ -332,26 +335,10 @@ export default function Prompts() {
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-8 space-y-4">
-                    <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto" />
-                    <div>
-                      <p className="text-muted-foreground mb-2">No locked requirements available</p>
-                      <p className="text-sm text-muted-foreground">
-                        Requirements must be generated and accepted before prompts can be created. 
-                        Complete the Requirements Module first.
-                      </p>
-                    </div>
-                    <Link href="/requirements">
-                      <Button variant="outline" data-testid="link-requirements">
-                        Go to Requirements Module
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
         )}
 
         {flowStep === "select-ide" && (
