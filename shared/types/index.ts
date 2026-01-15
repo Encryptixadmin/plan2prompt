@@ -15,6 +15,9 @@ export * from "./ai";
 // Re-export Ideas module types
 export * from "./ideas";
 
+// Re-export Requirements module types
+export * from "./requirements";
+
 // Health check response type
 export interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";
