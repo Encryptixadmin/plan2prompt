@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +20,16 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   FileText,
   Loader2,
   CheckCircle,
@@ -32,6 +42,12 @@ import {
   ArrowRight,
   FileCode,
   Lightbulb,
+  ThumbsUp,
+  RefreshCw,
+  ArrowLeft,
+  Lock,
+  FileCheck,
+  AlertCircle,
 } from "lucide-react";
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
@@ -41,6 +57,18 @@ interface IdeaOption {
   title: string;
   version: number;
   createdAt: string;
+  stage?: string;
+}
+
+interface IdeaPreview {
+  id: string;
+  title: string;
+  version: number;
+  createdAt: string;
+  stage?: string;
+  summary: string;
+  overview: string;
+  strengths: string;
 }
 
 function PriorityBadge({ priority }: { priority: "must-have" | "should-have" | "nice-to-have" | "critical" | "high" | "medium" | "low" }) {
@@ -61,14 +89,25 @@ function PriorityBadge({ priority }: { priority: "must-have" | "should-have" | "
   );
 }
 
-function RequirementsResults({ requirements }: { requirements: RequirementsDocument }) {
+interface RequirementsResultsProps {
+  requirements: RequirementsDocument;
+  onAccept: () => void;
+  onRegenerate: () => void;
+  onGoBack: () => void;
+  isAccepting: boolean;
+  isAccepted: boolean;
+}
+
+function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, isAccepting, isAccepted }: RequirementsResultsProps) {
   return (
     <div className="space-y-6">
-      <StageCard 
-        currentStage="LOCKED_REQUIREMENTS" 
-        artifactId={requirements.artifactId}
-        sourceArtifactId={requirements.ideaArtifactId}
-      />
+      {isAccepted && (
+        <StageCard 
+          currentStage="LOCKED_REQUIREMENTS" 
+          artifactId={requirements.artifactId}
+          sourceArtifactId={requirements.ideaArtifactId}
+        />
+      )}
       
       <Card>
         <CardHeader>
@@ -80,10 +119,33 @@ function RequirementsResults({ requirements }: { requirements: RequirementsDocum
               </CardTitle>
               <CardDescription className="max-w-2xl">{requirements.summary}</CardDescription>
             </div>
-            <Badge variant="outline">v{requirements.version}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">v{requirements.version}</Badge>
+              {isAccepted && (
+                <Badge className="gap-1 bg-green-500">
+                  <Lock className="h-3 w-3" />
+                  Locked
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
       </Card>
+
+      {!isAccepted && (
+        <Card className="border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+              Review Before Accepting
+            </CardTitle>
+            <CardDescription>
+              This requirements document is versioned and will become the source of truth for your project.
+              Once accepted, modifying the underlying idea will require creating a new version.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       <Accordion type="multiple" defaultValue={["functional", "nonfunctional"]} className="space-y-4">
         <AccordionItem value="functional" className="border rounded-lg px-4">
@@ -418,40 +480,113 @@ function RequirementsResults({ requirements }: { requirements: RequirementsDocum
         </AccordionItem>
       </Accordion>
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <ArrowRight className="h-5 w-5 text-primary" />
-            Ready for Development
-          </CardTitle>
-          <CardDescription>
-            This requirements document is complete and ready for the development phase.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Artifact ID:</span>{" "}
-              <code className="px-2 py-0.5 bg-muted rounded text-xs">{requirements.artifactId}</code>
+      {!isAccepted && (
+        <Card className="border-2 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-lg">What would you like to do?</CardTitle>
+            <CardDescription>
+              Accepting will lock these requirements as the formal specification for your project.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-col sm:flex-row gap-3 pt-0">
+            <Button
+              onClick={onAccept}
+              disabled={isAccepting}
+              className="flex-1"
+              size="lg"
+              data-testid="button-accept-requirements"
+            >
+              {isAccepting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Locking...
+                </>
+              ) : (
+                <>
+                  <ThumbsUp className="mr-2 h-4 w-4" />
+                  Accept Requirements
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={onRegenerate}
+              variant="outline"
+              className="flex-1"
+              size="lg"
+              data-testid="button-regenerate"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate
+            </Button>
+            <Button
+              onClick={onGoBack}
+              variant="ghost"
+              className="flex-1"
+              size="lg"
+              data-testid="button-go-back"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Go Back to Idea
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {isAccepted && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileCheck className="h-5 w-5 text-primary" />
+              Requirements Locked
+            </CardTitle>
+            <CardDescription>
+              This requirements document is now locked and versioned. Ready for the Prompts Module.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Artifact ID:</span>{" "}
+                <code className="px-2 py-0.5 bg-muted rounded text-xs">{requirements.artifactId}</code>
+              </div>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="text-sm">
+                <span className="text-muted-foreground">Next Step:</span>{" "}
+                <Badge variant="outline" className="gap-1">
+                  <ArrowRight className="h-3 w-3" />
+                  Prompts Module
+                </Badge>
+              </div>
             </div>
-            <Separator orientation="vertical" className="h-4" />
-            <div className="text-sm">
-              <span className="text-muted-foreground">Module:</span>{" "}
-              <Badge variant="outline">requirements</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
 
 export default function RequirementsPage() {
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
+  const [ideaPreview, setIdeaPreview] = useState<IdeaPreview | null>(null);
   const [requirements, setRequirements] = useState<RequirementsDocument | null>(null);
+  const [isAccepted, setIsAccepted] = useState(false);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
 
   const ideasQuery = useQuery<{ success: boolean; data: IdeaOption[] }>({
     queryKey: ["/api/requirements/ideas"],
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: async (ideaId: string) => {
+      const response = await fetch(`/api/requirements/ideas/${ideaId}/preview`);
+      return response.json() as Promise<{ success: boolean; data: IdeaPreview }>;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setIdeaPreview(data.data);
+      }
+    },
   });
 
   const generateMutation = useMutation({
@@ -464,19 +599,69 @@ export default function RequirementsPage() {
     onSuccess: (data) => {
       if (data.success) {
         setRequirements(data.data.requirements);
+        setIsAccepted(false);
       }
     },
   });
 
-  const handleGenerate = () => {
+  const acceptMutation = useMutation({
+    mutationFn: async (reqs: RequirementsDocument) => {
+      const response = await apiRequest("POST", "/api/requirements/accept", {
+        requirements: reqs,
+      });
+      return response as unknown as { success: boolean; data: { requirements: RequirementsDocument } };
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setRequirements(data.data.requirements);
+        setIsAccepted(true);
+      }
+    },
+  });
+
+  const handleIdeaSelect = (ideaId: string) => {
+    setSelectedIdeaId(ideaId);
+    previewMutation.mutate(ideaId);
+  };
+
+  const handleGenerateClick = () => {
+    setShowGenerateDialog(true);
+  };
+
+  const confirmGenerate = () => {
+    if (selectedIdeaId) {
+      generateMutation.mutate(selectedIdeaId);
+    }
+    setShowGenerateDialog(false);
+  };
+
+  const handleAccept = () => {
+    setShowAcceptDialog(true);
+  };
+
+  const confirmAccept = () => {
+    if (requirements) {
+      acceptMutation.mutate(requirements);
+    }
+    setShowAcceptDialog(false);
+  };
+
+  const handleRegenerate = () => {
     if (selectedIdeaId) {
       generateMutation.mutate(selectedIdeaId);
     }
   };
 
+  const handleGoBack = () => {
+    setRequirements(null);
+    setIsAccepted(false);
+  };
+
   const handleReset = () => {
     setRequirements(null);
     setSelectedIdeaId(null);
+    setIdeaPreview(null);
+    setIsAccepted(false);
   };
 
   const ideas = ideasQuery.data?.data || [];
@@ -494,7 +679,7 @@ export default function RequirementsPage() {
               <p className="text-xs text-muted-foreground">Generate detailed requirements</p>
             </div>
           </div>
-          {requirements && (
+          {(requirements || isAccepted) && (
             <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
               New Requirements
             </Button>
@@ -508,16 +693,16 @@ export default function RequirementsPage() {
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-bold">Generate Requirements Document</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Select a validated idea to convert into a comprehensive requirements document
-                including functional requirements, architecture, data models, and more.
+                Select a validated idea to convert into a comprehensive, versioned requirements document.
+                This becomes the formal specification for your project.
               </p>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Select an Idea</CardTitle>
+                <CardTitle>Select a Validated Idea</CardTitle>
                 <CardDescription>
-                  Choose from your validated ideas to generate requirements.
+                  Only ideas that have been validated can be used to generate requirements.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -526,72 +711,146 @@ export default function RequirementsPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : ideas.length === 0 ? (
-                  <div className="text-center py-8 space-y-4">
-                    <Lightbulb className="h-12 w-12 mx-auto text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">No Ideas Available</p>
-                      <p className="text-sm text-muted-foreground">
-                        You need to validate an idea first before generating requirements.
-                      </p>
-                    </div>
-                    <Button variant="outline" onClick={() => window.location.href = "/ideas"} data-testid="link-ideas">
-                      Go to Ideas Module
-                    </Button>
+                  <div className="text-center py-8 space-y-2">
+                    <Lightbulb className="h-10 w-10 text-muted-foreground mx-auto" />
+                    <p className="text-muted-foreground">
+                      No validated ideas found. Go to the Ideas Module to validate an idea first.
+                    </p>
                   </div>
                 ) : (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Validated Idea</label>
-                      <Select
-                        value={selectedIdeaId || undefined}
-                        onValueChange={setSelectedIdeaId}
-                      >
-                        <SelectTrigger data-testid="select-idea">
-                          <SelectValue placeholder="Select an idea..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ideas.map((idea) => (
-                            <SelectItem key={idea.id} value={idea.id}>
-                              {idea.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Button
-                      onClick={handleGenerate}
-                      disabled={!selectedIdeaId || generateMutation.isPending}
-                      className="w-full"
-                      data-testid="button-generate"
-                    >
-                      {generateMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Requirements...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="mr-2 h-4 w-4" />
-                          Generate Requirements
-                        </>
-                      )}
-                    </Button>
-
-                    {generateMutation.isError && (
-                      <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                        Failed to generate requirements. Please try again.
-                      </div>
-                    )}
-                  </>
+                  <Select
+                    value={selectedIdeaId || ""}
+                    onValueChange={handleIdeaSelect}
+                  >
+                    <SelectTrigger data-testid="select-idea">
+                      <SelectValue placeholder="Choose a validated idea..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ideas.map((idea) => (
+                        <SelectItem key={idea.id} value={idea.id}>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            {idea.title}
+                            <Badge variant="secondary" className="text-xs">v{idea.version}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </CardContent>
             </Card>
+
+            {ideaPreview && (
+              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Lightbulb className="h-5 w-5 text-blue-500" />
+                        Idea Preview: {ideaPreview.title}
+                      </CardTitle>
+                      <CardDescription>
+                        Read-only preview of the validated idea artifact
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="gap-1">
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      Validated
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {ideaPreview.summary && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Summary</h4>
+                      <p className="text-sm text-muted-foreground">{ideaPreview.summary}</p>
+                    </div>
+                  )}
+                  {ideaPreview.overview && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Overview</h4>
+                      <div className="text-sm text-muted-foreground whitespace-pre-line">{ideaPreview.overview}</div>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={handleGenerateClick}
+                    disabled={generateMutation.isPending}
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-generate-requirements"
+                  >
+                    {generateMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Requirements...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Generate Requirements Document
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
+
+            {generateMutation.isError && (
+              <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                Failed to generate requirements. Please try again.
+              </div>
+            )}
           </div>
         ) : (
-          <RequirementsResults requirements={requirements} />
+          <RequirementsResults
+            requirements={requirements}
+            onAccept={handleAccept}
+            onRegenerate={handleRegenerate}
+            onGoBack={handleGoBack}
+            isAccepting={acceptMutation.isPending}
+            isAccepted={isAccepted}
+          />
         )}
       </main>
+
+      <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate Requirements Document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a formal requirements document based on the selected idea.
+              Requirements documents are versioned and, once accepted, become the source of truth for your project.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-generate-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmGenerate} data-testid="button-generate-confirm">
+              Generate Requirements
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lock these requirements?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Accepting will save this as a locked requirements artifact. This becomes the formal specification
+              for your project. Once locked, modifying the underlying idea will require creating a new requirements version.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-accept-cancel">Review Again</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAccept} data-testid="button-accept-confirm">
+              Yes, Lock Requirements
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -21,7 +21,8 @@ import type { PipelineStage } from "@shared/types/pipeline";
  */
 export class RequirementsService {
   /**
-   * Generate requirements from an idea artifact
+   * Generate requirements from an idea artifact (without saving)
+   * Returns requirements for user review before acceptance
    */
   async generateRequirements(ideaArtifactId: string): Promise<RequirementsDocument> {
     // Load the idea artifact as read-only reference
@@ -54,7 +55,16 @@ export class RequirementsService {
       consensus.confidence
     );
 
-    // Save as artifact
+    // NOTE: Do NOT save as artifact here - user must explicitly accept
+    return requirements;
+  }
+
+  /**
+   * Accept requirements and save as artifact
+   * This is the commitment point for the user
+   */
+  async acceptRequirements(requirements: RequirementsDocument): Promise<RequirementsDocument> {
+    // Save as artifact only when user explicitly accepts
     const artifact = await this.saveAsArtifact(requirements);
     requirements.artifactId = artifact.metadata.id;
 
