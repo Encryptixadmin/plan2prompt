@@ -12,9 +12,11 @@ import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowR
 import { useOnboardingContext } from "@/App";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
+import { useAdminStatus } from "@/hooks/use-admin-status";
 
 export default function Home() {
   const { openOnboarding } = useOnboardingContext();
+  const { isAdmin } = useAdminStatus();
 
   const handleReopenOnboarding = () => {
     openOnboarding();
@@ -44,6 +46,14 @@ export default function Home() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" data-testid="link-admin">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+            )}
             <Badge variant="secondary">Development</Badge>
           </div>
         </div>

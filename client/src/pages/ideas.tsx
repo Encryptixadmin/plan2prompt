@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
+import { useAdminStatus } from "@/hooks/use-admin-status";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -348,6 +350,7 @@ function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, i
 }
 
 export default function IdeasPage() {
+  const { isAdmin } = useAdminStatus();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
@@ -464,6 +467,14 @@ export default function IdeasPage() {
               <Button variant="outline" onClick={handleNewIdea} data-testid="button-new-idea">
                 New Idea
               </Button>
+            )}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" data-testid="link-admin">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
             )}
           </div>
         </div>

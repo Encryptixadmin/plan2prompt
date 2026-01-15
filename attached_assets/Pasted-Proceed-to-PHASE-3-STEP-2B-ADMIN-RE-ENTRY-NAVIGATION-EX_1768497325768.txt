@@ -1,0 +1,82 @@
+Proceed to PHASE 3 — STEP 2B: ADMIN RE-ENTRY NAVIGATION.
+
+EXECUTION MODE:
+Navigation continuity.
+No new admin capabilities.
+
+OBJECTIVE:
+Provide a clear, intentional way for admin users
+to re-enter the Admin Ops Console from the main application,
+without weakening role boundaries or confusing non-admin users.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Admin access must be:
+- Discoverable
+- Explicit
+- Visible only to admins
+
+--------------------------------
+NAVIGATION REQUIREMENTS (STRICT)
+--------------------------------
+
+1. ADMIN ENTRY POINT
+--------------------------------
+- Add a navigation entry labelled:
+  "Admin"
+- Visible ONLY if the signed-in user has role === admin
+- Location:
+  - Main application shell (top-level navigation area)
+- Style:
+  - Neutral
+  - Clearly administrative (not a primary action)
+
+--------------------------------
+
+2. NAVIGATION BEHAVIOUR
+--------------------------------
+- Clicking "Admin":
+  - Navigates explicitly to /admin
+  - Does NOT toggle modes
+  - Does NOT change user role or permissions
+- No automatic redirection into admin on login
+
+--------------------------------
+
+3. ROLE & SECURITY GUARANTEES
+--------------------------------
+- Frontend visibility is NOT the only guard
+- Backend role enforcement remains authoritative
+- Non-admin users must:
+  - Never see the Admin link
+  - Never access /admin routes
+
+--------------------------------
+
+4. UX SAFETY
+--------------------------------
+- No icons-only access
+- No hidden keyboard shortcuts
+- No role switchers
+- No confirmation dialogs on entry
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add admin links to sub-navigation
+- Add admin access to project menus
+- Add breadcrumbs
+- Add tooltips explaining admin
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Confirm admins can always re-enter admin
+- Confirm non-admins never see admin navigation
+- Confirm backend role enforcement unchanged
+- Confirm no state loss when entering admin
+
+STOP.
+WAIT for confirmation before proceeding.

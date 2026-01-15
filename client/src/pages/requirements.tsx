@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
+import { useAdminStatus } from "@/hooks/use-admin-status";
 
 interface IdeaOption {
   id: string;
@@ -572,6 +574,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
 }
 
 export default function RequirementsPage() {
+  const { isAdmin } = useAdminStatus();
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [ideaPreview, setIdeaPreview] = useState<IdeaPreview | null>(null);
   const [requirements, setRequirements] = useState<RequirementsDocument | null>(null);
@@ -694,6 +697,14 @@ export default function RequirementsPage() {
               <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
                 New Requirements
               </Button>
+            )}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" data-testid="link-admin">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
             )}
           </div>
         </div>

@@ -27,6 +27,7 @@ import {
   Target,
   ListOrdered,
   Hand,
+  Shield,
 } from "lucide-react";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
@@ -35,6 +36,7 @@ import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
+import { useAdminStatus } from "@/hooks/use-admin-status";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -92,6 +94,7 @@ interface RequirementOption {
 type FlowStep = "select-requirements" | "select-ide" | "view-prompts";
 
 export default function Prompts() {
+  const { isAdmin } = useAdminStatus();
   const [flowStep, setFlowStep] = useState<FlowStep>("select-requirements");
   const [selectedRequirements, setSelectedRequirements] = useState<string>("");
   const [selectedRequirementsTitle, setSelectedRequirementsTitle] = useState<string>("");
@@ -281,6 +284,14 @@ export default function Prompts() {
               <Button variant="outline" size="sm" onClick={handleReset} data-testid="button-start-over">
                 Start Over
               </Button>
+            )}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" data-testid="link-admin">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
             )}
           </div>
         </div>
