@@ -1,6 +1,8 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Layers, Zap, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle, Layers, Zap, Shield, Lightbulb, ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -76,7 +78,33 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="mt-16 text-center">
+        <div className="mt-16">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10">
+                  <Lightbulb className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Ideas Module</CardTitle>
+                  <CardDescription>
+                    Validate and refine your app ideas with AI-powered analysis
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Link href="/ideas">
+                <Button data-testid="link-ideas-module">
+                  Get Started
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span>Platform initialized and ready for module development</span>

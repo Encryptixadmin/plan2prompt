@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import type { HealthCheckResponse } from "@shared/types";
 import artifactRoutes from "./routes/artifact.routes";
 import aiRoutes from "./routes/ai.routes";
+import ideasRoutes from "./routes/ideas.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -25,6 +26,9 @@ export async function registerRoutes(
 
   // AI orchestration routes
   app.use("/api/ai", aiRoutes);
+
+  // Ideas module routes
+  app.use("/api/ideas", ideasRoutes);
 
   return httpServer;
 }
