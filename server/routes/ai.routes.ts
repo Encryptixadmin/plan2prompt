@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { consensusService, openaiService, anthropicService, geminiService } from "../services/ai";
+import { consensusService, openaiService, anthropicService, geminiService, usageService } from "../services/ai";
 import type { AIPrompt, ConsensusRequest, AIProviderType } from "@shared/types/ai";
+import type { UsageModule } from "@shared/schema";
 
 const router = Router();
 
@@ -99,7 +100,12 @@ router.post("/consensus", async (req, res) => {
       });
     }
 
-    const result = await consensusService.getConsensus(request);
+    const projectId = req.headers["x-project-id"] as string | undefined;
+    const usageContext = projectId
+      ? { projectId, module: "ideas" as UsageModule }
+      : undefined;
+
+    const result = await consensusService.getConsensus(request, usageContext);
 
     res.json({
       success: true,
@@ -112,6 +118,28 @@ router.post("/consensus", async (req, res) => {
       error: {
         code: "CONSENSUS_ERROR",
         message: error instanceof Error ? error.message : "Failed to get consensus",
+      },
+    });
+  }
+});
+
+// Get usage summary
+router.get("/usage", async (req, res) => {
+  try {
+    const projectId = req.query.projectId as string | undefined;
+    const summary = usageService.getUsageSummary(projectId);
+    
+    res.json({
+      success: true,
+      data: summary,
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "USAGE_ERROR",
+        message: error instanceof Error ? error.message : "Failed to get usage summary",
       },
     });
   }

@@ -139,8 +139,10 @@ router.post(
         });
       }
 
+      const projectId = req.headers["x-project-id"] as string | undefined;
       const requirements = await requirementsService.generateRequirements(
-        request.ideaArtifactId
+        request.ideaArtifactId,
+        projectId
       );
 
       res.json({

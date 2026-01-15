@@ -66,14 +66,16 @@ export abstract class BaseAIProvider implements IAIProvider {
     retries: number = this.config.maxRetries
   ): Promise<T> {
     let lastError: Error | undefined;
+    const baseDelayMs = 500;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await fn();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         if (attempt < retries) {
-          console.warn(`[${this.provider}] Retry ${attempt + 1}/${retries} after error: ${lastError.message}`);
-          await this.delay(1000 * (attempt + 1));
+          const delayMs = baseDelayMs * Math.pow(2, attempt);
+          console.warn(`[${this.provider}] Retry ${attempt + 1}/${retries} after error: ${lastError.message} (waiting ${delayMs}ms)`);
+          await this.delay(delayMs);
         }
       }
     }

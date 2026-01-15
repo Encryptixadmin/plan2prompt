@@ -17,6 +17,7 @@ import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
 import type { Artifact } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
+import type { UsageModule } from "@shared/schema";
 
 /**
  * Requirements Service
@@ -28,7 +29,7 @@ export class RequirementsService {
    * Generate requirements from an idea artifact (without saving)
    * Returns requirements for user review before acceptance
    */
-  async generateRequirements(ideaArtifactId: string): Promise<RequirementsDocument> {
+  async generateRequirements(ideaArtifactId: string, projectId?: string): Promise<RequirementsDocument> {
     // Load the idea artifact as read-only reference
     const ideaArtifact = await artifactService.getById(ideaArtifactId);
     if (!ideaArtifact) {
@@ -42,6 +43,11 @@ export class RequirementsService {
     // Build prompt for AI analysis
     const prompt = this.buildRequirementsPrompt(ideaArtifact);
 
+    // Build usage context if projectId is provided
+    const usageContext = projectId
+      ? { projectId, module: "requirements" as UsageModule, artifactId: ideaArtifactId }
+      : undefined;
+
     // Get consensus from all providers
     const consensus = await consensusService.getConsensus({
       prompt: {
@@ -49,7 +55,7 @@ export class RequirementsService {
         user: prompt,
         context: JSON.stringify({ artifactId: ideaArtifactId, title: ideaTitle }),
       },
-    });
+    }, usageContext);
 
     // Generate structured requirements
     const requirements = this.generateStructuredRequirements(

@@ -30,9 +30,11 @@ Preferred communication style: Simple, everyday language.
 - **Development Mode**: MemStorage class provides in-memory data storage when database is not configured
 
 ### AI Service Integration
-- **Multi-Provider Support**: OpenAI, Anthropic, and Gemini services with unified interface (`IAIProvider`)
-- **Consensus Mechanism**: `ConsensusService` orchestrates multiple providers and produces unified output
-- **Mock Implementation**: All providers currently return mock responses; designed for easy swap to real APIs when keys are configured
+- **Multi-Provider Support**: OpenAI (gpt-4o-mini), Anthropic (claude-3-5-sonnet), and Gemini (gemini-1.5-pro) with unified interface (`IAIProvider`)
+- **Consensus Mechanism**: `ConsensusService` orchestrates multiple providers with graceful failure handling and produces unified output
+- **Real API Integration**: Providers check for API keys and use real APIs when configured, with automatic fallback to mock responses
+- **Resilience Features**: Retry logic with exponential backoff, timeout handling, and partial failure support (continues with available providers)
+- **Usage Tracking**: `UsageService` tracks token usage (input/output breakdown), cost estimation per model, and soft threshold warnings
 
 ### Artifact System
 - **Format**: Markdown files with YAML frontmatter for metadata
@@ -73,10 +75,11 @@ Preferred communication style: Simple, everyday language.
 - **Radix UI**: Comprehensive set of accessible, unstyled primitives for dialogs, menus, forms, and more
 - **shadcn/ui**: Pre-configured Tailwind-styled components built on Radix primitives
 
-### AI Services (Mock Mode)
-- **OpenAI**: GPT-4 Turbo integration (requires `OPENAI_API_KEY`)
-- **Anthropic**: Claude 3 Opus integration (requires `ANTHROPIC_API_KEY`)
-- **Google Gemini**: Gemini Pro integration (requires `GEMINI_API_KEY`)
+### AI Services (Real + Mock Fallback)
+- **OpenAI**: gpt-4o-mini integration (requires `OPENAI_API_KEY`, falls back to mock if not set)
+- **Anthropic**: Claude 3.5 Sonnet integration (requires `ANTHROPIC_API_KEY`, falls back to mock if not set)
+- **Google Gemini**: Gemini 1.5 Pro integration (requires `GEMINI_API_KEY`, falls back to mock if not set)
+- **Usage Tracking**: Per-request token tracking with cost estimation based on model pricing
 
 ### Database
 - **PostgreSQL**: Primary database when `DATABASE_URL` environment variable is set
@@ -110,8 +113,18 @@ Preferred communication style: Simple, everyday language.
 - **Alpha Readiness Checklist**: `docs/ALPHA_READINESS_CHECKLIST.md` - Internal testing checklist
 - **Design Guidelines**: `design_guidelines.md` - UI/UX standards for the platform
 
-## Recent Changes (Step 8 Polish)
+## Recent Changes
 
+### Phase 3, Step 1: Real AI Provider Integration (January 2026)
+- Implemented real API support for OpenAI, Anthropic, and Gemini providers
+- Added automatic fallback to mock responses when API keys not configured
+- Enhanced provider base class with retry logic, timeout handling, and token estimation
+- Created usage tracking service with cost estimation and soft threshold warnings
+- Updated consensus service to handle partial failures gracefully
+- Responses now include `isMock` flag to identify when real APIs aren't being used
+- Token usage tracked separately (input vs output) for accurate cost estimation
+
+### Phase 2, Step 8: UI Polish
 - Improved all user-facing copy to use plain language
 - Error messages now show helpful, human-readable text
 - Empty states provide clear next actions

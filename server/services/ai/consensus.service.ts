@@ -7,10 +7,12 @@ import type {
   AIRisk,
   ConsensusRequest,
 } from "@shared/types/ai";
+import type { UsageModule } from "@shared/schema";
 import { type IAIProvider } from "./provider.interface";
 import { openaiService } from "./openai.service";
 import { anthropicService } from "./anthropic.service";
 import { geminiService } from "./gemini.service";
+import { usageService } from "./usage.service";
 
 interface ProviderQueryResult {
   response?: AIProviderResponse;
@@ -28,11 +30,18 @@ export class ConsensusService {
     this.providers.set("gemini", geminiService);
   }
 
-  async getConsensus(request: ConsensusRequest): Promise<AIConsensusResult> {
+  async getConsensus(
+    request: ConsensusRequest,
+    usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number }
+  ): Promise<AIConsensusResult> {
     const startTime = Date.now();
     const providersToQuery = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
 
     const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery);
+
+    if (usageContext) {
+      this.recordUsageForResults(results, usageContext);
+    }
 
     const successfulResponses = results
       .filter((r): r is { response: AIProviderResponse; provider: AIProviderType } => !!r.response)
@@ -289,6 +298,31 @@ export class ConsensusService {
       }))
     );
     return status;
+  }
+
+  private recordUsageForResults(
+    results: ProviderQueryResult[],
+    context: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number }
+  ): void {
+    for (const result of results) {
+      const tokenUsage = result.response?.tokenUsage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+      const model = result.response?.model || "unknown";
+      const estimatedCost = usageService.estimateCost(model, tokenUsage.inputTokens, tokenUsage.outputTokens);
+
+      usageService.recordUsage({
+        provider: result.provider,
+        model,
+        tokens: tokenUsage,
+        estimatedCostUsd: estimatedCost,
+        projectId: context.projectId,
+        module: context.module,
+        artifactId: context.artifactId,
+        artifactVersion: context.artifactVersion,
+        latencyMs: result.response?.latencyMs || 0,
+        success: !result.error,
+        errorMessage: result.error,
+      });
+    }
   }
 }
 

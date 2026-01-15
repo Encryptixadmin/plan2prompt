@@ -17,6 +17,7 @@ import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
 import type { AIConsensusResult } from "@shared/types/ai";
 import type { PipelineStage } from "@shared/types/pipeline";
+import type { UsageModule } from "@shared/schema";
 
 /**
  * Ideas Service
@@ -28,9 +29,14 @@ export class IdeasService {
    * Analyze an idea using AI consensus (without saving)
    * Returns analysis results for user review before acceptance
    */
-  async analyzeIdea(input: IdeaInput): Promise<IdeaAnalysis> {
+  async analyzeIdea(input: IdeaInput, projectId?: string): Promise<IdeaAnalysis> {
     // Build prompt for AI analysis
     const prompt = this.buildAnalysisPrompt(input);
+
+    // Build usage context if projectId is provided
+    const usageContext = projectId
+      ? { projectId, module: "ideas" as UsageModule }
+      : undefined;
     
     // Get consensus from all providers
     const consensus = await consensusService.getConsensus({
@@ -39,7 +45,7 @@ export class IdeasService {
         user: prompt,
         context: JSON.stringify(input.context || {}),
       },
-    });
+    }, usageContext);
     
     // Parse consensus into structured analysis
     const analysis = this.parseConsensusToAnalysis(input, consensus);
