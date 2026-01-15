@@ -94,6 +94,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Step 1: Structured Prompt Feedback Loop (January 2026)
+- Added deterministic failure classification for build prompts
+- POST /api/prompts/feedback endpoint for step-scoped issue resolution
+- FeedbackService with pattern matching against known failure patterns
+- Static recovery steps defined for common failures (dependency conflicts, database errors, CORS, etc.)
+- Known failures return: failure pattern name, cause, recovery steps, STOP instruction
+- Unknown failures return: unclassified statement, STOP instruction only (no suggestions)
+- Anti-chat enforcement: no questions, no conversational responses, no scope expansion
+- StepFeedbackForm component with read-only step/IDE, paste-only textarea
+- "Resolve Step Issue" button per prompt step in prompts page
+- Audit logging of feedback attempts (transient, not stored long-term)
+
 ### Phase 3, Enforcement Step 4: User Authentication (January 2026)
 - Replaced hardcoded default user with Replit Auth (OpenID Connect)
 - User model extended with role, billingPlan, isAdmin, generationDisabled fields

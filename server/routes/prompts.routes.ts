@@ -4,6 +4,8 @@ import { promptsService } from "../services/prompts.service";
 import { artifactService } from "../services/artifact.service";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { billingService } from "../services/billing.service";
+import { feedbackService } from "../services/feedback.service";
+import type { PromptFeedbackRequest, BuildPrompt } from "@shared/types/prompts";
 
 const router = Router();
 
@@ -161,6 +163,94 @@ router.get("/artifacts", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: "Failed to list prompt artifacts",
+    });
+  }
+});
+
+const feedbackSchema = z.object({
+  promptDocumentId: z.string().uuid("Invalid prompt document ID"),
+  stepNumber: z.number().int().min(1, "Step number must be at least 1"),
+  ide: z.enum(["replit", "cursor", "lovable", "antigravity", "warp", "other"]),
+  rawIdeOutput: z.string().min(1, "Raw IDE output is required"),
+});
+
+/**
+ * POST /api/prompts/feedback
+ * Submit raw IDE output for deterministic failure classification
+ * NO conversational AI behavior - strict pattern matching only
+ */
+router.post("/feedback", async (req: Request, res: Response) => {
+  try {
+    const validation = feedbackSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Invalid feedback request",
+          details: validation.error.flatten(),
+        },
+      });
+    }
+
+    const request: PromptFeedbackRequest = validation.data;
+
+    const inputValidation = feedbackService.validateInput(request);
+    if (!inputValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: inputValidation.error,
+        },
+      });
+    }
+
+    const artifact = await artifactService.getById(request.promptDocumentId);
+    if (!artifact) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Prompt document not found",
+        },
+      });
+    }
+
+    let stepPrompt: BuildPrompt = promptsService.getDefaultStepPrompt(request.stepNumber);
+    
+    const promptsSection = artifact.sections.find((s) => s.heading === "Build Prompts");
+    if (promptsSection) {
+      try {
+        const prompts: BuildPrompt[] = JSON.parse(promptsSection.content);
+        const found = prompts.find((p) => p.step === request.stepNumber);
+        if (found) {
+          stepPrompt = found;
+        }
+      } catch {
+      }
+    }
+
+    const response = feedbackService.classifyFailure(request.rawIdeOutput, stepPrompt);
+
+    feedbackService.logFeedbackAttempt(
+      request,
+      response.classification,
+      response.classification === "KNOWN_FAILURE" ? response.failurePatternName : undefined
+    );
+
+    res.json({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    console.error("Error processing feedback:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Failed to process feedback",
+      },
     });
   }
 });

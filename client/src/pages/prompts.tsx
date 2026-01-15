@@ -28,7 +28,9 @@ import {
   ListOrdered,
   Hand,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
+import { StepFeedbackForm } from "@/components/step-feedback-form";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
@@ -530,6 +532,9 @@ export default function Prompts() {
                     isLast={index === generatedPrompts.prompts.length - 1}
                     isCopied={copiedStep === prompt.step}
                     onCopy={() => copyPrompt(prompt.step, prompt.prompt)}
+                    promptDocumentId={generatedPrompts.artifactId}
+                    ide={generatedPrompts.ide}
+                    ideName={generatedPrompts.ideName}
                   />
                 ))}
               </div>
@@ -561,9 +566,14 @@ interface PromptCardProps {
   isLast: boolean;
   isCopied: boolean;
   onCopy: () => void;
+  promptDocumentId?: string;
+  ide?: IDEType;
+  ideName?: string;
 }
 
-function PromptCard({ prompt, isLast, isCopied, onCopy }: PromptCardProps) {
+function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, ideName }: PromptCardProps) {
+  const [showFeedback, setShowFeedback] = useState(false);
+
   return (
     <div className="relative">
       <div className="flex items-start gap-4">
@@ -576,95 +586,122 @@ function PromptCard({ prompt, isLast, isCopied, onCopy }: PromptCardProps) {
           )}
         </div>
 
-        <Card className="flex-1">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardTitle className="text-lg">{prompt.title}</CardTitle>
-                {prompt.dependencies && prompt.dependencies.length > 0 && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-muted-foreground">Requires:</span>
-                    {prompt.dependencies.map((dep) => (
-                      <Badge key={dep} variant="outline" className="text-xs">
-                        Step {dep}
-                      </Badge>
-                    ))}
-                  </div>
+        <div className="flex-1 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                  {prompt.dependencies && prompt.dependencies.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground">Requires:</span>
+                      {prompt.dependencies.map((dep) => (
+                        <Badge key={dep} variant="outline" className="text-xs">
+                          Step {dep}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {prompt.estimatedTime && (
+                  <Badge variant="secondary" className="text-xs shrink-0 gap-1">
+                    <Clock className="h-3 w-3" />
+                    {prompt.estimatedTime}
+                  </Badge>
                 )}
               </div>
-              {prompt.estimatedTime && (
-                <Badge variant="secondary" className="text-xs shrink-0 gap-1">
-                  <Clock className="h-3 w-3" />
-                  {prompt.estimatedTime}
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-2">
-              <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="text-xs font-medium uppercase text-muted-foreground">Goal</span>
-                <p className="text-sm">{prompt.objective}</p>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-2">
+                <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="text-xs font-medium uppercase text-muted-foreground">Goal</span>
+                  <p className="text-sm">{prompt.objective}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <ListOrdered className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-xs font-medium uppercase text-muted-foreground">Instructions</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <ListOrdered className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="text-xs font-medium uppercase text-muted-foreground">Instructions</span>
+                </div>
+                <div className="relative rounded-lg border bg-muted/50">
+                  <div className="flex items-center justify-between border-b px-4 py-2">
+                    <span className="text-xs font-medium text-muted-foreground">COPY THIS PROMPT</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onCopy}
+                      className="h-7 gap-1"
+                      data-testid={`button-copy-step-${prompt.step}`}
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="h-3 w-3" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <pre className="p-4 text-sm overflow-x-auto whitespace-pre-wrap font-mono">
+                    {prompt.prompt}
+                  </pre>
+                </div>
               </div>
-              <div className="relative rounded-lg border bg-muted/50">
-                <div className="flex items-center justify-between border-b px-4 py-2">
-                  <span className="text-xs font-medium text-muted-foreground">COPY THIS PROMPT</span>
+
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="text-xs font-medium uppercase text-muted-foreground">Expected Outcome</span>
+                  <p className="text-sm text-muted-foreground">{prompt.expectedOutcome}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border-2 border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 p-4">
+                <div className="flex items-center gap-2">
+                  <StopCircle className="h-5 w-5 text-red-500" />
+                  <span className="font-semibold text-red-700 dark:text-red-400 uppercase text-sm">
+                    STOP / WAIT
+                  </span>
+                </div>
+                <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-2">
+                  {prompt.waitInstruction}
+                </p>
+              </div>
+
+              {promptDocumentId && ide && ideName && !showFeedback && (
+                <div className="pt-2 border-t">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={onCopy}
-                    className="h-7 gap-1"
-                    data-testid={`button-copy-step-${prompt.step}`}
+                    onClick={() => setShowFeedback(true)}
+                    className="gap-2"
+                    data-testid={`button-resolve-step-${prompt.step}`}
                   >
-                    {isCopied ? (
-                      <>
-                        <Check className="h-3 w-3" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Copy
-                      </>
-                    )}
+                    <AlertTriangle className="h-4 w-4" />
+                    Resolve Step Issue
                   </Button>
                 </div>
-                <pre className="p-4 text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                  {prompt.prompt}
-                </pre>
-              </div>
-            </div>
+              )}
+            </CardContent>
+          </Card>
 
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="text-xs font-medium uppercase text-muted-foreground">Expected Outcome</span>
-                <p className="text-sm text-muted-foreground">{prompt.expectedOutcome}</p>
-              </div>
-            </div>
-
-            <div className="rounded-lg border-2 border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 p-4">
-              <div className="flex items-center gap-2">
-                <StopCircle className="h-5 w-5 text-red-500" />
-                <span className="font-semibold text-red-700 dark:text-red-400 uppercase text-sm">
-                  STOP / WAIT
-                </span>
-              </div>
-              <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-2">
-                {prompt.waitInstruction}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {showFeedback && promptDocumentId && ide && ideName && (
+            <StepFeedbackForm
+              promptDocumentId={promptDocumentId}
+              stepNumber={prompt.step}
+              ide={ide}
+              ideName={ideName}
+              onClose={() => setShowFeedback(false)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

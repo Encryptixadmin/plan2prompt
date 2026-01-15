@@ -84,6 +84,52 @@ export interface GeneratePromptsResponse {
   artifactPath: string;
 }
 
+// === FEEDBACK LOOP TYPES ===
+
+// Feedback request from user
+export interface PromptFeedbackRequest {
+  promptDocumentId: string;
+  stepNumber: number;
+  ide: IDEType;
+  rawIdeOutput: string;
+}
+
+// Classification result
+export type FeedbackClassification = "KNOWN_FAILURE" | "UNKNOWN_FAILURE";
+
+// Known failure response
+export interface KnownFailureResponse {
+  classification: "KNOWN_FAILURE";
+  failurePatternName: string;
+  whyThisOccurs: string;
+  recoverySteps: string[];
+  instruction: "STOP. RETRY THIS STEP ONLY.";
+  shouldRetry: boolean;
+}
+
+// Unknown failure response
+export interface UnknownFailureResponse {
+  classification: "UNKNOWN_FAILURE";
+  statement: "This failure is unclassified. The system cannot determine the cause from the provided output.";
+  instruction: "STOP. DO NOT CONTINUE.";
+  suggestRegeneration: boolean;
+  regenerationNote?: string;
+}
+
+// Combined response type
+export type PromptFeedbackResponse = KnownFailureResponse | UnknownFailureResponse;
+
+// Feedback audit log entry (transient, not stored long-term)
+export interface FeedbackAuditEntry {
+  id: string;
+  timestamp: string;
+  promptDocumentId: string;
+  stepNumber: number;
+  ide: IDEType;
+  classification: FeedbackClassification;
+  failurePatternName?: string;
+}
+
 // IDE options for UI
 export const IDE_OPTIONS: IDEInfo[] = [
   {

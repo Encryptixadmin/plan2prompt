@@ -1278,6 +1278,49 @@ WARP-SPECIFIC NOTES:
 
     return artifact;
   }
+
+  getDefaultStepPrompt(stepNumber: number): BuildPrompt {
+    return {
+      step: stepNumber,
+      title: `Step ${stepNumber}`,
+      objective: "Complete this step of the build process",
+      prompt: "",
+      expectedOutcome: "Step completes successfully",
+      waitInstruction: "STOP and verify before proceeding",
+      failureRecovery: [
+        {
+          symptom: "npm install fails with dependency conflicts",
+          likelyCause: "Incompatible package versions or corrupt cache",
+          recoveryAction: "Delete node_modules and package-lock.json, then run npm install again. If still failing, check for version conflicts in package.json.",
+          shouldRetry: true,
+        },
+        {
+          symptom: "TypeScript compilation errors",
+          likelyCause: "Missing or misconfigured tsconfig.json",
+          recoveryAction: "Ensure tsconfig.json exists with correct compiler options. Check that jsx is set to react-jsx and module is set appropriately.",
+          shouldRetry: true,
+        },
+        {
+          symptom: "Port already in use error",
+          likelyCause: "Another process is using the port",
+          recoveryAction: "Kill the process using the port or configure a different port in the server configuration.",
+          shouldRetry: true,
+        },
+        {
+          symptom: "Database connection refused",
+          likelyCause: "Database not running or connection string incorrect",
+          recoveryAction: "Verify DATABASE_URL is set correctly. Check that PostgreSQL is running. Test connection with a database client.",
+          shouldRetry: true,
+        },
+        {
+          symptom: "CORS error on API calls",
+          likelyCause: "Backend not configured to accept requests from frontend origin",
+          recoveryAction: "Add CORS middleware to Express with appropriate origin. Ensure credentials: true if sending cookies.",
+          shouldRetry: true,
+        },
+      ],
+    };
+  }
 }
 
 export const promptsService = new PromptsService();

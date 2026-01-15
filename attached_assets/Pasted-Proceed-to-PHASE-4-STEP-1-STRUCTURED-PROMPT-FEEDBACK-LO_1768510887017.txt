@@ -1,0 +1,124 @@
+Proceed to PHASE 4 — STEP 1: STRUCTURED PROMPT FEEDBACK LOOP.
+
+EXECUTION MODE:
+Deterministic recovery.
+NO conversational AI behaviour.
+
+OBJECTIVE:
+Allow users to recover from failed prompt execution
+WITHOUT introducing chatty debugging or scope drift.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+This system classifies failures.
+It does NOT reason conversationally.
+
+--------------------------------
+SCOPE (STRICT)
+--------------------------------
+Implement feedback ONLY for:
+- Generated build prompts
+- A specific prompt step
+- A specific IDE
+
+DO NOT add:
+- Global chat
+- Free-form questions
+- Multi-step conversations
+
+--------------------------------
+UI REQUIREMENTS
+--------------------------------
+
+1. STEP-SCOPED ENTRY POINT
+--------------------------------
+- Add a button per prompt step:
+  "Resolve Step Issue"
+- Visible ONLY after prompt generation
+- Tied to a specific step number
+
+--------------------------------
+
+2. FEEDBACK INPUT FORM (REQUIRED FIELDS)
+--------------------------------
+The user MUST provide:
+- Prompt step number (read-only)
+- IDE / tool (read-only)
+- Raw IDE output (paste-only textarea)
+
+DO NOT allow:
+- Paraphrasing
+- Screenshots
+- Follow-up questions
+
+--------------------------------
+CLASSIFICATION LOGIC
+--------------------------------
+
+1. Attempt to match pasted output against:
+- Known failure patterns for this step
+- Defined in the prompt metadata
+
+2. If a match is found:
+- Return a structured recovery response
+
+3. If no match is found:
+- Return an UNKNOWN_FAILURE response
+
+--------------------------------
+RESPONSE FORMAT (FIXED)
+--------------------------------
+
+KNOWN FAILURE RESPONSE MUST INCLUDE:
+- Failure pattern name
+- Why this failure occurs
+- Exact recovery steps (ordered)
+- Explicit instruction:
+  - STOP
+  - RETRY THIS STEP ONLY
+
+UNKNOWN FAILURE RESPONSE MUST INCLUDE:
+- Clear statement that failure is unclassified
+- Instruction to STOP
+- Instruction NOT to continue
+- Suggest regeneration only if appropriate
+
+--------------------------------
+ANTI-CHAT ENFORCEMENT
+--------------------------------
+The system MUST:
+- Reject questions
+- Reject speculative language
+- Reject scope expansion
+
+Responses MUST NOT:
+- Ask follow-up questions
+- Offer multiple options
+- Suggest unrelated fixes
+
+--------------------------------
+AUDIT & SAFETY
+--------------------------------
+- Log feedback attempts (step, artifact, classification)
+- Do NOT store raw outputs long-term
+- No effect on billing or usage counts
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add memory
+- Add retries automatically
+- Add IDE integration
+- Add auto-fix behaviour
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Demonstrate known failure classification
+- Demonstrate unknown failure STOP response
+- Confirm no conversational behaviour exists
+
+STOP.
+WAIT for confirmation.
