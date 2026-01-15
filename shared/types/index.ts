@@ -9,6 +9,9 @@
 // Re-export artifact types
 export * from "./artifact";
 
+// Re-export AI types
+export * from "./ai";
+
 // Health check response type
 export interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";

@@ -62,6 +62,13 @@ This platform serves as a foundation for building production-grade web applicati
 | POST | `/api/artifacts` | Create new artefact |
 | PUT | `/api/artifacts/:id` | Update artefact (creates new version) |
 
+### AI Orchestration
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/ai/providers` | List available AI providers |
+| POST | `/api/ai/query/:provider` | Query single provider (openai/anthropic/gemini) |
+| POST | `/api/ai/consensus` | Get consensus from multiple providers |
+
 ## Development
 
 The application runs on port 5000 with hot module replacement enabled.

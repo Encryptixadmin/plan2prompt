@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import type { HealthCheckResponse } from "@shared/types";
 import artifactRoutes from "./routes/artifact.routes";
+import aiRoutes from "./routes/ai.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -21,6 +22,9 @@ export async function registerRoutes(
 
   // Artifact management routes
   app.use("/api/artifacts", artifactRoutes);
+
+  // AI orchestration routes
+  app.use("/api/ai", aiRoutes);
 
   return httpServer;
 }
