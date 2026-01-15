@@ -1,0 +1,160 @@
+You are now performing a FULL IMPLEMENTATION REVIEW of this platform.
+
+EXECUTION MODE:
+Audit and summarisation.
+NO new code.
+NO refactors.
+NO feature additions.
+
+OBJECTIVE:
+Produce a precise, implementation-based summary of
+what has ACTUALLY been built in this codebase.
+
+This is not a roadmap.
+This is not a design intent.
+This is not future planning.
+
+--------------------------------
+CORE RULES (NON-NEGOTIABLE)
+--------------------------------
+1. Base ALL statements on existing code only.
+2. Do NOT describe features that are:
+   - Planned
+   - Implied
+   - Mentioned in comments
+   - Mentioned in documentation but not implemented
+3. If something is partial or stubbed, say so explicitly.
+4. If something is missing, say so explicitly.
+5. Prefer accuracy over completeness.
+
+--------------------------------
+REVIEW SCOPE
+--------------------------------
+Inspect BOTH:
+- Backend (services, routes, middleware)
+- Frontend (UI components, flows, navigation)
+
+--------------------------------
+REQUIRED OUTPUT STRUCTURE
+--------------------------------
+
+Produce a single document with the following sections:
+
+--------------------------------
+1. PLATFORM OVERVIEW
+--------------------------------
+- One-paragraph description of what this platform currently does
+- What problem it solves today (not aspirational)
+
+--------------------------------
+2. CORE USER FLOW (AS IMPLEMENTED)
+--------------------------------
+Step-by-step description of the actual user journey:
+- Entry point
+- Idea creation & validation
+- Requirements generation & locking
+- Prompt generation & usage
+- Export behaviour
+
+Only include steps that exist in code.
+
+--------------------------------
+3. MODULES & CAPABILITIES
+--------------------------------
+For each module:
+- Ideas
+- Requirements
+- Prompts
+- Admin
+
+List:
+- What the module DOES
+- What the module DOES NOT do
+
+--------------------------------
+4. ARTEFACT SYSTEM
+--------------------------------
+Describe:
+- What artefacts exist
+- How they are versioned
+- How they are stored
+- How they are previewed
+- How they are locked or invalidated
+
+--------------------------------
+5. GOVERNANCE & SAFETY
+--------------------------------
+Describe implemented controls:
+- Sequencing enforcement
+- Project isolation
+- Role-based permissions
+- STOP recommendation handling
+- Soft-disable mechanisms
+
+--------------------------------
+6. AI & CONSENSUS LAYER
+--------------------------------
+Describe:
+- AI provider abstraction
+- Consensus behaviour
+- What is mock vs real (if applicable)
+- Determinism controls (temperature, limits)
+
+--------------------------------
+7. ADMIN OPS CONSOLE
+--------------------------------
+Describe:
+- What admins can see
+- What admins can do
+- What admins explicitly cannot do
+
+--------------------------------
+8. BILLING & USAGE (CURRENT STATE)
+--------------------------------
+Describe:
+- Usage tracking that exists
+- Cost estimation behaviour
+- Billing plan model (if present)
+- What is NOT implemented yet
+
+--------------------------------
+9. LIMITATIONS & KNOWN GAPS
+--------------------------------
+Explicit list of:
+- Missing features
+- Stubbed areas
+- Intentional exclusions
+- Alpha constraints
+
+--------------------------------
+10. READINESS ASSESSMENT
+--------------------------------
+Based on code only, state whether the platform is:
+- Prototype
+- Internal Alpha
+- Closed Alpha
+- Public Beta
+- Production-ready
+
+Justify the assessment briefly.
+
+--------------------------------
+OUTPUT FORMAT
+--------------------------------
+- Plain text or Markdown
+- Clear headings
+- No marketing language
+- No emojis
+- No speculation
+
+--------------------------------
+FINAL INSTRUCTION
+--------------------------------
+If any section cannot be completed due to ambiguity:
+- State "Unable to determine from code"
+- Do NOT guess
+
+After producing the summary:
+STOP.
+DO NOT suggest next steps.
+DO NOT propose improvements.
