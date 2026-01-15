@@ -139,6 +139,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 3, Enforcement Step 2: STOP Recommendation Hard Block (January 2026)
+- POST /api/ideas/accept now enforces acknowledgeStopRecommendation === true for STOP recommendations
+- Error code STOP_RECOMMENDATION_REQUIRED returned when trying to accept STOP idea without acknowledgement
+- Acknowledgement recorded in artifact metadata (stopAcknowledged, stopAcknowledgedAt fields)
+- STOP override logged in admin action log with actor, target, timestamp, and reason
+- Extended AdminActionType with "stop_recommendation_override" and AdminActionTarget with "idea"
+- No auto-acknowledgement, no downgrade of STOP to warning, no changes to recommendation scoring logic
+
 ### Phase 3, Enforcement Step 1: Backend Pipeline Hardening (January 2026)
 - POST /api/requirements/generate now enforces stage === VALIDATED_IDEA with PIPELINE_VIOLATION error
 - POST /api/prompts/generate now enforces stage === LOCKED_REQUIREMENTS with PIPELINE_VIOLATION error
