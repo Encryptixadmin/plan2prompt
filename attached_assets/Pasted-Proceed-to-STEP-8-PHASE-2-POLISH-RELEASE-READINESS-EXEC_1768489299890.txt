@@ -1,0 +1,98 @@
+Proceed to STEP 8 — PHASE 2 POLISH & RELEASE READINESS.
+
+EXECUTION MODE:
+Refinement and coherence.
+No new core functionality.
+
+OBJECTIVE:
+Prepare the platform for alpha release by improving clarity,
+consistency, and user confidence — without expanding scope.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Nothing new.
+Everything intentional.
+
+--------------------------------
+POLISH AREAS (STRICT)
+--------------------------------
+
+1. COPY & LANGUAGE CONSISTENCY
+- Review all user-facing copy
+- Ensure consistent tone:
+  - Calm
+  - Professional
+  - Non-judgemental
+- Remove any:
+  - Hype
+  - AI buzzwords
+  - Inconsistent phrasing
+- Align terminology across modules:
+  - Artefact
+  - Version
+  - Lock
+  - Generate
+  - Accept
+
+--------------------------------
+
+2. EMPTY & FIRST-TIME STATES
+- Ensure every module has:
+  - A clear empty state
+  - A clear next action
+- Empty states must:
+  - Explain what this module does
+  - Explain why sequencing matters
+  - Provide a single, obvious CTA
+
+--------------------------------
+
+3. ERROR & WARNING PRESENTATION
+- Ensure all error states:
+  - Are human-readable
+  - Explain what went wrong
+  - Explain what the user can do next
+- Remove any raw or technical error text from UI
+
+--------------------------------
+
+4. VISUAL CALM & READABILITY
+- Improve spacing and hierarchy where needed
+- Ensure long artefacts are readable:
+  - Section spacing
+  - Headings
+  - Metadata clarity
+- No redesigns
+- No new layouts
+
+--------------------------------
+
+5. ALPHA READINESS CHECKLIST
+Add a simple internal checklist (not user-facing) confirming:
+- Sequencing cannot be bypassed
+- Artefacts always preview before commitment
+- STOP recommendations require acknowledgement
+- Projects are isolated
+- Permissions enforced at backend
+- Exports always work
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add features
+- Add monetisation
+- Add analytics
+- Add onboarding changes (already done)
+- Add performance optimisations
+
+--------------------------------
+FINAL OUTPUT
+--------------------------------
+After completion, provide:
+1. Summary of polish changes
+2. Confirmation of alpha readiness
+3. Known limitations (explicit, honest)
+
+STOP.
+WAIT for final confirmation.

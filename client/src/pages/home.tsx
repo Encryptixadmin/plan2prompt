@@ -120,7 +120,7 @@ export default function Home() {
                 <div>
                   <CardTitle className="text-lg">Ideas Module</CardTitle>
                   <CardDescription>
-                    Validate and refine your app ideas with AI-powered analysis
+                    Validate your concept before committing to building
                   </CardDescription>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function Home() {
             <CardContent>
               <Link href="/ideas">
                 <Button data-testid="link-ideas-module">
-                  Get Started
+                  Start Here
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -144,7 +144,7 @@ export default function Home() {
                 <div>
                   <CardTitle className="text-lg">Requirements Module</CardTitle>
                   <CardDescription>
-                    Generate comprehensive requirements from validated ideas
+                    Turn a validated idea into detailed requirements
                   </CardDescription>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function Home() {
                 <div>
                   <CardTitle className="text-lg">Prompts Module</CardTitle>
                   <CardDescription>
-                    Generate IDE-specific build prompts for development
+                    Create step-by-step build instructions for your environment
                   </CardDescription>
                 </div>
               </div>
