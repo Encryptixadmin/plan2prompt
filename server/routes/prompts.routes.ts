@@ -13,18 +13,23 @@ const generatePromptsSchema = z.object({
 
 /**
  * GET /api/prompts/requirements
- * List all requirements artifacts for prompt generation
+ * List only LOCKED requirements artifacts for prompt generation
  */
 router.get("/requirements", async (req: Request, res: Response) => {
   try {
     const artifacts = await artifactService.list("requirements");
+    
+    // Only return requirements with LOCKED_REQUIREMENTS stage
+    const lockedRequirements = artifacts.filter((a) => a.stage === "LOCKED_REQUIREMENTS");
+    
     res.json({
       success: true,
-      data: artifacts.map((a) => ({
+      data: lockedRequirements.map((a) => ({
         id: a.id,
         title: a.title,
         version: a.version,
         createdAt: a.createdAt,
+        stage: a.stage,
       })),
     });
   } catch (error) {
