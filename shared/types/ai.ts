@@ -17,6 +17,13 @@ export interface AIPrompt {
   temperature?: number;
 }
 
+// Token usage breakdown
+export interface AITokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 // Individual provider response
 export interface AIProviderResponse {
   provider: AIProviderType;
@@ -26,8 +33,10 @@ export interface AIProviderResponse {
   confidence: number; // 0-1 scale
   reasoning?: string;
   tokensUsed?: number;
+  tokenUsage?: AITokenUsage;
   latencyMs?: number;
   timestamp: string;
+  isMock?: boolean;
 }
 
 // Disagreement between providers

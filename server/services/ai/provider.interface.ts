@@ -1,37 +1,39 @@
-import type { AIPrompt, AIProviderResponse, AIProviderType } from "@shared/types/ai";
+import type { AIPrompt, AIProviderResponse, AIProviderType, AITokenUsage } from "@shared/types/ai";
 
-/**
- * AI Provider Interface
- * 
- * All AI providers must implement this interface.
- * This allows easy swapping between mock and real implementations.
- */
+export interface ProviderConfig {
+  maxRetries: number;
+  timeoutMs: number;
+  temperature: number;
+  maxTokens: number;
+}
+
+export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
+  maxRetries: 1,
+  timeoutMs: 30000,
+  temperature: 0.3,
+  maxTokens: 4096,
+};
+
 export interface IAIProvider {
   readonly provider: AIProviderType;
   readonly model: string;
   
-  /**
-   * Generate a response from the AI provider
-   */
   generate(prompt: AIPrompt): Promise<AIProviderResponse>;
-  
-  /**
-   * Check if the provider is available/configured
-   */
   isAvailable(): Promise<boolean>;
 }
 
-/**
- * Base class with common functionality for AI providers
- */
 export abstract class BaseAIProvider implements IAIProvider {
   abstract readonly provider: AIProviderType;
   abstract readonly model: string;
+  protected config: ProviderConfig;
+
+  constructor(config: Partial<ProviderConfig> = {}) {
+    this.config = { ...DEFAULT_PROVIDER_CONFIG, ...config };
+  }
   
   abstract generate(prompt: AIPrompt): Promise<AIProviderResponse>;
   
   async isAvailable(): Promise<boolean> {
-    // Override in real implementations to check API key availability
     return true;
   }
   
@@ -40,7 +42,9 @@ export abstract class BaseAIProvider implements IAIProvider {
     summary: string,
     confidence: number,
     reasoning?: string,
-    latencyMs?: number
+    latencyMs?: number,
+    tokenUsage?: AITokenUsage,
+    isMock?: boolean
   ): AIProviderResponse {
     return {
       provider: this.provider,
@@ -50,7 +54,46 @@ export abstract class BaseAIProvider implements IAIProvider {
       confidence,
       reasoning,
       latencyMs,
+      tokenUsage,
+      tokensUsed: tokenUsage?.totalTokens,
       timestamp: new Date().toISOString(),
+      isMock,
     };
+  }
+
+  protected async withRetry<T>(
+    fn: () => Promise<T>,
+    retries: number = this.config.maxRetries
+  ): Promise<T> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < retries) {
+          console.warn(`[${this.provider}] Retry ${attempt + 1}/${retries} after error: ${lastError.message}`);
+          await this.delay(1000 * (attempt + 1));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  protected async withTimeout<T>(promise: Promise<T>, ms: number = this.config.timeoutMs): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Request timed out after ${ms}ms`)), ms)
+      ),
+    ]);
+  }
+
+  protected delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  protected estimateInputTokens(text: string): number {
+    return Math.ceil(text.length / 4);
   }
 }

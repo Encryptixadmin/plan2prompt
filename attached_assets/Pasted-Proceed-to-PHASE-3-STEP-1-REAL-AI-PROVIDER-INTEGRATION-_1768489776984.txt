@@ -1,0 +1,119 @@
+Proceed to PHASE 3 — STEP 1: REAL AI PROVIDER INTEGRATION.
+
+EXECUTION MODE:
+Controlled activation.
+No behaviour changes.
+
+OBJECTIVE:
+Replace mock AI providers with real OpenAI, Anthropic, and Gemini APIs
+WITHOUT altering system behaviour, sequencing, or UX.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+AI providers are interchangeable execution engines.
+The system contract must remain unchanged.
+
+--------------------------------
+ENVIRONMENT VARIABLES (REQUIRED)
+--------------------------------
+Add support for the following environment variables:
+
+- OPENAI_API_KEY
+- ANTHROPIC_API_KEY
+- GEMINI_API_KEY
+
+DO NOT:
+- Hardcode keys
+- Log keys
+- Expose keys to the frontend
+
+--------------------------------
+PROVIDER IMPLEMENTATION
+--------------------------------
+
+For each provider (OpenAI, Anthropic, Gemini):
+
+1. Replace mock response with real API call
+2. Preserve existing provider interface exactly
+3. Enforce:
+   - Deterministic temperature (low / fixed)
+   - Max token limits per request
+   - Timeout handling
+4. Normalize all responses into the existing internal format
+
+--------------------------------
+MODEL SELECTION (LOCKED)
+--------------------------------
+Use fixed models per provider (no user choice):
+
+- OpenAI → GPT-4.x / GPT-5 equivalent (stable)
+- Anthropic → Claude Sonnet / equivalent
+- Gemini → Gemini Pro / equivalent
+
+Model choice must be configurable only via backend config,
+NOT via UI or prompts.
+
+--------------------------------
+CONSENSUS ENGINE (UNCHANGED)
+--------------------------------
+- Consensus logic must not change
+- No provider may dominate output
+- Disagreements must still be surfaced internally
+
+--------------------------------
+USAGE & COST TRACKING (MANDATORY)
+--------------------------------
+For every request:
+- Record provider
+- Record token usage (input/output)
+- Estimate cost
+- Attach usage to:
+  - Project
+  - Module
+  - Artefact version
+
+If usage exceeds soft thresholds:
+- Show warning
+- Do NOT block execution
+
+--------------------------------
+FAILURE HANDLING
+--------------------------------
+If a provider fails:
+- Retry once (configurable)
+- If still failing:
+  - Mark provider as unavailable for this request
+  - Continue consensus with remaining providers
+- If all providers fail:
+  - Abort generation
+  - Return friendly, actionable error
+
+--------------------------------
+SECURITY & SAFETY
+--------------------------------
+- Keys must be server-side only
+- No request payloads logged verbatim
+- Strip PII from logs
+- Ensure request size limits enforced
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add chat interfaces
+- Add streaming responses
+- Add user model selection
+- Change prompts
+- Change UX flows
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Confirm mock and real providers are swappable via config
+- Confirm outputs are structurally identical
+- Confirm costs are tracked correctly
+- Confirm no UI changes occurred
+
+STOP.
+WAIT for confirmation before proceeding.
