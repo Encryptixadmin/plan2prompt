@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, ArrowRight } from "lucide-react";
+import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -78,7 +78,7 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -121,6 +121,30 @@ export default function Home() {
               <Link href="/requirements">
                 <Button data-testid="link-requirements-module">
                   Generate Requirements
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10">
+                  <Terminal className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Prompts Module</CardTitle>
+                  <CardDescription>
+                    Generate IDE-specific build prompts for development
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Link href="/prompts">
+                <Button data-testid="link-prompts-module">
+                  Generate Prompts
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>

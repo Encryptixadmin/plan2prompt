@@ -59,6 +59,14 @@ Preferred communication style: Simple, everyday language.
 - **Output**: Structured requirements saved as `requirements-reference-{title}_v{n}.md` in `artifacts/requirements/`
 - **Includes**: Functional requirements, non-functional requirements, architecture overview, data models, API contracts, UI/UX principles, security considerations
 
+### Prompts Module
+- **Purpose**: Generate sequential, IDE-specific build prompts from requirements
+- **Frontend**: `/prompts` route with requirements selector, IDE picker, and prompt display with copy buttons
+- **Backend**: `POST /api/prompts/generate` generates prompts from requirements artifacts
+- **Output**: Ordered prompts saved as `build-prompts-{title}-{ide}_v{n}.md` in `artifacts/prompts/`
+- **IDE Support**: Replit, Cursor, Lovable, Antigravity, Warp, Other/Generic
+- **Features**: STOP/WAIT instructions, estimated times, dependencies, copy-paste ready prompts
+
 ## External Dependencies
 
 ### UI Component Libraries

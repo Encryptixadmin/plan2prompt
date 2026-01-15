@@ -6,6 +6,7 @@ import artifactRoutes from "./routes/artifact.routes";
 import aiRoutes from "./routes/ai.routes";
 import ideasRoutes from "./routes/ideas.routes";
 import requirementsRoutes from "./routes/requirements.routes";
+import promptsRoutes from "./routes/prompts.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,6 +34,9 @@ export async function registerRoutes(
 
   // Requirements module routes
   app.use("/api/requirements", requirementsRoutes);
+
+  // Prompts module routes
+  app.use("/api/prompts", promptsRoutes);
 
   return httpServer;
 }

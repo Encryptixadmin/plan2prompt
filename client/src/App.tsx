@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Ideas from "@/pages/ideas";
 import Requirements from "@/pages/requirements";
+import Prompts from "@/pages/prompts";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/ideas" component={Ideas} />
       <Route path="/requirements" component={Requirements} />
+      <Route path="/prompts" component={Prompts} />
       <Route component={NotFound} />
     </Switch>
   );
