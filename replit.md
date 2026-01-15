@@ -139,6 +139,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 3, Step 2B: Admin Re-Entry Navigation (January 2026)
+- Created `useAdminStatus` hook to check admin access via `/api/admin/health` endpoint
+- Added "Admin" navigation link to all main page headers (Home, Ideas, Requirements, Prompts)
+- Admin link visible ONLY when user has admin role (defaults to hidden during loading)
+- Navigation explicitly goes to /admin route (no mode toggling)
+- Backend role enforcement remains unchanged (frontend is not sole guard)
+
 ### Phase 3, Step 2A: Admin Navigation & Safe Exit (January 2026)
 - Added "Admin Mode" indicator badge for visual distinction
 - Implemented "Exit Admin" button with navigation to last non-admin route
