@@ -7,6 +7,7 @@ import type {
 } from "@shared/types/prompts";
 import { artifactService } from "./artifact.service";
 import type { Artifact } from "@shared/types/artifact";
+import type { PipelineStage } from "@shared/types/pipeline";
 
 /**
  * Prompts Service
@@ -730,6 +731,7 @@ WARP-SPECIFIC NOTES:
       },
     ];
 
+    const stage: PipelineStage = "PROMPTS_GENERATED";
     const artifact = await artifactService.create({
       title: `Build Prompts: ${document.ideaTitle} (${document.ideName})`,
       module: "prompts",
@@ -742,6 +744,8 @@ WARP-SPECIFIC NOTES:
         },
       ],
       tags: ["prompts", "build", document.ide, "executable"],
+      stage,
+      sourceArtifactId: document.requirementsArtifactId,
     });
 
     return artifact;

@@ -12,6 +12,7 @@ import type {
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
 import type { Artifact } from "@shared/types/artifact";
+import type { PipelineStage } from "@shared/types/pipeline";
 
 /**
  * Requirements Service
@@ -848,6 +849,7 @@ export class RequirementsService {
       },
     ];
 
+    const stage: PipelineStage = "LOCKED_REQUIREMENTS";
     const artifact = await artifactService.create({
       title: `Requirements Reference: ${requirements.ideaTitle}`,
       module: "requirements",
@@ -860,6 +862,8 @@ export class RequirementsService {
         },
       ],
       tags: ["requirements", "specification", "development-ready"],
+      stage,
+      sourceArtifactId: requirements.ideaArtifactId,
     });
 
     return artifact;
