@@ -7,6 +7,7 @@ import aiRoutes from "./routes/ai.routes";
 import ideasRoutes from "./routes/ideas.routes";
 import requirementsRoutes from "./routes/requirements.routes";
 import promptsRoutes from "./routes/prompts.routes";
+import projectRoutes from "./routes/project.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -37,6 +38,9 @@ export async function registerRoutes(
 
   // Prompts module routes
   app.use("/api/prompts", promptsRoutes);
+
+  // Project management routes
+  app.use("/api/projects", projectRoutes);
 
   return httpServer;
 }

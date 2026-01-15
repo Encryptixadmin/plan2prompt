@@ -21,6 +21,8 @@ export interface ArtifactMetadata {
   stage?: PipelineStage; // Current pipeline stage
   sourceArtifactId?: string; // Reference to parent artifact in pipeline
   sourceArtifactVersion?: number; // Version of the source artifact when derived
+  projectId?: string; // Project this artifact belongs to
+  authorId?: string; // User who created this artifact/version
 }
 
 // A section within the Markdown artefact
@@ -60,6 +62,8 @@ export interface CreateArtifactInput {
   stage?: PipelineStage;
   sourceArtifactId?: string;
   sourceArtifactVersion?: number;
+  projectId?: string;
+  authorId?: string;
 }
 
 // Input for updating an artefact (creates new version)
@@ -110,4 +114,6 @@ export interface ArtifactListItem {
   path: string;
   stage?: PipelineStage;
   sourceArtifactId?: string;
+  projectId?: string;
+  authorId?: string;
 }

@@ -112,6 +112,12 @@ function buildFrontmatter(metadata: ArtifactMetadata): string {
   if (metadata.sourceArtifactVersion !== undefined) {
     lines.push(`sourceArtifactVersion: ${metadata.sourceArtifactVersion}`);
   }
+  if (metadata.projectId) {
+    lines.push(`projectId: ${metadata.projectId}`);
+  }
+  if (metadata.authorId) {
+    lines.push(`authorId: ${metadata.authorId}`);
+  }
 
   lines.push("---");
   return lines.join("\n");
@@ -228,6 +234,8 @@ function parseMarkdown(content: string, filePath: string): Artifact {
       stage: metadata.stage as PipelineStage | undefined,
       sourceArtifactId: metadata.sourceArtifactId as string | undefined,
       sourceArtifactVersion: metadata.sourceArtifactVersion as number | undefined,
+      projectId: metadata.projectId as string | undefined,
+      authorId: metadata.authorId as string | undefined,
     },
     sections: parseSections(body),
     aiNotes: parseAINotes(body),
@@ -260,6 +268,8 @@ export class ArtifactService {
       stage: input.stage,
       sourceArtifactId: input.sourceArtifactId,
       sourceArtifactVersion: input.sourceArtifactVersion,
+      projectId: input.projectId,
+      authorId: input.authorId,
     };
 
     const sections: ArtifactSection[] = input.sections.map((s) => ({
@@ -436,12 +446,20 @@ export class ArtifactService {
         path: file.replace(ARTIFACTS_DIR + "/", ""),
         stage: metadata.stage as PipelineStage | undefined,
         sourceArtifactId: metadata.sourceArtifactId as string | undefined,
+        projectId: metadata.projectId as string | undefined,
+        authorId: metadata.authorId as string | undefined,
       });
     }
 
     return items.sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
+  }
+
+  // List artifacts filtered by project
+  async listByProject(projectId: string, module?: string): Promise<ArtifactListItem[]> {
+    const allArtifacts = await this.list(module);
+    return allArtifacts.filter((a) => a.projectId === projectId);
   }
 
   // Get artefact reference for module passing
