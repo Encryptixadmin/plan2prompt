@@ -15,13 +15,14 @@ export default function Landing() {
             <div className="flex items-center gap-4">
               <a
                 href="/api/login"
+                target="_top"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="link-login-nav"
               >
                 Log in
               </a>
               <Button asChild data-testid="button-get-started-nav">
-                <a href="/api/login">Get Started</a>
+                <a href="/api/login" target="_top">Get Started</a>
               </Button>
             </div>
           </div>
@@ -44,7 +45,7 @@ export default function Landing() {
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <Button size="lg" asChild data-testid="button-get-started-hero">
-                    <a href="/api/login">Get Started Free</a>
+                    <a href="/api/login" target="_top">Get Started Free</a>
                   </Button>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -158,7 +159,7 @@ export default function Landing() {
               Join the closed alpha and start transforming your ideas today.
             </p>
             <Button size="lg" asChild data-testid="button-get-started-cta">
-              <a href="/api/login">Get Started Free</a>
+              <a href="/api/login" target="_top">Get Started Free</a>
             </Button>
           </div>
         </section>
