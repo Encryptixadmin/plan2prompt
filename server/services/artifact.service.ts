@@ -12,6 +12,7 @@ import type {
   CreateArtifactInput,
   UpdateArtifactInput,
 } from "@shared/types/artifact";
+import type { PipelineStage } from "@shared/types/pipeline";
 
 const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts");
 
@@ -100,6 +101,12 @@ function buildFrontmatter(metadata: ArtifactMetadata): string {
   }
   if (metadata.author) {
     lines.push(`author: ${metadata.author}`);
+  }
+  if (metadata.stage) {
+    lines.push(`stage: ${metadata.stage}`);
+  }
+  if (metadata.sourceArtifactId) {
+    lines.push(`sourceArtifactId: ${metadata.sourceArtifactId}`);
   }
 
   lines.push("---");
@@ -214,6 +221,8 @@ function parseMarkdown(content: string, filePath: string): Artifact {
       parentId: metadata.parentId as string | undefined,
       tags: metadata.tags as string[] | undefined,
       author: metadata.author as string | undefined,
+      stage: metadata.stage as PipelineStage | undefined,
+      sourceArtifactId: metadata.sourceArtifactId as string | undefined,
     },
     sections: parseSections(body),
     aiNotes: parseAINotes(body),
@@ -243,6 +252,8 @@ export class ArtifactService {
       updatedAt: now,
       tags: input.tags,
       author: input.author,
+      stage: input.stage,
+      sourceArtifactId: input.sourceArtifactId,
     };
 
     const sections: ArtifactSection[] = input.sections.map((s) => ({
@@ -417,6 +428,8 @@ export class ArtifactService {
         createdAt: metadata.createdAt as string,
         updatedAt: metadata.updatedAt as string,
         path: file.replace(ARTIFACTS_DIR + "/", ""),
+        stage: metadata.stage as PipelineStage | undefined,
+        sourceArtifactId: metadata.sourceArtifactId as string | undefined,
       });
     }
 

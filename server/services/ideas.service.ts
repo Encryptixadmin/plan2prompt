@@ -11,6 +11,7 @@ import type {
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
 import type { AIConsensusResult } from "@shared/types/ai";
+import type { PipelineStage } from "@shared/types/pipeline";
 
 /**
  * Ideas Service
@@ -456,6 +457,7 @@ export class IdeasService {
       },
     ];
     
+    const stage: PipelineStage = "VALIDATED_IDEA";
     const artifact = await artifactService.create({
       title: `Ideas Reference: ${analysis.input.title}`,
       module: "ideas",
@@ -468,6 +470,7 @@ export class IdeasService {
         },
       ],
       tags: ["idea", "analysis", "requirements-ready"],
+      stage,
     });
     
     return artifact;

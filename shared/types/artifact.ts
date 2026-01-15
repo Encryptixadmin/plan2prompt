@@ -5,6 +5,8 @@
  * Each artefact is versioned and immutable - new versions are appended.
  */
 
+import type { PipelineStage } from "./pipeline";
+
 // Metadata embedded in artefact frontmatter
 export interface ArtifactMetadata {
   id: string;
@@ -16,6 +18,8 @@ export interface ArtifactMetadata {
   parentId?: string; // Reference to previous version
   tags?: string[];
   author?: string;
+  stage?: PipelineStage; // Current pipeline stage
+  sourceArtifactId?: string; // Reference to parent artifact in pipeline
 }
 
 // A section within the Markdown artefact
@@ -52,6 +56,8 @@ export interface CreateArtifactInput {
   aiNotes?: Omit<ArtifactAINote, "id" | "timestamp">[];
   tags?: string[];
   author?: string;
+  stage?: PipelineStage;
+  sourceArtifactId?: string;
 }
 
 // Input for updating an artefact (creates new version)
@@ -88,4 +94,6 @@ export interface ArtifactListItem {
   createdAt: string;
   updatedAt: string;
   path: string;
+  stage?: PipelineStage;
+  sourceArtifactId?: string;
 }
