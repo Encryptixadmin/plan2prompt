@@ -1,0 +1,76 @@
+Proceed to STEP 4 — REQUIREMENTS INTELLIGENCE DEEPENING.
+
+EXECUTION MODE:
+Precision and depth.
+No new UI flows.
+No new modules.
+
+OBJECTIVE:
+Make generated requirements feel complete, deliberate, and hard to argue with.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Ambiguity upstream causes chaos downstream.
+Requirements exist to remove ambiguity.
+
+--------------------------------
+REQUIREMENTS OUTPUT ENHANCEMENTS
+--------------------------------
+
+Enhance requirements generation to ALWAYS include the following explicit sections:
+
+1. ASSUMPTIONS
+- Clearly list assumptions the system depends on
+- Include technical, user, and operational assumptions
+
+2. OUT OF SCOPE
+- Explicitly state what is NOT being built
+- Prevent scope creep and misinterpretation
+
+3. ACCEPTANCE CRITERIA
+- For each major feature:
+  - Clear conditions of success
+  - Testable, observable outcomes
+
+4. EDGE CASES & FAILURE MODES
+- Known edge cases
+- Expected failure behaviours
+- What the system should do when things go wrong
+
+5. NON-FUNCTIONAL CONSTRAINTS
+- Performance expectations
+- Scalability considerations
+- Security boundaries
+- Maintainability constraints
+
+6. REQUIREMENT CONFIDENCE NOTES
+- Identify areas with higher uncertainty
+- Flag sections likely to change later
+
+--------------------------------
+QUALITY BAR
+--------------------------------
+The resulting requirements document should:
+- Be suitable for handoff to a senior engineer
+- Reduce follow-up questions
+- Make downstream prompt generation safer
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add diagrams or schemas yet
+- Add industry or compliance templates
+- Add AI explanation prose
+- Change locking or versioning behaviour
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Show an example before/after requirements output
+- Explain how ambiguity is reduced
+- Confirm no sequencing or UX rules changed
+
+STOP.
+WAIT for confirmation before proceeding.

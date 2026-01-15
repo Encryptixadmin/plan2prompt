@@ -8,6 +8,10 @@ import type {
   APIContracts,
   UIUXPrinciples,
   SecurityConsideration,
+  RequirementAssumption,
+  OutOfScopeItem,
+  EdgeCaseFailureMode,
+  ConfidenceNote,
 } from "@shared/types/requirements";
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
@@ -107,13 +111,17 @@ export class RequirementsService {
     }
 
     prompt += `\nGenerate detailed requirements including:\n`;
-    prompt += `1. Functional requirements with acceptance criteria\n`;
-    prompt += `2. Non-functional requirements with metrics\n`;
-    prompt += `3. Architecture overview with components\n`;
-    prompt += `4. Data models with relationships\n`;
-    prompt += `5. API contracts with endpoints\n`;
+    prompt += `1. Functional requirements with clear acceptance criteria (testable, observable outcomes)\n`;
+    prompt += `2. Non-functional requirements with measurable metrics and targets\n`;
+    prompt += `3. Architecture overview with components and data flow\n`;
+    prompt += `4. Data models with relationships and constraints\n`;
+    prompt += `5. API contracts with endpoints, authentication, and error responses\n`;
     prompt += `6. UI/UX principles and user flows\n`;
-    prompt += `7. Security considerations\n`;
+    prompt += `7. Security considerations with implementation guidance\n`;
+    prompt += `8. ASSUMPTIONS - List technical, user, and operational assumptions the system depends on\n`;
+    prompt += `9. OUT OF SCOPE - Explicitly state what is NOT being built to prevent scope creep\n`;
+    prompt += `10. EDGE CASES AND FAILURE MODES - Known edge cases and expected system behavior when things go wrong\n`;
+    prompt += `11. CONFIDENCE NOTES - Identify areas with higher uncertainty that may need validation or iteration\n`;
 
     return prompt;
   }
@@ -122,7 +130,15 @@ export class RequirementsService {
    * Get the system prompt for requirements generation
    */
   private getSystemPrompt(): string {
-    return `You are an expert software architect and requirements engineer. Generate comprehensive, deterministic, developer-readable, and tool-agnostic requirements documents. Focus on clarity, completeness, and practical implementation guidance. Requirements should be specific enough to guide development but flexible enough to allow appropriate technical choices.`;
+    return `You are an expert software architect and requirements engineer. Generate comprehensive, deterministic, developer-readable, and tool-agnostic requirements documents. Focus on clarity, completeness, and practical implementation guidance. Requirements should be specific enough to guide development but flexible enough to allow appropriate technical choices.
+
+CRITICAL: The goal is to reduce ambiguity. Ambiguity upstream causes chaos downstream. Requirements exist to remove ambiguity.
+
+The resulting document should:
+- Be suitable for handoff to a senior engineer
+- Reduce follow-up questions
+- Make downstream prompt generation safer
+- Include explicit assumptions, scope boundaries, edge cases, and confidence notes`;
   }
 
   /**
@@ -154,6 +170,10 @@ export class RequirementsService {
       apiContracts: this.generateAPIContracts(ideaTitle),
       uiuxPrinciples: this.generateUIUXPrinciples(),
       securityConsiderations: this.generateSecurityConsiderations(),
+      assumptions: this.generateAssumptions(ideaTitle),
+      outOfScope: this.generateOutOfScope(ideaTitle),
+      edgeCasesAndFailureModes: this.generateEdgeCasesAndFailureModes(),
+      confidenceNotes: this.generateConfidenceNotes(),
       summary: this.generateSummary(ideaTitle, confidence),
       version: "1.0.0",
       createdAt: new Date().toISOString(),
@@ -782,10 +802,274 @@ export class RequirementsService {
   }
 
   /**
+   * Generate assumptions
+   */
+  private generateAssumptions(ideaTitle: string): RequirementAssumption[] {
+    return [
+      {
+        id: "ASM-001",
+        category: "technical",
+        statement: "Modern browser support only (Chrome, Firefox, Safari, Edge - last 2 versions)",
+        rationale: "Reduces cross-browser compatibility overhead and allows use of modern APIs",
+        impact: "Users on older browsers may experience degraded functionality or be unable to use the application",
+      },
+      {
+        id: "ASM-002",
+        category: "technical",
+        statement: "Users have reliable internet connectivity",
+        rationale: "Application is designed as an online service without offline capabilities in initial release",
+        impact: "Users without stable internet cannot use core features; offline mode deferred to future release",
+      },
+      {
+        id: "ASM-003",
+        category: "user",
+        statement: "Users have basic familiarity with web applications",
+        rationale: "Reduces need for extensive onboarding tutorials and hand-holding UI patterns",
+        impact: "Non-technical users may require additional support or documentation",
+      },
+      {
+        id: "ASM-004",
+        category: "user",
+        statement: "Primary user base is English-speaking",
+        rationale: "Initial release focuses on English; internationalization deferred",
+        impact: "Non-English users cannot use the application until i18n is implemented",
+      },
+      {
+        id: "ASM-005",
+        category: "operational",
+        statement: "Cloud hosting provider guarantees 99.9% uptime SLA",
+        rationale: "Application availability targets depend on infrastructure reliability",
+        impact: "Actual uptime may vary based on provider performance and configuration",
+      },
+      {
+        id: "ASM-006",
+        category: "operational",
+        statement: "Database backups are performed daily with 30-day retention",
+        rationale: "Standard data protection without requiring real-time replication initially",
+        impact: "Maximum data loss in worst case is 24 hours of transactions",
+      },
+      {
+        id: "ASM-007",
+        category: "business",
+        statement: "User growth will be gradual during initial launch period",
+        rationale: "Allows time for performance tuning before scaling infrastructure",
+        impact: "Viral growth could overwhelm initial infrastructure capacity",
+      },
+      {
+        id: "ASM-008",
+        category: "integration",
+        statement: "Third-party APIs (email, AI services) maintain current contract and availability",
+        rationale: "External dependencies are assumed stable for initial implementation",
+        impact: "API changes or outages could affect dependent features",
+      },
+    ];
+  }
+
+  /**
+   * Generate out-of-scope items
+   */
+  private generateOutOfScope(ideaTitle: string): OutOfScopeItem[] {
+    return [
+      {
+        id: "OOS-001",
+        item: "Native mobile applications (iOS/Android)",
+        reason: "Initial release focuses on responsive web application; native apps require separate development effort",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-002",
+        item: "Offline functionality",
+        reason: "Adds significant complexity with data sync; deferred until core features are stable",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-003",
+        item: "Multi-language support (internationalization)",
+        reason: "English-only for initial release; i18n infrastructure can be added later",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-004",
+        item: "Advanced analytics and reporting dashboards",
+        reason: "Basic metrics only; comprehensive analytics deferred to future phase",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-005",
+        item: "Third-party integrations beyond core requirements",
+        reason: "Focus on core functionality first; integration ecosystem built incrementally",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-006",
+        item: "White-label or multi-tenant enterprise features",
+        reason: "Single-tenant architecture for simplicity; multi-tenancy is a major architectural change",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-007",
+        item: "Real-time collaborative editing",
+        reason: "Requires CRDT or OT implementation; significant complexity for initial release",
+        futureConsideration: true,
+      },
+      {
+        id: "OOS-008",
+        item: "Custom domain support for users",
+        reason: "Requires SSL certificate management and DNS configuration; deferred feature",
+        futureConsideration: false,
+      },
+    ];
+  }
+
+  /**
+   * Generate edge cases and failure modes
+   */
+  private generateEdgeCasesAndFailureModes(): EdgeCaseFailureMode[] {
+    return [
+      {
+        id: "ECF-001",
+        scenario: "User submits form with browser back button, causing duplicate submission",
+        category: "user-behavior",
+        likelihood: "occasional",
+        expectedBehavior: "System detects duplicate request via idempotency key and returns existing result",
+        recoveryAction: "Display confirmation of original action without creating duplicate",
+      },
+      {
+        id: "ECF-002",
+        scenario: "Session expires while user has unsaved changes in form",
+        category: "timing",
+        likelihood: "occasional",
+        expectedBehavior: "System preserves form data locally, prompts re-authentication, then restores state",
+        recoveryAction: "Use localStorage to cache form state; restore after successful re-login",
+      },
+      {
+        id: "ECF-003",
+        scenario: "Database connection pool exhausted during traffic spike",
+        category: "resource",
+        likelihood: "rare",
+        expectedBehavior: "Requests queue briefly then fail gracefully with 503 status",
+        recoveryAction: "Implement circuit breaker pattern; display friendly maintenance message",
+      },
+      {
+        id: "ECF-004",
+        scenario: "External AI service times out or returns error",
+        category: "integration",
+        likelihood: "occasional",
+        expectedBehavior: "System retries with exponential backoff; falls back to cached result if available",
+        recoveryAction: "Queue request for background retry; notify user of delay",
+      },
+      {
+        id: "ECF-005",
+        scenario: "User uploads file exceeding size limit",
+        category: "input",
+        likelihood: "likely",
+        expectedBehavior: "Client-side validation prevents upload; server rejects if bypassed",
+        recoveryAction: "Display clear error with size limit; suggest file compression",
+      },
+      {
+        id: "ECF-006",
+        scenario: "Concurrent edits to same resource by multiple users",
+        category: "state",
+        likelihood: "occasional",
+        expectedBehavior: "Optimistic locking detects conflict; last writer notified of conflict",
+        recoveryAction: "Show diff of changes; allow user to merge or overwrite",
+      },
+      {
+        id: "ECF-007",
+        scenario: "User attempts action without required permissions",
+        category: "user-behavior",
+        likelihood: "likely",
+        expectedBehavior: "Action is blocked; clear message explains required permission",
+        recoveryAction: "Suggest contacting administrator for access; log attempt for audit",
+      },
+      {
+        id: "ECF-008",
+        scenario: "Network disconnection during multi-step operation",
+        category: "integration",
+        likelihood: "occasional",
+        expectedBehavior: "Partial state is preserved; operation can be resumed or rolled back",
+        recoveryAction: "Show reconnection status; auto-retry when connection restored",
+      },
+      {
+        id: "ECF-009",
+        scenario: "User pastes extremely large text content into input field",
+        category: "input",
+        likelihood: "rare",
+        expectedBehavior: "Content is truncated to maximum length with warning",
+        recoveryAction: "Display character count and limit; suggest alternatives for large content",
+      },
+      {
+        id: "ECF-010",
+        scenario: "Email delivery fails for critical notification",
+        category: "integration",
+        likelihood: "rare",
+        expectedBehavior: "System logs failure; retries with exponential backoff; alerts admin after threshold",
+        recoveryAction: "In-app notification as backup; manual resend option in admin panel",
+      },
+    ];
+  }
+
+  /**
+   * Generate confidence notes for uncertain areas
+   */
+  private generateConfidenceNotes(): ConfidenceNote[] {
+    return [
+      {
+        id: "CN-001",
+        section: "Non-Functional Requirements - Performance",
+        concern: "Specific performance targets may need adjustment based on actual usage patterns",
+        confidenceLevel: "medium",
+        reason: "Targets based on industry benchmarks; real-world performance depends on implementation and infrastructure",
+        mitigationSuggestion: "Implement performance monitoring early; adjust targets based on baseline measurements",
+      },
+      {
+        id: "CN-002",
+        section: "Architecture - External Services",
+        concern: "AI service integration patterns may evolve as providers update their APIs",
+        confidenceLevel: "medium",
+        reason: "AI services are rapidly evolving; current integration approach may need updates",
+        mitigationSuggestion: "Abstract AI provider behind interface; design for easy provider switching",
+      },
+      {
+        id: "CN-003",
+        section: "Data Models",
+        concern: "Schema may require iteration as real user workflows are observed",
+        confidenceLevel: "medium",
+        reason: "Initial schema based on anticipated needs; actual usage may reveal gaps",
+        mitigationSuggestion: "Use migration-friendly ORM; plan for schema evolution from start",
+      },
+      {
+        id: "CN-004",
+        section: "UI/UX Principles - User Flows",
+        concern: "User flow assumptions should be validated with usability testing",
+        confidenceLevel: "low",
+        reason: "Flows designed based on best practices; actual user behavior may differ",
+        mitigationSuggestion: "Plan for early usability testing; implement analytics to track flow completion",
+      },
+      {
+        id: "CN-005",
+        section: "Security Considerations",
+        concern: "Security requirements are comprehensive but should have professional security review",
+        confidenceLevel: "high",
+        reason: "Based on OWASP and industry standards; implementation quality determines actual security",
+        mitigationSuggestion: "Schedule security audit before production launch; implement security scanning in CI",
+      },
+      {
+        id: "CN-006",
+        section: "API Contracts",
+        concern: "API design may need refinement as frontend implementation progresses",
+        confidenceLevel: "medium",
+        reason: "API designed from requirements; frontend development may reveal optimization opportunities",
+        mitigationSuggestion: "Version APIs from start; implement deprecation strategy for breaking changes",
+      },
+    ];
+  }
+
+  /**
    * Generate summary
    */
   private generateSummary(ideaTitle: string, confidence: number): string {
-    return `This requirements document for "${ideaTitle}" provides a comprehensive specification covering ${10} functional requirements, ${8} non-functional requirements, a modular architecture with ${5} components, ${4} data models, ${10} API endpoints, UI/UX principles with ${3} user flows, and ${10} security considerations. Generated with ${Math.round(confidence * 100)}% AI consensus confidence. All requirements are deterministic, developer-readable, and tool-agnostic.`;
+    return `This requirements document for "${ideaTitle}" provides a comprehensive specification covering ${10} functional requirements, ${8} non-functional requirements, a modular architecture with ${5} components, ${4} data models, ${10} API endpoints, UI/UX principles with ${3} user flows, ${10} security considerations, ${8} documented assumptions, ${8} explicit out-of-scope items, ${10} edge cases and failure modes, and ${6} confidence notes for areas requiring validation. Generated with ${Math.round(confidence * 100)}% AI consensus confidence. All requirements are deterministic, developer-readable, and tool-agnostic.`;
   }
 
   /**
@@ -855,6 +1139,34 @@ export class RequirementsService {
         content: requirements.securityConsiderations.map(sc =>
           `### ${sc.title} (${sc.priority})\n**Category:** ${sc.category}\n\n${sc.description}\n\n**Implementation:** ${sc.implementation}`
         ).join('\n\n---\n\n'),
+      },
+      {
+        heading: "Assumptions",
+        level: 2 as const,
+        content: `The following assumptions underpin this requirements document. If any assumption proves incorrect, affected requirements may need revision.\n\n${requirements.assumptions.map(a =>
+          `### ${a.id}: ${a.statement}\n**Category:** ${a.category}\n\n**Rationale:** ${a.rationale}\n\n**Impact if Invalid:** ${a.impact}`
+        ).join('\n\n---\n\n')}`,
+      },
+      {
+        heading: "Out of Scope",
+        level: 2 as const,
+        content: `The following items are explicitly excluded from this release to maintain focus and manage scope.\n\n| ID | Item | Reason | Future? |\n|----|------|--------|---------|\n${requirements.outOfScope.map(oos =>
+          `| ${oos.id} | ${oos.item} | ${oos.reason} | ${oos.futureConsideration ? 'Yes' : 'No'} |`
+        ).join('\n')}`,
+      },
+      {
+        heading: "Edge Cases and Failure Modes",
+        level: 2 as const,
+        content: `This section documents known edge cases and expected system behavior when things go wrong.\n\n${requirements.edgeCasesAndFailureModes.map(ecf =>
+          `### ${ecf.id}: ${ecf.scenario}\n**Category:** ${ecf.category} | **Likelihood:** ${ecf.likelihood}\n\n**Expected Behavior:** ${ecf.expectedBehavior}${ecf.recoveryAction ? `\n\n**Recovery Action:** ${ecf.recoveryAction}` : ''}`
+        ).join('\n\n---\n\n')}`,
+      },
+      {
+        heading: "Confidence Notes",
+        level: 2 as const,
+        content: `The following areas have been flagged for additional validation or may require iteration based on real-world feedback.\n\n${requirements.confidenceNotes.map(cn =>
+          `### ${cn.id}: ${cn.section}\n**Confidence:** ${cn.confidenceLevel.toUpperCase()}\n\n**Concern:** ${cn.concern}\n\n**Reason:** ${cn.reason}${cn.mitigationSuggestion ? `\n\n**Mitigation:** ${cn.mitigationSuggestion}` : ''}`
+        ).join('\n\n---\n\n')}`,
       },
       {
         heading: "Next Steps",

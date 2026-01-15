@@ -115,6 +115,43 @@ export interface SecurityConsideration {
   priority: "critical" | "high" | "medium" | "low";
 }
 
+// Assumption made during requirements
+export interface RequirementAssumption {
+  id: string;
+  category: "technical" | "user" | "operational" | "business" | "integration";
+  statement: string;
+  rationale: string;
+  impact: string;
+}
+
+// Explicit out-of-scope item
+export interface OutOfScopeItem {
+  id: string;
+  item: string;
+  reason: string;
+  futureConsideration?: boolean;
+}
+
+// Edge case and failure mode
+export interface EdgeCaseFailureMode {
+  id: string;
+  scenario: string;
+  category: "input" | "state" | "integration" | "resource" | "timing" | "user-behavior";
+  likelihood: "rare" | "occasional" | "likely";
+  expectedBehavior: string;
+  recoveryAction?: string;
+}
+
+// Confidence note for uncertain areas
+export interface ConfidenceNote {
+  id: string;
+  section: string;
+  concern: string;
+  confidenceLevel: "high" | "medium" | "low";
+  reason: string;
+  mitigationSuggestion?: string;
+}
+
 // Complete requirements document
 export interface RequirementsDocument {
   id: string;
@@ -127,6 +164,10 @@ export interface RequirementsDocument {
   apiContracts: APIContracts;
   uiuxPrinciples: UIUXPrinciples;
   securityConsiderations: SecurityConsideration[];
+  assumptions: RequirementAssumption[];
+  outOfScope: OutOfScopeItem[];
+  edgeCasesAndFailureModes: EdgeCaseFailureMode[];
+  confidenceNotes: ConfidenceNote[];
   summary: string;
   version: string;
   createdAt: string;
