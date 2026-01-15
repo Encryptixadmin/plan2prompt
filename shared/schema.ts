@@ -12,6 +12,9 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email"),
   displayName: text("display_name"),
+  isAdmin: text("is_admin").default("false").$type<"true" | "false">(),
+  generationDisabled: text("generation_disabled").default("false").$type<"true" | "false">(),
+  generationDisabledReason: text("generation_disabled_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -30,6 +33,8 @@ export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  generationDisabled: text("generation_disabled").default("false").$type<"true" | "false">(),
+  generationDisabledReason: text("generation_disabled_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -93,3 +98,39 @@ export const insertUsageRecordSchema = createInsertSchema(usageRecords).omit({
 
 export type InsertUsageRecord = z.infer<typeof insertUsageRecordSchema>;
 export type UsageRecord = typeof usageRecords.$inferSelect;
+
+// ============================================
+// ADMIN ACTION LOG
+// ============================================
+export const adminActionTypes = [
+  "provider_disabled",
+  "provider_enabled",
+  "user_generation_disabled",
+  "user_generation_enabled",
+  "project_generation_disabled",
+  "project_generation_enabled",
+] as const;
+export type AdminActionType = typeof adminActionTypes[number];
+
+export const adminActionTargets = ["provider", "user", "project"] as const;
+export type AdminActionTarget = typeof adminActionTargets[number];
+
+export const adminActionLog = pgTable("admin_action_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminUserId: varchar("admin_user_id").notNull(),
+  actionType: text("action_type").notNull().$type<AdminActionType>(),
+  targetType: text("target_type").notNull().$type<AdminActionTarget>(),
+  targetId: text("target_id").notNull(),
+  reason: text("reason"),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export const insertAdminActionLogSchema = createInsertSchema(adminActionLog).omit({
+  id: true,
+  timestamp: true,
+});
+
+export type InsertAdminActionLog = z.infer<typeof insertAdminActionLogSchema>;
+export type AdminActionLog = typeof adminActionLog.$inferSelect;

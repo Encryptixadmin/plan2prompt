@@ -1,0 +1,161 @@
+Proceed to PHASE 3 — STEP 2: INTERNAL ADMIN OPS CONSOLE.
+
+EXECUTION MODE:
+Governance and observability.
+No product features.
+No user-facing expansion.
+
+OBJECTIVE:
+Create a minimal, internal-only Admin Ops Console
+to monitor platform health, usage, cost, and safety
+after real AI provider integration.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Admins observe by default.
+Admins intervene rarely.
+Admins never act invisibly.
+
+--------------------------------
+ACCESS CONTROL (NON-NEGOTIABLE)
+--------------------------------
+1. Introduce an `admin` role.
+2. Admin access must be:
+   - Backend-enforced
+   - Role-checked on every admin route
+3. Admin routes must live under:
+   /admin/*
+4. No separate authentication system.
+5. No admin functionality exposed to non-admin users.
+
+--------------------------------
+ADMIN CONSOLE SCOPE (STRICT)
+--------------------------------
+
+The Admin Ops Console MUST provide read-mostly visibility
+across five domains:
+
+--------------------------------
+1. SYSTEM & PROVIDER HEALTH
+--------------------------------
+Display:
+- OpenAI / Anthropic / Gemini status:
+  - Available / Degraded / Disabled
+- Error rate per provider
+- Timeout / retry counts
+- Last successful request timestamp
+
+Admin actions allowed:
+- Temporarily disable a provider (soft toggle)
+- Re-enable a provider
+
+Rules:
+- Disabling a provider affects consensus only
+- Never delete provider history
+- Changes must be reversible
+
+--------------------------------
+2. USAGE & COST OVERSIGHT
+--------------------------------
+Display:
+- Total usage (daily / weekly)
+- Cost estimates by:
+  - Provider
+  - Project
+  - User
+  - Module (Ideas / Requirements / Prompts)
+- Top usage outliers
+
+Rules:
+- Read-only by default
+- No billing UI
+- No invoices
+- No user-facing cost changes
+
+--------------------------------
+3. USER & PROJECT SAFETY
+--------------------------------
+Display:
+- Users list (id, role, status)
+- Projects list (id, owner, artefact counts)
+- Recent generation activity (timestamped)
+
+Admin actions allowed:
+- Soft-disable generation for:
+  - A specific user
+  - A specific project
+
+Rules:
+- Soft-disable means:
+  - No new generations allowed
+  - Existing artefacts remain accessible
+- Display clear reason when disabled
+- Reversible at all times
+
+--------------------------------
+4. ARTEFACT & FLOW INTEGRITY
+--------------------------------
+Display:
+- Count of artefacts by stage:
+  - DRAFT_IDEA
+  - VALIDATED_IDEA
+  - LOCKED_REQUIREMENTS
+  - PROMPTS_GENERATED
+- STOP recommendations issued vs overridden
+- Flow abandonment points
+
+Rules:
+- Read-only
+- No artefact editing
+- No forced progression
+
+--------------------------------
+5. ADMIN ACTION LOG
+--------------------------------
+Every admin action MUST:
+- Be logged with:
+  - Admin user ID
+  - Action taken
+  - Target (provider / user / project)
+  - Timestamp
+- Be viewable in the Admin Console
+
+--------------------------------
+UI & UX CONSTRAINTS
+--------------------------------
+- No dashboards with charts
+- Use tables and simple summaries only
+- Clear section headers
+- Calm, neutral language
+- Explicit warnings on any admin action
+
+--------------------------------
+SECURITY & SAFETY
+--------------------------------
+- Admin actions require confirmation
+- No destructive actions (delete, purge)
+- No silent state changes
+- No bulk actions
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add analytics visualisations
+- Add user management CRUD
+- Add billing or payments
+- Add alerts or notifications
+- Add export from admin
+- Add impersonation
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Summarise admin capabilities
+- Confirm no admin action can cause irreversible damage
+- Confirm all admin actions are logged
+- Confirm no user-facing behaviour changed
+
+STOP.
+WAIT for confirmation before proceeding.
