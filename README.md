@@ -69,6 +69,11 @@ This platform serves as a foundation for building production-grade web applicati
 | POST | `/api/ai/query/:provider` | Query single provider (openai/anthropic/gemini) |
 | POST | `/api/ai/consensus` | Get consensus from multiple providers |
 
+### Ideas Module
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/ideas/analyze` | Analyze an idea using AI consensus |
+
 ## Development
 
 The application runs on port 5000 with hot module replacement enabled.
