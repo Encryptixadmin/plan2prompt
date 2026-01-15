@@ -1,0 +1,175 @@
+You are now performing a FULL PLATFORM AUDIT AND PLAN CROSS-CHECK.
+
+EXECUTION MODE:
+Audit, comparison, and validation.
+NO new code.
+NO refactors.
+NO improvements.
+
+OBJECTIVE:
+Produce a detailed, factual report of what the platform
+HAS ACTUALLY IMPLEMENTED,
+and explicitly cross-check it against the original intended plan.
+
+This is a truth-finding exercise, not a roadmap.
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+1. Base ALL findings on code, routes, services, middleware, and tests that exist.
+2. Do NOT rely on:
+   - Assumptions
+   - Comments
+   - TODOs
+   - Planned features
+3. If something is partial, say so.
+4. If something is missing, say so.
+5. If something exists but is not enforced, say so.
+6. Prefer accuracy over optimism.
+
+--------------------------------
+REFERENCE PLAN (AUTHORITATIVE)
+--------------------------------
+Assume the intended platform plan includes:
+
+- A strict Ideas → Requirements → Prompts pipeline
+- Non-bypassable sequencing
+- STOP recommendation enforcement
+- Artefact-based workflow with immutability & versioning
+- Multi-project isolation
+- Role-based permissions
+- Deterministic AI consensus (OpenAI, Anthropic, Gemini)
+- Execution-safe prompts (STOP / VERIFY / RECOVERY)
+- Structured prompt feedback loop (non-chatty)
+- Failure taxonomy + metrics
+- Usage & billing foundations (no payments)
+- Admin ops console (read-mostly, reversible actions)
+- Minimal invariant testing only
+- Closed-beta readiness (not public SaaS)
+
+--------------------------------
+REQUIRED OUTPUT STRUCTURE
+--------------------------------
+
+Produce a single detailed document with the following sections:
+
+--------------------------------
+1. EXECUTIVE SUMMARY
+--------------------------------
+- What this platform is TODAY (one paragraph)
+- What stage it is at (internal alpha / closed beta / etc.)
+- One-sentence assessment: “Is it aligned with the plan?”
+
+--------------------------------
+2. PIPELINE & FLOW VALIDATION
+--------------------------------
+For each stage (Ideas, Requirements, Prompts):
+
+- What is implemented
+- What is enforced at the BACKEND
+- What is only enforced at the UI
+- Where bypass is impossible
+- Where bypass is still possible (if any)
+
+--------------------------------
+3. STOP & DECISION DISCIPLINE
+--------------------------------
+- Is STOP recommendation enforced end-to-end?
+- Where acknowledgement is required
+- Where it is logged
+- Any gaps between intent and enforcement
+
+--------------------------------
+4. ARTEFACT SYSTEM REVIEW
+--------------------------------
+- Artefact types present
+- Versioning behaviour
+- Invalidation behaviour
+- Immutability guarantees
+- Any drift from the original artefact-first plan
+
+--------------------------------
+5. PROMPT EXECUTION & RECOVERY
+--------------------------------
+- Prompt structure (prereqs, scope guardrails, STOP)
+- Feedback loop behaviour
+- Failure classification determinism
+- Unknown failure handling
+- Any chatty or speculative behaviour detected
+
+--------------------------------
+6. GOVERNANCE & SAFETY
+--------------------------------
+- Project isolation
+- Role enforcement
+- Admin powers & limits
+- Soft-disable mechanisms
+- Audit logging coverage
+
+--------------------------------
+7. AI & CONSENSUS IMPLEMENTATION
+--------------------------------
+- Provider abstraction
+- Consensus behaviour vs plan
+- Determinism controls
+- Any provider-specific drift
+- Mock vs real usage
+
+--------------------------------
+8. USAGE, BILLING & COST CONTROLS
+--------------------------------
+- What is tracked
+- What is enforced
+- What is visible to users
+- What is admin-only
+- What remains conceptual only
+
+--------------------------------
+9. AUTOMATED TESTING REVIEW
+--------------------------------
+- Test runner in place
+- Invariants covered
+- What is explicitly NOT tested (by design)
+- Any test scope violations
+
+--------------------------------
+10. DEVIATIONS FROM PLAN
+--------------------------------
+List explicitly:
+- Over-implemented areas (beyond plan)
+- Under-implemented areas (behind plan)
+- Areas implemented differently than planned
+
+--------------------------------
+11. RISK & READINESS ASSESSMENT
+--------------------------------
+Based on code alone:
+- What could break under real usage?
+- What is safe for closed beta?
+- What MUST be fixed before public exposure?
+
+--------------------------------
+12. FINAL VERDICT
+--------------------------------
+- Is the platform aligned with the original plan? (Yes / Mostly / No)
+- Is it ready for the next stage? (Specify which stage)
+- One paragraph of brutally honest assessment
+
+--------------------------------
+OUTPUT RULES
+--------------------------------
+- Markdown format
+- Clear headings
+- No marketing language
+- No emojis
+- No speculation
+- No future suggestions unless explicitly asked
+
+--------------------------------
+FINAL INSTRUCTION
+--------------------------------
+After producing the report:
+STOP.
+DO NOT suggest next steps.
+DO NOT propose changes.
+DO NOT write a roadmap.
