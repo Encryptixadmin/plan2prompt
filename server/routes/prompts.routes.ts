@@ -5,6 +5,8 @@ import { artifactService } from "../services/artifact.service";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { billingService } from "../services/billing.service";
 import { feedbackService } from "../services/feedback.service";
+import { classifierService } from "../services/classifier.service";
+import { feedbackMetricsService } from "../services/feedback-metrics.service";
 import type { PromptFeedbackRequest, BuildPrompt } from "@shared/types/prompts";
 
 const router = Router();
@@ -231,17 +233,32 @@ router.post("/feedback", async (req: Request, res: Response) => {
       }
     }
 
-    const response = feedbackService.classifyFailure(request.rawIdeOutput, stepPrompt);
+    const classificationResult = classifierService.classifyFailure(request.rawIdeOutput);
+
+    const userId = req.userId || "anonymous";
+    const projectId = artifact.metadata.projectId || "unknown";
+
+    feedbackMetricsService.recordEvent({
+      userId,
+      projectId,
+      promptArtifactId: request.promptDocumentId,
+      promptStepNumber: request.stepNumber,
+      ide: request.ide,
+      classification: classificationResult.pattern.category === "unknown" ? "unknown_failure" : "known_failure",
+      failurePatternId: classificationResult.pattern.id,
+      instructionType: classificationResult.instructionType,
+      rawOutput: request.rawIdeOutput,
+    });
 
     feedbackService.logFeedbackAttempt(
       request,
-      response.classification,
-      response.classification === "KNOWN_FAILURE" ? response.failurePatternName : undefined
+      classificationResult.response.classification,
+      classificationResult.response.classification === "KNOWN_FAILURE" ? classificationResult.response.failurePatternName : undefined
     );
 
     res.json({
       success: true,
-      data: response,
+      data: classificationResult.response,
     });
   } catch (error) {
     console.error("Error processing feedback:", error);

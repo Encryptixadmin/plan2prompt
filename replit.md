@@ -94,6 +94,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Step 2: Feedback Metrics & Failure Pattern Taxonomy (January 2026)
+- Added PromptFeedbackEvent schema for write-once metrics logging
+- Added FailureCategory enum and FailurePatternDefinition schema
+- FeedbackMetricsService records events with hash-only storage (no raw output stored)
+- ClassifierService uses deterministic pattern matching against failure taxonomy
+- 12 known failure patterns defined in FAILURE_PATTERN_TAXONOMY
+- UNKNOWN_UNCLASSIFIED default pattern for unclassified failures
+- Documented promotion rule: unknown → known requires 3+ occurrences across 2+ projects
+- No billing/usage impact from feedback events
+
 ### Phase 4, Step 1: Structured Prompt Feedback Loop (January 2026)
 - Added deterministic failure classification for build prompts
 - POST /api/prompts/feedback endpoint for step-scoped issue resolution
