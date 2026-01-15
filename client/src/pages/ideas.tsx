@@ -678,7 +678,7 @@ export default function IdeasPage() {
 
                     {analyzeMutation.isError && (
                       <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                        Failed to analyze idea. Please try again.
+                        Something went wrong while analyzing your idea. Please try again in a moment.
                       </div>
                     )}
                   </form>

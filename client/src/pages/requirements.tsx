@@ -810,7 +810,7 @@ export default function RequirementsPage() {
 
             {generateMutation.isError && (
               <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                Failed to generate requirements. Please try again.
+                Something went wrong while generating requirements. Please try again in a moment.
               </div>
             )}
           </div>

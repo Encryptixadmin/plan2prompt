@@ -125,8 +125,8 @@ export default function Prompts() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Generation Failed",
-        description: error.message,
+        title: "Something went wrong",
+        description: "Could not generate prompts. Please try again in a moment.",
         variant: "destructive",
       });
     },
@@ -181,7 +181,7 @@ export default function Prompts() {
     } catch (error) {
       toast({
         title: "Copy Failed",
-        description: "Failed to copy to clipboard",
+        description: "Could not copy to clipboard. Try selecting and copying manually.",
         variant: "destructive",
       });
     }
@@ -205,7 +205,7 @@ export default function Prompts() {
     } catch (error) {
       toast({
         title: "Copy Failed",
-        description: "Failed to copy to clipboard",
+        description: "Could not copy to clipboard. Try selecting and copying manually.",
         variant: "destructive",
       });
     }
