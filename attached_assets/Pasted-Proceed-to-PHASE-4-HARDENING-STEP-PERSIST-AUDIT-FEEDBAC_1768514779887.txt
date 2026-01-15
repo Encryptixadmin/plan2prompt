@@ -1,0 +1,167 @@
+Proceed to PHASE 4 — HARDENING STEP: PERSIST AUDIT & FEEDBACK LOGS.
+
+EXECUTION MODE:
+Operational hardening.
+NO new product features.
+NO UI dashboards.
+
+OBJECTIVE:
+Persist admin audit logs and prompt feedback logs
+to durable storage so they survive server restarts
+and support beta learning and incident analysis.
+
+--------------------------------
+CORE PRINCIPLES (NON-NEGOTIABLE)
+--------------------------------
+- Persist facts, not interpretations
+- Write-once logs
+- Read rarely, act carefully
+- No analytics UI
+
+--------------------------------
+LOG TYPES TO PERSIST (ONLY THESE)
+--------------------------------
+
+1. ADMIN AUDIT LOG
+2. PROMPT FEEDBACK EVENT LOG
+
+--------------------------------
+STORAGE BACKEND
+--------------------------------
+Use PostgreSQL (existing database).
+
+DO NOT:
+- Create a new database
+- Introduce external logging services
+- Use file-based logs for these events
+
+--------------------------------
+PART 1 — ADMIN AUDIT LOG PERSISTENCE
+--------------------------------
+
+Create a table:
+
+admin_audit_log
+
+Columns (REQUIRED):
+- id (uuid, primary key)
+- timestamp (timestamptz, default now())
+- admin_user_id (uuid)
+- action_type (text)
+- target_type (text)        // e.g. "user", "project", "provider", "idea"
+- target_id (text, nullable)
+- reason (text, nullable)
+- metadata (jsonb, nullable)
+
+--------------------------------
+INTEGRATION RULES
+--------------------------------
+
+1. Modify AdminService.logAction():
+   - Write to admin_audit_log table
+   - Remove reliance on in-memory-only storage
+   - In-memory cache may remain as optional optimization,
+     but database is authoritative
+
+2. Every admin action MUST:
+   - Be written to the database
+   - Return success only after persistence succeeds
+
+3. Fail-safe behaviour:
+   - If audit log persistence fails,
+     the admin action MUST fail and return an error
+
+--------------------------------
+PART 2 — PROMPT FEEDBACK EVENT PERSISTENCE
+--------------------------------
+
+Create a table:
+
+prompt_feedback_events
+
+Columns (REQUIRED):
+- id (uuid, primary key)
+- timestamp (timestamptz, default now())
+
+Context:
+- user_id (uuid)
+- project_id (uuid)
+- prompt_artifact_id (uuid)
+- prompt_step_number (int)
+- ide (text)
+
+Classification:
+- classification (text)        // "known_failure" | "unknown_failure"
+- failure_pattern_id (text, nullable)
+
+Outcome:
+- instruction_type (text)      // "retry_step" | "stop_execution" | "regenerate_prompts"
+
+Meta:
+- raw_output_hash (text)
+
+--------------------------------
+STRICT DATA RULES
+--------------------------------
+- DO NOT store raw IDE output
+- DO NOT store stack traces
+- DO NOT store user commentary
+- raw_output_hash must be deterministic and irreversible
+
+--------------------------------
+INTEGRATION RULES
+--------------------------------
+
+1. Modify FeedbackMetricsService (or equivalent):
+   - Persist each PromptFeedbackEvent to database
+   - Remove reliance on in-memory-only arrays
+
+2. Recording a feedback event MUST NOT:
+   - Affect billing counters
+   - Affect generation limits
+   - Affect prompt state
+
+3. Failure to persist feedback events:
+   - Must NOT block user recovery response
+   - Must be logged server-side as a warning
+
+--------------------------------
+MIGRATION & SAFETY
+--------------------------------
+- Add SQL migration(s) for both tables
+- Ensure migrations are idempotent
+- No destructive migrations
+
+--------------------------------
+ADMIN VISIBILITY (EXISTING UI ONLY)
+--------------------------------
+- Existing admin views may continue to read from service layer
+- Update service layer to read from database instead of memory
+- DO NOT add new UI screens or filters
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add analytics dashboards
+- Add export functionality
+- Add retention policies yet
+- Add alerting or notifications
+- Add background jobs
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+
+1. Restart the server
+2. Perform:
+   - One admin action (e.g. disable provider)
+   - One prompt feedback submission
+3. Confirm:
+   - Both entries exist in PostgreSQL
+   - Data survives restart
+   - No raw output is stored
+   - No UI changes occurred
+
+STOP.
+WAIT for confirmation.

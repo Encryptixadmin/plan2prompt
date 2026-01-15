@@ -120,3 +120,38 @@ export const insertAdminActionLogSchema = createInsertSchema(adminActionLog).omi
 
 export type InsertAdminActionLog = z.infer<typeof insertAdminActionLogSchema>;
 export type AdminActionLog = typeof adminActionLog.$inferSelect;
+
+// ============================================
+// PROMPT FEEDBACK EVENTS (Write-once metrics log)
+// ============================================
+export const feedbackClassifications = ["known_failure", "unknown_failure"] as const;
+export type FeedbackClassification = typeof feedbackClassifications[number];
+
+export const feedbackInstructionTypes = ["retry_step", "stop_execution", "regenerate_prompts"] as const;
+export type FeedbackInstructionType = typeof feedbackInstructionTypes[number];
+
+export const promptFeedbackEvents = pgTable("prompt_feedback_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  // Context
+  userId: varchar("user_id").notNull(),
+  projectId: varchar("project_id").notNull(),
+  promptArtifactId: varchar("prompt_artifact_id").notNull(),
+  promptStepNumber: integer("prompt_step_number").notNull(),
+  ide: text("ide").notNull(),
+  // Classification
+  classification: text("classification").notNull().$type<FeedbackClassification>(),
+  failurePatternId: text("failure_pattern_id"),
+  // Outcome
+  instructionType: text("instruction_type").notNull().$type<FeedbackInstructionType>(),
+  // Meta (no raw output stored)
+  rawOutputHash: text("raw_output_hash").notNull(),
+});
+
+export const insertPromptFeedbackEventSchema = createInsertSchema(promptFeedbackEvents).omit({
+  id: true,
+  timestamp: true,
+});
+
+export type InsertPromptFeedbackEvent = z.infer<typeof insertPromptFeedbackEventSchema>;
+export type PromptFeedbackEvent = typeof promptFeedbackEvents.$inferSelect;
