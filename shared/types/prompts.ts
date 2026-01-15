@@ -16,6 +16,28 @@ export interface IDEInfo {
   limitations: string[];
 }
 
+// Prerequisite check for a prompt step
+export interface PromptPrerequisite {
+  stepNumber: number;
+  description: string;
+  verificationCheck: string;
+}
+
+// Failure recovery branch
+export interface FailureRecoveryBranch {
+  symptom: string;
+  likelyCause: string;
+  recoveryAction: string;
+  shouldRetry: boolean;
+}
+
+// Verification checkpoint
+export interface VerificationCheckpoint {
+  whatToVerify: string;
+  successCriteria: string;
+  whenToStop: string;
+}
+
 // Single build prompt
 export interface BuildPrompt {
   step: number;
@@ -27,6 +49,11 @@ export interface BuildPrompt {
   dependencies?: number[];
   estimatedTime?: string;
   tags?: string[];
+  prerequisites?: PromptPrerequisite[];
+  verificationCheckpoint?: VerificationCheckpoint;
+  failureRecovery?: FailureRecoveryBranch[];
+  scopeGuardrails?: string[];
+  ideConstraints?: string[];
 }
 
 // Complete prompt document

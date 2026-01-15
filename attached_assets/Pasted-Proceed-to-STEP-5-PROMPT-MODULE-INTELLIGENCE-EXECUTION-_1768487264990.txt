@@ -1,0 +1,101 @@
+Proceed to STEP 5 — PROMPT MODULE INTELLIGENCE & EXECUTION SAFETY.
+
+EXECUTION MODE:
+Deterministic execution guidance.
+No new UI flows.
+No new modules.
+
+OBJECTIVE:
+Upgrade build prompt generation so prompts are:
+- Safer to execute
+- Explicitly ordered
+- Failure-aware
+- IDE-realistic
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Prompts are executable instructions, not advice.
+
+--------------------------------
+PROMPT OUTPUT ENHANCEMENTS
+--------------------------------
+
+Enhance build prompt generation to include:
+
+--------------------------------
+1. DEPENDENCY-AWARE SEQUENCING
+--------------------------------
+Each prompt MUST:
+- Declare dependencies on previous steps
+- Explicitly state prerequisites
+- Fail fast if prerequisites are unmet
+
+Example:
+"Only proceed if the database schema from Step 3 exists."
+
+--------------------------------
+2. STOP / VERIFY CHECKPOINTS
+--------------------------------
+After critical steps, include explicit checkpoints:
+
+- What the user should verify
+- What “correct” looks like
+- When to stop and fix issues before continuing
+
+--------------------------------
+3. FAILURE RECOVERY BRANCHES
+--------------------------------
+For each major step, include:
+
+"If this fails:"
+- Common failure symptoms
+- Likely causes
+- Exact recovery actions
+- Whether to retry or roll back
+
+--------------------------------
+4. IDE-SPECIFIC CONSTRAINT AWARENESS
+--------------------------------
+Prompts must adapt to IDE limitations, e.g.:
+
+- Replit filesystem expectations
+- Cursor multi-file edits
+- Tool context windows
+- Execution model (agent vs manual)
+
+--------------------------------
+5. SCOPE GUARDRAILS
+--------------------------------
+Each prompt MUST include:
+"What NOT to do in this step"
+
+This prevents:
+- Overbuilding
+- Hallucinated features
+- Agent scope creep
+
+--------------------------------
+QUALITY BAR
+--------------------------------
+A competent developer should be able to follow the prompts
+without asking clarifying questions.
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add auto-execution
+- Add IDE API integrations
+- Add code generation beyond prompts
+- Add UI changes
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Show before/after prompt examples
+- Explain how failure risk is reduced
+- Confirm prompts remain portable and copy-pasteable
+
+STOP.
+WAIT for confirmation before proceeding.
