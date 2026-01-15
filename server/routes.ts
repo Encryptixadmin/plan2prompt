@@ -5,6 +5,7 @@ import type { HealthCheckResponse } from "@shared/types";
 import artifactRoutes from "./routes/artifact.routes";
 import aiRoutes from "./routes/ai.routes";
 import ideasRoutes from "./routes/ideas.routes";
+import requirementsRoutes from "./routes/requirements.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -29,6 +30,9 @@ export async function registerRoutes(
 
   // Ideas module routes
   app.use("/api/ideas", ideasRoutes);
+
+  // Requirements module routes
+  app.use("/api/requirements", requirementsRoutes);
 
   return httpServer;
 }

@@ -112,6 +112,13 @@ export class RequirementsService {
 
   /**
    * Generate structured requirements based on idea content
+   * 
+   * NOTE: Current implementation uses template-based generation because
+   * AI providers are in mock mode. When real AI APIs are integrated:
+   * 1. Parse consensus.unifiedContent to extract structured requirements
+   * 2. Use NLP to identify functional/non-functional requirements
+   * 3. Generate idea-specific architecture based on technical analysis
+   * 4. Infer data models from described features
    */
   private generateStructuredRequirements(
     ideaArtifactId: string,

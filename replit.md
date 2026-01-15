@@ -52,6 +52,13 @@ Preferred communication style: Simple, everyday language.
 - **Output**: Structured analysis saved as `ideas-reference-{title}_v{n}.md` in `artifacts/ideas/`
 - **Handoff**: Creates artifacts compatible with Requirements Module via `artifactId`
 
+### Requirements Module
+- **Purpose**: Convert validated ideas into comprehensive requirements documents
+- **Frontend**: `/requirements` route with idea selector and detailed requirements display
+- **Backend**: `POST /api/requirements/generate` generates requirements from idea artifacts
+- **Output**: Structured requirements saved as `requirements-reference-{title}_v{n}.md` in `artifacts/requirements/`
+- **Includes**: Functional requirements, non-functional requirements, architecture overview, data models, API contracts, UI/UX principles, security considerations
+
 ## External Dependencies
 
 ### UI Component Libraries

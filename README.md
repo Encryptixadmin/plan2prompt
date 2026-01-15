@@ -74,6 +74,12 @@ This platform serves as a foundation for building production-grade web applicati
 |--------|----------|-------------|
 | POST | `/api/ideas/analyze` | Analyze an idea using AI consensus |
 
+### Requirements Module
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/requirements/ideas` | List available ideas for requirements |
+| POST | `/api/requirements/generate` | Generate requirements from an idea |
+
 ## Development
 
 The application runs on port 5000 with hot module replacement enabled.
