@@ -2,9 +2,11 @@ import { randomUUID } from "crypto";
 import type {
   AdminActionType,
   AdminActionTarget,
-  InsertAdminActionLog,
   AIProvider,
 } from "@shared/schema";
+import { adminActionLog } from "@shared/schema";
+import { db } from "../db";
+import { desc } from "drizzle-orm";
 
 interface AdminActionLogEntry {
   id: string;
@@ -146,18 +148,69 @@ class AdminService {
   }
 
   async logAction(entry: Omit<AdminActionLogEntry, "id" | "timestamp">): Promise<AdminActionLogEntry> {
+    const id = randomUUID();
+    const timestamp = new Date();
+
+    // Persist to database (authoritative storage)
+    const [inserted] = await db
+      .insert(adminActionLog)
+      .values({
+        id,
+        adminUserId: entry.adminUserId,
+        actionType: entry.actionType,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        reason: entry.reason ?? null,
+        previousState: entry.previousState ?? null,
+        newState: entry.newState ?? null,
+      })
+      .returning();
+
+    if (!inserted) {
+      throw new Error("Failed to persist admin audit log entry");
+    }
+
     const logEntry: AdminActionLogEntry = {
-      id: randomUUID(),
-      ...entry,
-      timestamp: new Date(),
+      id: inserted.id,
+      adminUserId: inserted.adminUserId,
+      actionType: inserted.actionType as AdminActionType,
+      targetType: inserted.targetType as AdminActionTarget,
+      targetId: inserted.targetId,
+      reason: inserted.reason,
+      previousState: inserted.previousState,
+      newState: inserted.newState,
+      timestamp: inserted.timestamp,
     };
+
+    // Also keep in-memory cache for quick access
     this.actionLog.push(logEntry);
-    console.log(`[Admin] Action logged: ${entry.actionType} on ${entry.targetType}:${entry.targetId} by ${entry.adminUserId}`);
+    if (this.actionLog.length > 1000) {
+      this.actionLog = this.actionLog.slice(-1000);
+    }
+
+    console.log(`[Admin] Action persisted: ${entry.actionType} on ${entry.targetType}:${entry.targetId} by ${entry.adminUserId}`);
     return logEntry;
   }
 
   async getActionLog(limit = 100): Promise<AdminActionLogEntry[]> {
-    return this.actionLog.slice(-limit).reverse();
+    // Read from database (authoritative)
+    const rows = await db
+      .select()
+      .from(adminActionLog)
+      .orderBy(desc(adminActionLog.timestamp))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      id: row.id,
+      adminUserId: row.adminUserId,
+      actionType: row.actionType as AdminActionType,
+      targetType: row.targetType as AdminActionTarget,
+      targetId: row.targetId,
+      reason: row.reason,
+      previousState: row.previousState,
+      newState: row.newState,
+      timestamp: row.timestamp,
+    }));
   }
 
   async getProviderStatus(): Promise<ProviderStatus[]> {

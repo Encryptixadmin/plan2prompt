@@ -231,7 +231,8 @@ router.post("/feedback", async (req: Request, res: Response) => {
     const userId = req.userId || "anonymous";
     const projectId = artifact.metadata.projectId || "unknown";
 
-    feedbackMetricsService.recordEvent({
+    // Fire-and-forget: persistence failure must NOT block user recovery response
+    void feedbackMetricsService.recordEvent({
       userId,
       projectId,
       promptArtifactId: request.promptDocumentId,

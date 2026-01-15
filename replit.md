@@ -94,6 +94,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: Persist Audit & Feedback Logs (January 2026)
+- Admin audit logs now persisted to PostgreSQL `admin_action_log` table
+- Prompt feedback events now persisted to PostgreSQL `prompt_feedback_events` table
+- AdminService.logAction() writes to database (fail-safe: action fails if persistence fails)
+- AdminService.getActionLog() reads from database (survives server restart)
+- FeedbackMetricsService.recordEvent() writes to database (non-blocking: failures don't block user response)
+- All FeedbackMetricsService query methods read from database
+- No raw output stored (hash-only for feedback events)
+- Write-once pattern preserved for both log types
+- In-memory cache retained as optimization for AdminService
+- No UI changes (data layer hardening only)
+
 ### Phase 4, Step 3: Invariant Test Harness (January 2026)
 - Added Vitest-based test harness in /tests/invariants/
 - Exactly 12 invariant tests protecting core platform behavior
