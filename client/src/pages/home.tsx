@@ -2,18 +2,45 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen } from "lucide-react";
+import { ONBOARDING_KEY } from "@/components/onboarding-modal";
 
 export default function Home() {
+  const handleReopenOnboarding = () => {
+    localStorage.removeItem(ONBOARDING_KEY);
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" />
             <span className="font-semibold text-lg">Platform</span>
           </div>
-          <Badge variant="secondary">Development</Badge>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-help-menu">
+                  <HelpCircle className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleReopenOnboarding} data-testid="menu-item-onboarding">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  View Introduction
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Badge variant="secondary">Development</Badge>
+          </div>
         </div>
       </header>
 

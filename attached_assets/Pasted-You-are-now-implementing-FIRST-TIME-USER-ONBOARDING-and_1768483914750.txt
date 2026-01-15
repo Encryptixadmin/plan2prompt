@@ -1,0 +1,127 @@
+You are now implementing FIRST-TIME USER ONBOARDING and EXPECTATION SETTING.
+
+OBJECTIVE:
+Ensure users understand the platform’s structured, sequential workflow
+BEFORE they encounter any gated or blocked states.
+
+This onboarding is NOT a tutorial.
+It is an expectation primer.
+
+--------------------------------
+CORE MESSAGE (NON-NEGOTIABLE)
+--------------------------------
+The platform works best when used sequentially:
+Idea → Requirements → Build Prompts.
+
+Each step exists to protect the quality of the next.
+
+--------------------------------
+WHEN ONBOARDING APPEARS
+--------------------------------
+Show onboarding ONLY when:
+- A user has no existing artefacts
+- Or on their very first visit
+
+It must be dismissible and non-intrusive.
+
+--------------------------------
+ONBOARDING STRUCTURE
+--------------------------------
+
+STEP 1 — WHAT THIS PLATFORM DOES
+
+Title:
+"From idea to build-ready prompts"
+
+Body:
+"This platform helps you turn an idea into clear, executable build instructions.
+
+It does this in three deliberate steps:
+• Clarifying the idea
+• Defining exact requirements
+• Generating step-by-step build prompts"
+
+--------------------------------
+
+STEP 2 — WHY THE PLATFORM IS SEQUENTIAL
+
+Title:
+"Why the steps matter"
+
+Body:
+"Each step removes ambiguity from the previous one.
+
+Clear ideas produce better requirements.
+Clear requirements produce reliable build prompts.
+
+Skipping steps increases guesswork and reduces quality — so the platform protects the sequence."
+
+--------------------------------
+
+STEP 3 — HOW USERS SHOULD THINK ABOUT PROGRESS
+
+Title:
+"Work through artefacts, not pages"
+
+Body:
+"You’re not just filling in forms.
+
+Each step creates a reusable artefact:
+• An idea reference
+• A requirements document
+• A set of build prompts
+
+You can stop, review, and resume at any point."
+
+--------------------------------
+
+STEP 4 — SETTING EXPECTATIONS
+
+Title:
+"What this platform won’t do"
+
+Body:
+"This platform won’t:
+• Auto-build your app
+• Hide decisions
+• Rush you forward
+• Lock you into one tool
+
+It’s designed to help you think clearly and build with confidence."
+
+--------------------------------
+CTA
+--------------------------------
+Primary CTA:
+"Start with an Idea"
+
+Secondary CTA (optional):
+"Skip for now"
+
+--------------------------------
+UX RULES
+--------------------------------
+- Use calm, professional language
+- No animations
+- No progress bars
+- No gamification
+- No AI hype language
+
+--------------------------------
+IMPLEMENTATION NOTES
+--------------------------------
+- Track onboarding completion locally (simple flag)
+- Allow users to re-open onboarding from a help menu later
+- Do NOT block access if onboarding is skipped
+
+--------------------------------
+FINAL CHECK
+--------------------------------
+Confirm that:
+- Users understand sequencing BEFORE hitting enforcement
+- Onboarding reinforces trust and quality, not restriction
+- Language matches the tone of the rest of the platform
+
+After implementation:
+STOP.
+WAIT for the next user prompt.
