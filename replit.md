@@ -91,3 +91,28 @@ Preferred communication style: Simple, everyday language.
 - **@replit/vite-plugin-runtime-error-modal**: Development error overlay
 - **@replit/vite-plugin-cartographer**: Development tooling (dev only)
 - **@replit/vite-plugin-dev-banner**: Development banner (dev only)
+
+## Security & Isolation
+
+### Project Context System
+- **Middleware**: `server/middleware/project-context.ts` enforces project isolation via `X-Project-Id` header
+- **Permission Guards**: Role-based gates with `canGenerate`, `canEdit`, `canLock` permissions
+- **Error Codes**: Clear error responses including `MISSING_PROJECT_CONTEXT`, `PROJECT_NOT_FOUND`, `ACCESS_DENIED`, `PERMISSION_DENIED`, `PROJECT_ISOLATION_VIOLATION`
+- **Artifact Ownership**: All artifacts include `projectId` and `authorId` metadata
+
+### Sequencing Enforcement
+- **Pipeline Stages**: `DRAFT_IDEA` → `VALIDATED_IDEA` → `LOCKED_REQUIREMENTS` → `PROMPTS_GENERATED`
+- **Blocked States**: Clear UI explanations when prerequisites not met
+- **STOP Recommendations**: Require explicit acknowledgment via `acknowledgeStopRecommendation` flag
+
+## Documentation
+
+- **Alpha Readiness Checklist**: `docs/ALPHA_READINESS_CHECKLIST.md` - Internal testing checklist
+- **Design Guidelines**: `design_guidelines.md` - UI/UX standards for the platform
+
+## Recent Changes (Step 8 Polish)
+
+- Improved all user-facing copy to use plain language
+- Error messages now show helpful, human-readable text
+- Empty states provide clear next actions
+- Alpha readiness checklist created for testing
