@@ -260,9 +260,9 @@ function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, i
       {!isAccepted && (
         <Card className="border-2 border-primary/20">
           <CardHeader>
-            <CardTitle className="text-lg">What would you like to do?</CardTitle>
+            <CardTitle className="text-lg">Review Complete</CardTitle>
             <CardDescription>
-              Only accepting will save this analysis. You can edit and re-analyze, or discard entirely.
+              Accepting saves this as a validated idea. Editing returns you to the form. Discarding clears everything.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col sm:flex-row gap-3 pt-0">
@@ -463,11 +463,14 @@ export default function IdeasPage() {
       <main className="max-w-4xl mx-auto px-6 py-8">
         {!analysis ? (
           <div className="space-y-8">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-3">
               <h2 className="text-2xl font-bold">Validate Your Idea</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Get AI-powered analysis of your app or platform idea. We'll evaluate strengths,
-                weaknesses, feasibility, and risks before you commit to building.
+                Describe your concept and receive a structured analysis. The evaluation identifies 
+                strengths, weaknesses, risks, and feasibility before you proceed to building.
+              </p>
+              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
+                This step helps you decide whether to proceed. No commitments are made until you explicitly accept the analysis.
               </p>
             </div>
 
@@ -475,7 +478,7 @@ export default function IdeasPage() {
               <CardHeader>
                 <CardTitle>Describe Your Idea</CardTitle>
                 <CardDescription>
-                  Start with the core concept. Additional context can improve analysis accuracy.
+                  Provide the core concept. Additional context improves accuracy but is not required.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -675,7 +678,7 @@ export default function IdeasPage() {
             </Card>
 
             <div className="text-center text-sm text-muted-foreground">
-              <p>Analysis is reviewed before saving. You control when to commit.</p>
+              <p>You will review the analysis before making any commitment.</p>
             </div>
           </div>
         ) : (
@@ -695,7 +698,7 @@ export default function IdeasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Accept this idea as validated?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will save the analysis as a validated idea artifact. Once saved, it becomes available for the Requirements Module. This is a commitment to proceed with this idea.
+              Accepting saves the analysis as a validated idea. It will then be available for requirements generation. You are confirming this idea is ready to proceed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

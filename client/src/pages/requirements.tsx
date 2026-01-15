@@ -690,11 +690,14 @@ export default function RequirementsPage() {
       <main className="max-w-5xl mx-auto px-6 py-8">
         {!requirements ? (
           <div className="space-y-8">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-3">
               <h2 className="text-2xl font-bold">Generate Requirements Document</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Select a validated idea to convert into a comprehensive, versioned requirements document.
-                This becomes the formal specification for your project.
+                Convert a validated idea into a structured requirements document. This includes 
+                functional requirements, architecture, data models, and security considerations.
+              </p>
+              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
+                Requirements are versioned. Once accepted, they become the reference for all subsequent work.
               </p>
             </div>
 
@@ -702,7 +705,7 @@ export default function RequirementsPage() {
               <CardHeader>
                 <CardTitle>Select a Validated Idea</CardTitle>
                 <CardDescription>
-                  Only ideas that have been validated can be used to generate requirements.
+                  Only validated ideas appear here. If none are listed, return to the Ideas Module and complete validation first.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -821,8 +824,7 @@ export default function RequirementsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Generate Requirements Document?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will create a formal requirements document based on the selected idea.
-              Requirements documents are versioned and, once accepted, become the source of truth for your project.
+              This creates a requirements document based on the selected idea. You will review the output before accepting. Generation does not commit anything.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -839,8 +841,7 @@ export default function RequirementsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Lock these requirements?</AlertDialogTitle>
             <AlertDialogDescription>
-              Accepting will save this as a locked requirements artifact. This becomes the formal specification
-              for your project. Once locked, modifying the underlying idea will require creating a new requirements version.
+              Locking saves the requirements as your project's formal specification. Changes to the source idea after this point will not update these requirements. A new version would be needed instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

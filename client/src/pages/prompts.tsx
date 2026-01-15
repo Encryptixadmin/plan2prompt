@@ -280,11 +280,14 @@ export default function Prompts() {
       <main className="container py-8 max-w-4xl mx-auto">
         {flowStep === "select-requirements" && (
           <div className="space-y-6">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-3">
               <h2 className="text-2xl font-bold">Ready to Build</h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Generate step-by-step prompts to build your app. Each prompt is designed to be copied 
-                and pasted into your chosen IDE's AI assistant.
+                Generate ordered prompts from locked requirements. Each prompt includes a clear goal, 
+                instructions, and guidance on when to pause.
+              </p>
+              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
+                Prompts are text-based instructions. Copy them to your preferred development environment and execute manually.
               </p>
             </div>
 
@@ -295,7 +298,7 @@ export default function Prompts() {
                   Select Locked Requirements
                 </CardTitle>
                 <CardDescription>
-                  Only requirements that have been formally accepted and locked can be used to generate build prompts.
+                  Only locked requirements appear here. Locking happens in the Requirements Module when you accept a generated document.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -333,14 +336,15 @@ export default function Prompts() {
                   <div className="text-center py-8 space-y-4">
                     <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto" />
                     <div>
-                      <p className="text-muted-foreground mb-2">No locked requirements found</p>
+                      <p className="text-muted-foreground mb-2">No locked requirements available</p>
                       <p className="text-sm text-muted-foreground">
-                        Go to the Requirements Module and accept a requirements document to lock it.
+                        Requirements must be generated and accepted before prompts can be created. 
+                        Complete the Requirements Module first.
                       </p>
                     </div>
                     <Link href="/requirements">
                       <Button variant="outline" data-testid="link-requirements">
-                        Go to Requirements
+                        Go to Requirements Module
                       </Button>
                     </Link>
                   </div>
@@ -357,14 +361,16 @@ export default function Prompts() {
               Back
             </Button>
 
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-3">
               <Badge variant="outline" className="mb-2">
                 {selectedRequirementsTitle}
               </Badge>
-              <h2 className="text-2xl font-bold">Choose Your IDE</h2>
+              <h2 className="text-2xl font-bold">Choose Your Environment</h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Select the IDE or tool where you'll execute these prompts. 
-                Prompts will be optimized for your chosen environment.
+                Select where you will execute the prompts. The output format adapts to your choice.
+              </p>
+              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
+                If your environment is not listed, select "Other / Generic" for universal instructions.
               </p>
             </div>
 
@@ -528,10 +534,10 @@ export default function Prompts() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-medium">Prompts are Portable & Deterministic</h4>
+                    <h4 className="font-medium">Portable and Reproducible</h4>
                     <p className="text-sm text-muted-foreground mt-1">
-                      These prompts produce consistent results regardless of when or where they're executed. 
-                      You can share the exported Markdown file with others or save it for later use.
+                      These prompts are self-contained. Export the Markdown file to use later, share with collaborators, 
+                      or execute in any compatible environment. The same prompts produce consistent results.
                     </p>
                   </div>
                 </div>
