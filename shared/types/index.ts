@@ -18,6 +18,9 @@ export * from "./ideas";
 // Re-export Requirements module types
 export * from "./requirements";
 
+// Re-export Prompts module types
+export * from "./prompts";
+
 // Health check response type
 export interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";
