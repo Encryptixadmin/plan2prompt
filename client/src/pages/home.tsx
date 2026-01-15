@@ -13,6 +13,7 @@ import { useOnboardingContext } from "@/App";
 import { ActiveProjectIndicator } from "@/components/active-project-indicator";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useAdminStatus } from "@/hooks/use-admin-status";
+import { BillingStatus } from "@/components/billing-status";
 
 export default function Home() {
   const { openOnboarding } = useOnboardingContext();
@@ -192,6 +193,10 @@ export default function Home() {
               </Link>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-16 max-w-md mx-auto">
+          <BillingStatus />
         </div>
 
         <div className="mt-8 text-center">

@@ -9,6 +9,7 @@ import requirementsRoutes from "./routes/requirements.routes";
 import promptsRoutes from "./routes/prompts.routes";
 import projectRoutes from "./routes/project.routes";
 import adminRoutes from "./routes/admin.routes";
+import billingRoutes from "./routes/billing.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -45,6 +46,9 @@ export async function registerRoutes(
 
   // Admin console routes (protected by admin middleware)
   app.use("/api/admin", adminRoutes);
+
+  // Billing routes (user-facing)
+  app.use("/api/billing", billingRoutes);
 
   return httpServer;
 }

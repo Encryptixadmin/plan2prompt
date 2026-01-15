@@ -3,6 +3,7 @@ import { requireAdmin } from "../middleware/admin";
 import { adminService } from "../services/admin.service";
 import { usageService } from "../services/ai/usage.service";
 import { artifactService } from "../services/artifact.service";
+import { billingService } from "../services/billing.service";
 import type { AIProvider } from "@shared/schema";
 
 const router = Router();
@@ -362,6 +363,26 @@ router.get("/actions", async (req, res) => {
       error: {
         code: "ACTIONS_ERROR",
         message: error instanceof Error ? error.message : "Failed to get action log",
+      },
+    });
+  }
+});
+
+router.get("/billing/usage-by-plan", async (_req, res) => {
+  try {
+    const usageByPlan = billingService.getUsageByPlan();
+    const plans = billingService.getAllPlans();
+    res.json({
+      success: true,
+      data: { usageByPlan, plans },
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "BILLING_ERROR",
+        message: error instanceof Error ? error.message : "Failed to get billing usage",
       },
     });
   }

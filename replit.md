@@ -139,6 +139,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 3, Step 2D: Billing Foundations - No Payments (January 2026)
+- Created BillingPlan model with: id, name, description, softLimits (monthlyGenerations, monthlyTokenBudget), status
+- Initial plans: Free (default), Pro (future), Team (future) - all active status
+- Attached billingPlan field to users, defaulting to "free"
+- Billing service tracks user usage per month with automatic monthly reset
+- User-facing BillingStatus component shows current plan, usage progress bars, and "coming soon" messaging
+- Soft limit warnings at 80% and 100% thresholds - warnings only, no blocking
+- Admin Console: Billing tab with aggregate usage by plan (user count, total generations, tokens per plan)
+- Admin Users table shows Plan column for each user
+- NO payment processing, Stripe, checkout flows, pricing pages, or plan switching UI
+
 ### Phase 3, Step 2C: User Management Read-Only + Soft Control (January 2026)
 - Added Users tab to Admin Console with full user list display
 - User list shows: User ID, username, email, role, status, project count, last activity, usage summary

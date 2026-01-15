@@ -33,6 +33,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
+  CreditCard,
   DollarSign,
   FileText,
   LogOut,
@@ -101,7 +102,25 @@ interface UserSummary {
     totalRequests: number;
     estimatedCost: number;
   };
+  billingPlan: string;
   createdAt: string;
+}
+
+interface BillingPlan {
+  id: string;
+  name: string;
+  description: string;
+  softLimits: {
+    monthlyGenerations: number;
+    monthlyTokenBudget: number;
+  };
+  status: "active" | "legacy";
+}
+
+interface PlanUsage {
+  userCount: number;
+  totalGenerations: number;
+  totalTokens: number;
 }
 
 interface ProviderHealthPanelProps {
@@ -534,6 +553,7 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
                 <TableHead>User ID</TableHead>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Projects</TableHead>
                 <TableHead>Last Activity</TableHead>
@@ -560,6 +580,11 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
                   <TableCell>
                     <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
                       {user.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize text-xs">
+                      {user.billingPlan}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -673,6 +698,90 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BillingPanel() {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery<{ 
+    success: boolean; 
+    data: { 
+      usageByPlan: Record<string, PlanUsage>; 
+      plans: BillingPlan[] 
+    } 
+  }>({
+    queryKey: ["/api/admin/billing/usage-by-plan"],
+  });
+
+  const usageByPlan = data?.data?.usageByPlan || {};
+  const plans = data?.data?.plans || [];
+
+  if (isLoading) {
+    return <div className="animate-pulse h-40 bg-muted rounded-lg" data-testid="loading-billing" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold">Billing Overview</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/billing/usage-by-plan"] })}
+          data-testid="button-refresh-billing"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {plans.map((plan) => {
+          const usage = usageByPlan[plan.id] || { userCount: 0, totalGenerations: 0, totalTokens: 0 };
+          return (
+            <Card key={plan.id} data-testid={`card-plan-${plan.id}`}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">{plan.name}</CardTitle>
+                  <Badge variant={plan.status === "active" ? "default" : "secondary"}>
+                    {plan.status}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs">{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Users:</span>
+                    <span className="ml-2 font-medium">{usage.userCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Generations:</span>
+                    <span className="ml-2 font-medium">{usage.totalGenerations}</span>
+                  </div>
+                </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Tokens used:</span>
+                  <span className="ml-2 font-medium">{usage.totalTokens.toLocaleString()}</span>
+                </div>
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  <div>Limit: {plan.softLimits.monthlyGenerations} generations/month</div>
+                  <div>Budget: {plan.softLimits.monthlyTokenBudget.toLocaleString()} tokens/month</div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card data-testid="card-billing-note">
+        <CardContent className="pt-4">
+          <p className="text-sm text-muted-foreground">
+            Billing foundations are in place. No payment processing is active. All users are on soft limits that show warnings but do not block generation.
+          </p>
         </CardContent>
       </Card>
     </div>
@@ -831,7 +940,7 @@ export default function Admin() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="providers" className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
             <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
               <Activity className="h-4 w-4" />
               Providers
@@ -839,6 +948,10 @@ export default function Admin() {
             <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
               <Users className="h-4 w-4" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="flex items-center gap-2" data-testid="tab-billing">
+              <CreditCard className="h-4 w-4" />
+              Billing
             </TabsTrigger>
             <TabsTrigger value="usage" className="flex items-center gap-2" data-testid="tab-usage">
               <DollarSign className="h-4 w-4" />
@@ -860,6 +973,10 @@ export default function Admin() {
 
           <TabsContent value="users" className="space-y-6" data-testid="panel-users">
             <UsersPanel onActionStateChange={setHasActiveAction} />
+          </TabsContent>
+
+          <TabsContent value="billing" className="space-y-6" data-testid="panel-billing">
+            <BillingPanel />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-6" data-testid="panel-usage">

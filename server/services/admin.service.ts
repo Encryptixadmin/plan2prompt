@@ -44,6 +44,7 @@ interface UserSummary {
     totalRequests: number;
     estimatedCost: number;
   };
+  billingPlan: string;
   createdAt: string;
 }
 
@@ -93,6 +94,7 @@ class AdminService {
       projectCount: 1,
       lastActivityAt: new Date().toISOString(),
       usageSummary: { totalRequests: 12, estimatedCost: 0.0045 },
+      billingPlan: "free",
       createdAt: new Date().toISOString(),
     });
 
@@ -106,6 +108,7 @@ class AdminService {
       projectCount: 3,
       lastActivityAt: new Date(Date.now() - 3600000).toISOString(),
       usageSummary: { totalRequests: 8, estimatedCost: 0.0032 },
+      billingPlan: "free",
       createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
     });
 
@@ -119,6 +122,7 @@ class AdminService {
       projectCount: 1,
       lastActivityAt: new Date(Date.now() - 86400000).toISOString(),
       usageSummary: { totalRequests: 3, estimatedCost: 0.0012 },
+      billingPlan: "free",
       createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
     });
 
@@ -132,6 +136,7 @@ class AdminService {
       projectCount: 0,
       lastActivityAt: undefined,
       usageSummary: { totalRequests: 0, estimatedCost: 0 },
+      billingPlan: "free",
       createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     });
   }
@@ -258,6 +263,7 @@ class AdminService {
         projectCount: 0,
         lastActivityAt: undefined,
         usageSummary: { totalRequests: 0, estimatedCost: 0 },
+        billingPlan: "free",
         createdAt: new Date().toISOString(),
       };
       this.users.set(userId, user);
