@@ -240,15 +240,15 @@ export function OnboardingModal({ open, onComplete, onSkip }: OnboardingModalPro
 }
 
 export function useOnboarding() {
-  const isComplete = () => {
+  const isComplete = (): boolean => {
     return localStorage.getItem(ONBOARDING_KEY) === "true";
   };
 
-  const markComplete = () => {
+  const markComplete = (): void => {
     localStorage.setItem(ONBOARDING_KEY, "true");
   };
 
-  const reset = () => {
+  const reset = (): void => {
     localStorage.removeItem(ONBOARDING_KEY);
   };
 

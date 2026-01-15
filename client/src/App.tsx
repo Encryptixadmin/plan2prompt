@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -10,6 +10,13 @@ import Ideas from "@/pages/ideas";
 import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
+
+// Context for reopening onboarding from anywhere
+interface OnboardingContextType {
+  openOnboarding: () => void;
+}
+const OnboardingContext = createContext<OnboardingContextType>({ openOnboarding: () => {} });
+export const useOnboardingContext = () => useContext(OnboardingContext);
 
 function Router() {
   return (
@@ -42,7 +49,11 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
     if (!hasArtifacts && !onboardingComplete) {
       setShowOnboarding(true);
     }
-  }, [isLoading, ideasData, isComplete]);
+  }, [isLoading, ideasData]);
+
+  const openOnboarding = () => {
+    setShowOnboarding(true);
+  };
 
   const handleComplete = () => {
     markComplete();
@@ -55,14 +66,16 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <>
+    <OnboardingContext.Provider value={{ openOnboarding }}>
       {children}
-      <OnboardingModal 
-        open={showOnboarding} 
-        onComplete={handleComplete} 
-        onSkip={handleSkip} 
-      />
-    </>
+      {showOnboarding && (
+        <OnboardingModal 
+          open={showOnboarding} 
+          onComplete={handleComplete} 
+          onSkip={handleSkip} 
+        />
+      )}
+    </OnboardingContext.Provider>
   );
 }
 

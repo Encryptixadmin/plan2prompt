@@ -9,12 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen } from "lucide-react";
-import { ONBOARDING_KEY } from "@/components/onboarding-modal";
+import { useOnboardingContext } from "@/App";
 
 export default function Home() {
+  const { openOnboarding } = useOnboardingContext();
+
   const handleReopenOnboarding = () => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    window.location.reload();
+    openOnboarding();
   };
 
   return (
