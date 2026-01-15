@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { promptsService } from "../services/prompts.service";
 import { artifactService } from "../services/artifact.service";
+import { requireProjectContext, requirePermission } from "../middleware/project-context";
 
 const router = Router();
 
@@ -14,10 +15,12 @@ const generatePromptsSchema = z.object({
 /**
  * GET /api/prompts/requirements
  * List only LOCKED requirements artifacts for prompt generation
+ * Requires project context to enforce isolation
  */
-router.get("/requirements", async (req: Request, res: Response) => {
+router.get("/requirements", requireProjectContext, async (req: Request, res: Response) => {
   try {
-    const artifacts = await artifactService.list("requirements");
+    // ADVERSARIAL FIX: Only list requirements from the current project
+    const artifacts = await artifactService.listByProject(req.projectId!, "requirements");
     
     // Only return requirements with LOCKED_REQUIREMENTS stage
     const lockedRequirements = artifacts.filter((a) => a.stage === "LOCKED_REQUIREMENTS");
@@ -44,53 +47,70 @@ router.get("/requirements", async (req: Request, res: Response) => {
 /**
  * POST /api/prompts/generate
  * Generate IDE-specific build prompts from requirements
+ * Requires project context and generate permission
  */
-router.post("/generate", async (req: Request, res: Response) => {
-  try {
-    const validation = generatePromptsSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({
+router.post(
+  "/generate",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  async (req: Request, res: Response) => {
+    try {
+      const validation = generatePromptsSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request",
+          details: validation.error.flatten(),
+        });
+      }
+
+      const { requirementsArtifactId, ide } = validation.data;
+
+      // Validate that the requirements artifact exists and is in LOCKED_REQUIREMENTS stage
+      const requirementsArtifact = await artifactService.getById(requirementsArtifactId);
+      if (!requirementsArtifact) {
+        return res.status(404).json({
+          success: false,
+          error: "Requirements artifact not found",
+        });
+      }
+
+      // ADVERSARIAL CHECK: Verify artifact belongs to current project
+      if (requirementsArtifact.metadata.projectId && requirementsArtifact.metadata.projectId !== req.projectId) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: "PROJECT_ISOLATION_VIOLATION",
+            message: "This artifact belongs to a different project. Cross-project access is not allowed.",
+          },
+        });
+      }
+
+      if (requirementsArtifact.metadata.stage !== "LOCKED_REQUIREMENTS") {
+        return res.status(400).json({
+          success: false,
+          error: "Only locked requirements can be used to generate prompts. Complete the Requirements Module first.",
+        });
+      }
+
+      const prompts = await promptsService.generatePrompts(
+        requirementsArtifactId,
+        ide
+      );
+
+      res.json({
+        success: true,
+        data: prompts,
+      });
+    } catch (error) {
+      console.error("Error generating prompts:", error);
+      res.status(500).json({
         success: false,
-        error: "Invalid request",
-        details: validation.error.flatten(),
+        error: error instanceof Error ? error.message : "Failed to generate prompts",
       });
     }
-
-    const { requirementsArtifactId, ide } = validation.data;
-
-    // Validate that the requirements artifact exists and is in LOCKED_REQUIREMENTS stage
-    const requirementsArtifact = await artifactService.getById(requirementsArtifactId);
-    if (!requirementsArtifact) {
-      return res.status(404).json({
-        success: false,
-        error: "Requirements artifact not found",
-      });
-    }
-
-    if (requirementsArtifact.metadata.stage !== "LOCKED_REQUIREMENTS") {
-      return res.status(400).json({
-        success: false,
-        error: "Only locked requirements can be used to generate prompts. Complete the Requirements Module first.",
-      });
-    }
-
-    const prompts = await promptsService.generatePrompts(
-      requirementsArtifactId,
-      ide
-    );
-
-    res.json({
-      success: true,
-      data: prompts,
-    });
-  } catch (error) {
-    console.error("Error generating prompts:", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to generate prompts",
-    });
   }
-});
+);
 
 /**
  * GET /api/prompts/artifacts

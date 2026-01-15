@@ -1,0 +1,120 @@
+Proceed to STEP 7 — ADVERSARIAL QA & FLOW BREAK TESTING.
+
+EXECUTION MODE:
+Defensive validation.
+No new features.
+
+OBJECTIVE:
+Intentionally attempt to break the platform’s rules, sequencing,
+and assumptions to ensure robustness.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+If a user can misuse the system, they will.
+The platform must fail safely and clearly.
+
+--------------------------------
+TEST SCENARIOS TO EXECUTE
+--------------------------------
+
+1. SEQUENCING VIOLATIONS
+Attempt to:
+- Generate requirements without a validated idea
+- Generate prompts without locked requirements
+- Access later modules directly via routes or state manipulation
+
+EXPECTED BEHAVIOUR:
+- Execution blocked
+- Friendly, explanatory messaging shown
+- No partial artefacts created
+
+--------------------------------
+
+2. VERSIONING EDGE CASES
+Attempt to:
+- Edit an idea after requirements exist
+- Edit requirements after prompts exist
+- Switch versions mid-flow
+
+EXPECTED BEHAVIOUR:
+- New version created
+- Downstream artefacts preserved but marked as derived
+- Clear warnings shown
+
+--------------------------------
+
+3. PROJECT ISOLATION FAILURES
+Attempt to:
+- Switch projects mid-generation
+- Access artefacts from another project
+- Reuse artefact IDs across projects
+
+EXPECTED BEHAVIOUR:
+- Isolation preserved
+- Clear context reset
+- No cross-project leakage
+
+--------------------------------
+
+4. PERMISSION BOUNDARY TESTS
+Attempt actions as:
+- Viewer
+- Collaborator
+- Owner
+
+EXPECTED BEHAVIOUR:
+- Actions blocked or allowed correctly
+- Disabled UI with explanation
+- No backend bypass possible
+
+--------------------------------
+
+5. USAGE & COST EDGE CASES
+Attempt to:
+- Trigger repeated generations rapidly
+- Exceed soft usage thresholds
+
+EXPECTED BEHAVIOUR:
+- Warnings shown
+- No hard stops
+- Clear cost visibility maintained
+
+--------------------------------
+
+6. ARTEFACT CORRUPTION & EMPTY STATES
+Attempt to:
+- Load malformed Markdown
+- View empty or partial artefacts
+- Resume interrupted flows
+
+EXPECTED BEHAVIOUR:
+- Graceful handling
+- Clear messaging
+- No crashes or silent failures
+
+--------------------------------
+OUTPUT REQUIRED
+--------------------------------
+After testing, produce a summary including:
+- Issues found (if any)
+- Severity
+- Fix applied or mitigation needed
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add new features
+- Change UX flows
+- Relax enforcement rules
+
+--------------------------------
+FINAL CHECK
+--------------------------------
+Confirm:
+- No bypass paths exist
+- All failures are explainable and recoverable
+- Trust is maintained even when things go wrong
+
+STOP.
+WAIT for confirmation before proceeding.

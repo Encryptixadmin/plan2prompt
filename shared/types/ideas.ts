@@ -138,6 +138,10 @@ export interface IdeaAnalysis {
   // Decision clarity
   recommendation: "proceed" | "revise" | "stop";
   recommendationRationale: string;
+  
+  // Project context (Step 7 - adversarial)
+  projectId?: string;
+  authorId?: string;
 }
 
 // Ideas module API request

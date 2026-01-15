@@ -932,6 +932,9 @@ The user should be able to decide: Proceed, Revise, or Stop based on your analys
       ],
       tags: ["idea", "analysis", analysis.recommendation, "requirements-ready"],
       stage,
+      // Project isolation (Step 7 - adversarial)
+      projectId: analysis.projectId,
+      authorId: analysis.authorId,
     });
     
     return artifact;
