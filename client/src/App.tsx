@@ -12,6 +12,7 @@ import Prompts from "@/pages/prompts";
 import Admin from "@/pages/admin";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
 import { ProjectProvider } from "@/contexts/project-context";
+import { useTrackNonAdminRoute } from "@/hooks/use-admin-navigation";
 
 // Context for reopening onboarding from anywhere
 interface OnboardingContextType {
@@ -20,16 +21,24 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType>({ openOnboarding: () => {} });
 export const useOnboardingContext = () => useContext(OnboardingContext);
 
+function RouteTracker() {
+  useTrackNonAdminRoute();
+  return null;
+}
+
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/ideas" component={Ideas} />
-      <Route path="/requirements" component={Requirements} />
-      <Route path="/prompts" component={Prompts} />
-      <Route path="/admin" component={Admin} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <RouteTracker />
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/ideas" component={Ideas} />
+        <Route path="/requirements" component={Requirements} />
+        <Route path="/prompts" component={Prompts} />
+        <Route path="/admin" component={Admin} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 

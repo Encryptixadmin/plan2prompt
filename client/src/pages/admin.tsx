@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
   Clock,
   DollarSign,
   FileText,
+  LogOut,
   Power,
   PowerOff,
   RefreshCw,
@@ -41,6 +43,8 @@ import {
   Users,
   FolderOpen,
 } from "lucide-react";
+
+import { getLastNonAdminRoute } from "@/hooks/use-admin-navigation";
 
 interface ProviderStatus {
   provider: string;
@@ -458,10 +462,27 @@ function ActionLogPanel() {
 }
 
 export default function Admin() {
+  const [, navigate] = useLocation();
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [hasActiveAction, setHasActiveAction] = useState(false);
+  
   const { data: healthData, isError } = useQuery<{ success: boolean }>({
     queryKey: ["/api/admin/health"],
     retry: false,
   });
+
+  const handleExitAdmin = () => {
+    if (hasActiveAction) {
+      setShowExitConfirm(true);
+    } else {
+      performExit();
+    }
+  };
+
+  const performExit = () => {
+    const lastRoute = getLastNonAdminRoute();
+    navigate(lastRoute);
+  };
 
   if (isError) {
     return (
@@ -490,10 +511,41 @@ export default function Admin() {
           <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">Admin Console</h1>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" data-testid="badge-admin-mode">
+              Admin Mode
+            </Badge>
           </div>
-          <Badge variant="outline">Internal Use Only</Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline">Internal Use Only</Badge>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExitAdmin}
+              data-testid="button-exit-admin"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Exit Admin
+            </Button>
+          </div>
         </div>
       </header>
+
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exit Admin Console?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You may have an action in progress. Are you sure you want to exit the Admin Console?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-exit">Stay</AlertDialogCancel>
+            <AlertDialogAction onClick={performExit} data-testid="button-confirm-exit">
+              Exit Admin
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="providers" className="space-y-6">

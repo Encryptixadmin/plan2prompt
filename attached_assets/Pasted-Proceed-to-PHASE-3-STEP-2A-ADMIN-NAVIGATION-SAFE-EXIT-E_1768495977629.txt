@@ -1,0 +1,105 @@
+Proceed to PHASE 3 — STEP 2A: ADMIN NAVIGATION & SAFE EXIT.
+
+EXECUTION MODE:
+UX continuity and safety.
+No new admin capabilities.
+
+OBJECTIVE:
+Allow admins to safely navigate out of the Admin Ops Console
+without breaking role isolation, context, or trust.
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Admin is a mode, not a prison.
+
+Admins must always know:
+- Where they are
+- How to leave
+- What context they will return to
+
+--------------------------------
+NAVIGATION REQUIREMENTS (STRICT)
+--------------------------------
+
+1. ADMIN CONTEXT INDICATOR
+--------------------------------
+- Display a persistent indicator when in admin mode:
+  - Text: "Admin Mode"
+  - Visually distinct but subtle
+- Must appear on all /admin/* routes
+- Must NOT appear in non-admin views
+
+--------------------------------
+
+2. SAFE EXIT CONTROL
+--------------------------------
+- Provide a clear, intentional action:
+  - Button or link: "Exit Admin"
+- Location:
+  - Top-level admin layout (header area)
+- Behaviour on click:
+  - Navigate to the last non-admin route if available
+  - Otherwise default to the main platform home
+
+--------------------------------
+
+3. CONTEXT RESTORATION
+--------------------------------
+On exiting admin mode:
+- Restore:
+  - Last active project
+  - Last active module (Ideas / Requirements / Prompts)
+- Do NOT:
+  - Clear artefact state
+  - Reset pipeline progress
+  - Change user role or permissions
+
+--------------------------------
+
+4. ROLE SAFETY
+--------------------------------
+- Exiting admin mode must NOT:
+  - Drop admin privileges globally
+  - Affect backend permissions
+- Admin-only actions must remain inaccessible outside /admin/*
+- Frontend navigation must NOT be the sole guard
+  (backend role enforcement remains authoritative)
+
+--------------------------------
+
+5. NAVIGATION GUARDRAILS
+--------------------------------
+- Prevent accidental admin entry:
+  - Admin routes must require explicit navigation
+- Prevent accidental admin exit during active admin actions:
+  - If an admin action is mid-confirmation, warn before exiting
+
+--------------------------------
+UI CONSTRAINTS
+--------------------------------
+- No sidebar redesigns
+- No breadcrumbs
+- No global nav overhaul
+- Reuse existing layout patterns where possible
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add admin links to main user navigation
+- Add role-switching UI
+- Add impersonation
+- Add keyboard shortcuts
+- Add modal navigation
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+After implementation:
+- Confirm admins can always exit admin mode safely
+- Confirm no non-admin user can see admin navigation
+- Confirm backend role enforcement is unchanged
+- Confirm no artefact or project state is lost on exit
+
+STOP.
+WAIT for confirmation before proceeding.
