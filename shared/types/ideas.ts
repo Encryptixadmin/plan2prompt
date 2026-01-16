@@ -14,6 +14,8 @@ export interface IdeaInput {
     budget?: "low" | "medium" | "high" | "enterprise";
     timeline?: string;
     competitors?: string;
+    workshopRefinement?: string;
+    workshopResolution?: unknown;
   };
 }
 

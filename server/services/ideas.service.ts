@@ -92,6 +92,10 @@ export class IdeasService {
       if (input.context.competitors) {
         prompt += `- Known Competitors: ${input.context.competitors}\n`;
       }
+      
+      if (input.context.workshopRefinement) {
+        prompt += `\n${input.context.workshopRefinement}\n`;
+      }
     }
     
     prompt += `\nProvide a comprehensive analysis including:\n`;
@@ -100,6 +104,10 @@ export class IdeasService {
     prompt += `3. Feasibility assessment (technical, market, financial, timeline)\n`;
     prompt += `4. Risk flags to consider\n`;
     prompt += `5. Recommended next steps\n`;
+    
+    if (input.context?.workshopRefinement) {
+      prompt += `\nIMPORTANT: The user completed a Guided Refinement Workshop. You MUST factor the workshop findings into your analysis. Do NOT ignore the evidence provided. Adjust scores and severity levels based on the validated assumptions and reduced uncertainties.\n`;
+    }
     
     return prompt;
   }

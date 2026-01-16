@@ -1,0 +1,177 @@
+Proceed to BUG FIX: GUIDED REFINEMENT RE-ANALYSIS WIRING.
+
+EXECUTION MODE:
+Correctness and integrity.
+NO new features.
+NO UI redesign.
+NO relaxation of STOP rules.
+
+OBJECTIVE:
+Ensure that answers collected during the Guided Refinement Workshop
+are explicitly consumed, mapped, and reflected in:
+- assumption resolution
+- risk severity
+- scoring
+- before/after comparison
+
+So that refinement can meaningfully change outcomes.
+
+--------------------------------
+CORE PROBLEM TO FIX
+--------------------------------
+The Guided Refinement Workshop currently collects user answers,
+but the re-analysis logic:
+- either does not include them in the re-analysis prompt
+- or includes them without mapping them to assumptions/risks
+- resulting in identical scores and STOP outcomes
+
+This must be corrected.
+
+--------------------------------
+PART 1 — STRUCTURED WORKSHOP OUTPUT (REQUIRED)
+--------------------------------
+
+Ensure WorkshopSession persists answers in a STRUCTURED format,
+not free text.
+
+Each answer MUST be stored with:
+- workshopSection
+- questionId
+- mappedRiskIds[]
+- mappedAssumptionIds[]
+- rawAnswer
+- normalizedAnswer (where applicable)
+
+DO NOT store answers as an untyped blob.
+
+--------------------------------
+PART 2 — ASSUMPTION RESOLUTION ENGINE (REQUIRED)
+--------------------------------
+
+Implement explicit assumption resolution logic.
+
+For each assumption identified in the original analysis:
+
+Evaluate workshop answers and assign ONE of:
+- "unvalidated"
+- "partially_validated"
+- "validated"
+
+Rules:
+- Partial information → partially_validated
+- Explicit evidence → validated
+- No relevant answer → unvalidated
+
+Persist updated assumption states as:
+WorkshopResolutionResult.assumptions[]
+
+--------------------------------
+PART 3 — RISK SEVERITY ADJUSTMENT (REQUIRED)
+--------------------------------
+
+For each risk driver:
+
+If mapped assumptions move:
+- unvalidated → partially_validated
+  THEN reduce severity by ONE level (e.g. high → medium)
+
+If assumptions move:
+- partially_validated → validated
+  THEN reduce severity by ONE additional level
+
+DO NOT:
+- Remove risks entirely
+- Reduce below "low"
+
+Persist updated risk states as:
+WorkshopResolutionResult.risks[]
+
+--------------------------------
+PART 4 — RE-ANALYSIS PROMPT INJECTION (CRITICAL)
+--------------------------------
+
+Modify the re-analysis prompt to EXPLICITLY include:
+
+1. Original idea text (unchanged)
+2. Original analysis summary
+3. A clearly labelled section:
+
+"WORKSHOP FINDINGS (NEW EVIDENCE)"
+
+Include:
+- List of assumptions with BEFORE → AFTER states
+- List of risks with BEFORE → AFTER severity
+- Explicit statement:
+  "The following uncertainties have been reduced based on user input."
+
+The model MUST be instructed:
+- NOT to ignore this section
+- NOT to re-assess as if no refinement occurred
+
+--------------------------------
+PART 5 — SCORING LOGIC UPDATE (REQUIRED)
+--------------------------------
+
+Ensure scoring calculation:
+- Uses UPDATED assumption states
+- Uses UPDATED risk severities
+- Does NOT reuse original analysis scores blindly
+
+If no assumptions or risks change:
+- Score may remain the same
+- But this must be a *result*, not an accident
+
+--------------------------------
+PART 6 — BEFORE / AFTER COMPARISON FIX (REQUIRED)
+--------------------------------
+
+Update the "Workshop Results: Before & After" logic to:
+
+1. Compare assumption states BEFORE vs AFTER
+2. Compare risk severities BEFORE vs AFTER
+
+Display:
+- Improvements detected (even partial)
+- What remains unresolved
+- Why recommendation may still be STOP
+
+DO NOT show:
+"No improvements detected"
+if ANY assumption or risk state changed.
+
+--------------------------------
+PART 7 — SAFETY & DISCIPLINE (UNCHANGED)
+--------------------------------
+
+- STOP recommendation rules remain unchanged
+- Acknowledgement still required
+- Admin audit logging unchanged
+- No automatic progression
+
+--------------------------------
+DO NOT
+--------------------------------
+- Convert workshop into chat
+- Allow AI to invent resolutions
+- Modify original idea text automatically
+- Soften STOP semantics
+- Hide unchanged risks
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation, verify:
+
+1. Run an idea that triggers "Needs Refinement"
+2. Complete the Guided Refinement Workshop
+3. Confirm:
+   - At least one assumption moves state
+   - At least one risk severity adjusts (where justified)
+4. Re-analysis:
+   - Score changes OR
+   - STOP remains but with visible improvement
+5. "What Improved" section reflects actual progress
+
+STOP.
+WAIT for confirmation.

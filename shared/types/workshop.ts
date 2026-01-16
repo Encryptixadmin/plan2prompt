@@ -61,7 +61,42 @@ export interface WorkshopSection {
 
 export interface WorkshopAnswer {
   questionId: string;
+  sectionType: WorkshopSectionType;
   value: string | string[];
+  normalizedValue?: string;
+  mappedRiskIds: string[];      // Format: "risk_{category}_{index}" or "risk_driver_{rank}"
+  mappedAssumptionIds: string[]; // Format: "assumption_{index}"
+  rawAnswer: string;
+}
+
+export type AssumptionStatus = "unvalidated" | "partially_validated" | "validated";
+export type RiskSeverity = "high" | "medium" | "low";
+
+export interface AssumptionResolution {
+  assumptionIndex: number;
+  assumptionText: string;
+  previousStatus: AssumptionStatus;
+  newStatus: AssumptionStatus;
+  evidenceProvided: string;
+}
+
+export interface RiskResolution {
+  riskId: string;              // "risk_{category}_{index}" or "risk_driver_{rank}"
+  riskDescription: string;
+  previousSeverity: RiskSeverity;
+  newSeverity: RiskSeverity;
+  adjustmentReason: string;
+}
+
+export interface WorkshopResolutionResult {
+  assumptions: AssumptionResolution[];
+  risks: RiskResolution[];
+  summary: {
+    assumptionsValidated: number;
+    assumptionsPartiallyValidated: number;
+    risksReduced: number;
+    overallImprovementScore: number;
+  };
 }
 
 export interface WorkshopSession {
@@ -103,6 +138,7 @@ export interface WorkshopReanalysisContext {
     description: string;
   };
   workshopAnswers: WorkshopAnswer[];
+  resolutionResult: WorkshopResolutionResult;
   resolvedAssumptions: string[];
   clarifiedMarket?: string;
   validatedPainPoints?: string[];

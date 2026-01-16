@@ -70,7 +70,8 @@ import { useToast } from "@/hooks/use-toast";
 import { WorkshopForm } from "@/components/workshop-form";
 import { WorkshopComparison } from "@/components/workshop-comparison";
 import { createWorkshopSession } from "@/lib/workshop-generator";
-import type { WorkshopSection, WorkshopAnswer } from "@shared/types/workshop";
+import { resolveWorkshopAnswers, buildWorkshopFindings } from "@/lib/workshop-resolution";
+import type { WorkshopSection, WorkshopAnswer, WorkshopResolutionResult } from "@shared/types/workshop";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -545,7 +546,9 @@ export default function IdeasPage() {
         throw new Error("Idea analysis is unavailable due to configuration issues.");
       }
 
-      const workshopContext = buildWorkshopContext(answers);
+      const resolutionResult = resolveWorkshopAnswers(analysis, workshopSections, answers);
+      
+      const workshopFindings = buildWorkshopFindings(analysis, resolutionResult, answers);
       
       const response = await timedApiRequest("POST", "/api/ideas/analyze", {
         idea: {
@@ -553,7 +556,8 @@ export default function IdeasPage() {
           description: analysis.input.description,
           context: {
             ...analysis.input.context,
-            workshopRefinement: workshopContext,
+            workshopRefinement: workshopFindings,
+            workshopResolution: resolutionResult,
           },
         },
       });
@@ -561,12 +565,21 @@ export default function IdeasPage() {
       const data = await response.json() as { success: boolean; data: AnalyzeIdeaResponse };
       
       if (data.success) {
-        setAnalysis(data.data.analysis);
+        let adjustedAnalysis = data.data.analysis;
+        
+        adjustedAnalysis = applyWorkshopResolution(adjustedAnalysis, resolutionResult);
+        
+        setAnalysis(adjustedAnalysis);
         setWorkshopMode(false);
         setIsAccepted(false);
+        
+        const improvementMessage = resolutionResult.summary.overallImprovementScore > 0
+          ? `Score improved by +${resolutionResult.summary.overallImprovementScore} based on workshop findings.`
+          : "Your idea has been re-analyzed with the workshop context.";
+        
         toast({
           title: "Re-analysis complete",
-          description: "Your idea has been re-analyzed with the workshop context.",
+          description: improvementMessage,
         });
       }
     } catch (error) {
@@ -579,36 +592,68 @@ export default function IdeasPage() {
       setIsReanalyzing(false);
     }
   };
+  
+  const applyWorkshopResolution = (
+    analysisResult: IdeaAnalysis, 
+    resolution: WorkshopResolutionResult
+  ): IdeaAnalysis => {
+    const mapStatus = (status: string): "validated" | "unvalidated" | "risky" => {
+      if (status === "validated") return "validated";
+      if (status === "partially_validated") return "risky";
+      return "unvalidated";
+    };
+    
+    const updatedAssumptions = [...analysisResult.assumptionDependencies];
+    for (const assumptionRes of resolution.assumptions) {
+      if (updatedAssumptions[assumptionRes.assumptionIndex]) {
+        updatedAssumptions[assumptionRes.assumptionIndex] = {
+          ...updatedAssumptions[assumptionRes.assumptionIndex],
+          status: mapStatus(assumptionRes.newStatus),
+        };
+      }
+    }
+    
+    const updatedRisks = analysisResult.risks.map((risk, index) => {
+      const riskId = `risk_${risk.category}_${index}`;
+      const riskRes = resolution.risks.find(r => r.riskId === riskId);
+      if (riskRes) {
+        return {
+          ...risk,
+          severity: riskRes.newSeverity,
+        };
+      }
+      return risk;
+    });
+    
+    const scoreBoost = resolution.summary.overallImprovementScore;
+    const newScore = Math.min(100, analysisResult.overallScore + scoreBoost);
+    
+    let newRecommendation = analysisResult.recommendation;
+    let newRationale = analysisResult.recommendationRationale;
+    
+    if (scoreBoost > 0) {
+      if (analysisResult.recommendation === "stop" && newScore >= 45) {
+        newRecommendation = "revise";
+        newRationale = `Workshop improved score from ${analysisResult.overallScore} to ${newScore}. Still needs attention but no longer critical.`;
+      } else if (analysisResult.recommendation === "revise" && newScore >= 70) {
+        newRecommendation = "proceed";
+        newRationale = `Workshop validation improved score to ${newScore}. Key concerns addressed.`;
+      }
+    }
+    
+    return {
+      ...analysisResult,
+      assumptionDependencies: updatedAssumptions,
+      risks: updatedRisks,
+      overallScore: newScore,
+      recommendation: newRecommendation,
+      recommendationRationale: newRationale,
+    };
+  };
 
   const handleWorkshopCancel = () => {
     setWorkshopMode(false);
     setWorkshopSections([]);
-  };
-
-  const buildWorkshopContext = (answers: WorkshopAnswer[]): string => {
-    const answerMap = new Map(answers.map(a => [a.questionId, a.value]));
-    const contextParts: string[] = [];
-
-    for (const section of workshopSections) {
-      const sectionAnswers: string[] = [];
-      for (const question of section.questions) {
-        const answer = answerMap.get(question.id);
-        if (answer) {
-          const answerText = Array.isArray(answer) 
-            ? answer.map(v => {
-                const option = question.options?.find(o => o.value === v);
-                return option?.label || v;
-              }).join(", ")
-            : (question.options?.find(o => o.value === answer)?.label || answer);
-          sectionAnswers.push(`${question.prompt}: ${answerText}`);
-        }
-      }
-      if (sectionAnswers.length > 0) {
-        contextParts.push(`[${section.title}]\n${sectionAnswers.join("\n")}`);
-      }
-    }
-
-    return contextParts.join("\n\n");
   };
 
   const handleDiscard = () => {

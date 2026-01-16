@@ -178,12 +178,58 @@ export function WorkshopForm({
   };
 
   const handleComplete = () => {
-    const workshopAnswers: WorkshopAnswer[] = Object.entries(answers).map(
-      ([questionId, value]) => ({
-        questionId,
-        value,
-      })
-    );
+    const workshopAnswers: WorkshopAnswer[] = [];
+    
+    for (const section of sections) {
+      for (const question of section.questions) {
+        const value = answers[question.id];
+        if (value === undefined) continue;
+        
+        const rawAnswer = Array.isArray(value)
+          ? value.map(v => {
+              const opt = question.options?.find(o => o.value === v);
+              return opt?.label || v;
+            }).join(", ")
+          : (question.options?.find(o => o.value === value)?.label || value);
+        
+        const mappedRiskIds: string[] = [];
+        const mappedAssumptionIds: string[] = [];
+        
+        if (question.mapping) {
+          const m = question.mapping;
+          if (m.type === "risk" && m.riskCategory && m.riskIndex !== undefined) {
+            mappedRiskIds.push(`risk_${m.riskCategory}_${m.riskIndex}`);
+          }
+          if (m.type === "risk_driver" && m.riskDriverRank !== undefined) {
+            mappedRiskIds.push(`risk_driver_${m.riskDriverRank}`);
+          }
+          if (m.type === "scope_warning" && m.scopeArea && m.scopeIndex !== undefined) {
+            mappedRiskIds.push(`scope_warning_${m.scopeArea}_${m.scopeIndex}`);
+          }
+          if (m.type === "assumption" && m.assumptionIndex !== undefined) {
+            mappedAssumptionIds.push(`assumption_${m.assumptionIndex}`);
+          }
+        }
+        
+        if (question.mappedAssumptionIndex !== undefined) {
+          const assumptionId = `assumption_${question.mappedAssumptionIndex}`;
+          if (!mappedAssumptionIds.includes(assumptionId)) {
+            mappedAssumptionIds.push(assumptionId);
+          }
+        }
+        
+        workshopAnswers.push({
+          questionId: question.id,
+          sectionType: section.type,
+          value,
+          normalizedValue: typeof value === "string" ? value : value.join(","),
+          mappedRiskIds,
+          mappedAssumptionIds,
+          rawAnswer,
+        });
+      }
+    }
+    
     onComplete(workshopAnswers);
   };
 

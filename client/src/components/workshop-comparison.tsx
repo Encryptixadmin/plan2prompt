@@ -59,6 +59,19 @@ interface UnresolvedRisk {
   severity: string;
 }
 
+interface AssumptionTransition {
+  assumption: string;
+  previousStatus: string;
+  newStatus: string;
+}
+
+interface RiskSeverityChange {
+  category: string;
+  description: string;
+  previousSeverity: string;
+  newSeverity: string;
+}
+
 function calculateImprovements(
   prev: IdeaAnalysis,
   next: IdeaAnalysis
@@ -69,6 +82,8 @@ function calculateImprovements(
   remainingRisks: UnresolvedRisk[];
   resolvedAssumptions: string[];
   remainingAssumptions: string[];
+  assumptionTransitions: AssumptionTransition[];
+  riskSeverityChanges: RiskSeverityChange[];
 } {
   const improvements: string[] = [];
   const unresolvedIssues: string[] = [];
@@ -76,6 +91,8 @@ function calculateImprovements(
   const remainingRisks: UnresolvedRisk[] = [];
   const resolvedAssumptions: string[] = [];
   const remainingAssumptions: string[] = [];
+  const assumptionTransitions: AssumptionTransition[] = [];
+  const riskSeverityChanges: RiskSeverityChange[] = [];
 
   const scoreDiff = next.overallScore - prev.overallScore;
   if (scoreDiff > 0) {
@@ -92,11 +109,30 @@ function calculateImprovements(
     improvements.push(`Technical feasibility improved (+${diff} points)`);
   }
 
-  prev.risks.forEach((prevRisk) => {
-    const stillExists = next.risks.some(
-      r => r.category === prevRisk.category && r.description === prevRisk.description
+  prev.risks.forEach((prevRisk, prevIndex) => {
+    const prevRiskId = `risk_${prevRisk.category}_${prevIndex}`;
+    
+    const nextRisk = next.risks.find((r, i) => 
+      `risk_${r.category}_${i}` === prevRiskId || 
+      (r.category === prevRisk.category && r.description === prevRisk.description)
     );
-    if (!stillExists) {
+    
+    if (nextRisk) {
+      if (prevRisk.severity !== nextRisk.severity) {
+        const severityOrder = { high: 3, medium: 2, low: 1 };
+        const prevOrder = severityOrder[prevRisk.severity as keyof typeof severityOrder] || 0;
+        const nextOrder = severityOrder[nextRisk.severity as keyof typeof severityOrder] || 0;
+        
+        if (nextOrder < prevOrder) {
+          riskSeverityChanges.push({
+            category: prevRisk.category,
+            description: prevRisk.description,
+            previousSeverity: prevRisk.severity,
+            newSeverity: nextRisk.severity,
+          });
+        }
+      }
+    } else {
       resolvedRisks.push({
         category: prevRisk.category,
         description: prevRisk.description,
@@ -107,20 +143,44 @@ function calculateImprovements(
   if (resolvedRisks.length > 0) {
     improvements.push(`${resolvedRisks.length} risk(s) addressed`);
   }
+  
+  if (riskSeverityChanges.length > 0) {
+    improvements.push(`${riskSeverityChanges.length} risk(s) reduced in severity`);
+  }
 
-  prev.assumptionDependencies
-    .filter(a => a.status === "unvalidated")
-    .forEach((prevAssumption) => {
-      const nowValidated = next.assumptionDependencies.find(
-        a => a.assumption === prevAssumption.assumption && a.status === "validated"
-      );
-      if (nowValidated) {
-        resolvedAssumptions.push(prevAssumption.assumption);
+  prev.assumptionDependencies.forEach((prevAssumption, index) => {
+    const nextAssumption = next.assumptionDependencies[index];
+    if (nextAssumption && prevAssumption.assumption === nextAssumption.assumption) {
+      if (prevAssumption.status !== nextAssumption.status) {
+        const statusOrder = { unvalidated: 0, risky: 1, validated: 2 };
+        const prevOrder = statusOrder[prevAssumption.status as keyof typeof statusOrder] ?? 0;
+        const nextOrder = statusOrder[nextAssumption.status as keyof typeof statusOrder] ?? 0;
+        
+        if (nextOrder > prevOrder) {
+          assumptionTransitions.push({
+            assumption: prevAssumption.assumption,
+            previousStatus: prevAssumption.status,
+            newStatus: nextAssumption.status,
+          });
+          
+          if (nextAssumption.status === "validated") {
+            resolvedAssumptions.push(prevAssumption.assumption);
+          }
+        }
       }
-    });
+    }
+  });
 
+  const partiallyValidated = assumptionTransitions.filter(
+    t => t.previousStatus === "unvalidated" && t.newStatus === "risky"
+  ).length;
+  
+  if (partiallyValidated > 0) {
+    improvements.push(`${partiallyValidated} assumption(s) partially validated`);
+  }
+  
   if (resolvedAssumptions.length > 0) {
-    improvements.push(`${resolvedAssumptions.length} assumption(s) validated`);
+    improvements.push(`${resolvedAssumptions.length} assumption(s) fully validated`);
   }
 
   if (next.recommendation !== "stop" && prev.recommendation === "stop") {
@@ -168,7 +228,9 @@ function calculateImprovements(
     resolvedRisks, 
     remainingRisks, 
     resolvedAssumptions, 
-    remainingAssumptions 
+    remainingAssumptions,
+    assumptionTransitions,
+    riskSeverityChanges,
   };
 }
 
@@ -184,6 +246,15 @@ function getCategoryLabel(category: string): string {
   return labels[category] || category;
 }
 
+function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    unvalidated: "Unvalidated",
+    validated: "Validated",
+    risky: "Partially Validated",
+  };
+  return labels[status] || status;
+}
+
 export function WorkshopComparison({
   previousAnalysis,
   newAnalysis,
@@ -195,7 +266,9 @@ export function WorkshopComparison({
     resolvedRisks, 
     remainingRisks, 
     resolvedAssumptions, 
-    remainingAssumptions 
+    remainingAssumptions,
+    assumptionTransitions,
+    riskSeverityChanges,
   } = calculateImprovements(previousAnalysis, newAnalysis);
 
   return (
@@ -291,9 +364,53 @@ export function WorkshopComparison({
               </div>
             )}
 
+            {assumptionTransitions.length > 0 && (
+              <div className="mt-3" data-testid="assumption-transitions">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Assumption Status Changes:</p>
+                <ul className="space-y-1.5">
+                  {assumptionTransitions.map((transition, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="flex-shrink-0 flex items-center gap-1">
+                        <Badge className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 px-1 py-0">
+                          {getStatusLabel(transition.previousStatus)}
+                        </Badge>
+                        <ArrowRight className="h-3 w-3" />
+                        <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-1 py-0">
+                          {getStatusLabel(transition.newStatus)}
+                        </Badge>
+                      </span>
+                      <span className="line-clamp-2">{transition.assumption}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {riskSeverityChanges.length > 0 && (
+              <div className="mt-3" data-testid="risk-severity-changes">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Risk Severity Reduced:</p>
+                <ul className="space-y-1.5">
+                  {riskSeverityChanges.map((change, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="flex-shrink-0 flex items-center gap-1">
+                        <Badge className="text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 px-1 py-0">
+                          {change.previousSeverity}
+                        </Badge>
+                        <ArrowRight className="h-3 w-3" />
+                        <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-1 py-0">
+                          {change.newSeverity}
+                        </Badge>
+                      </span>
+                      <span className="line-clamp-2">[{getCategoryLabel(change.category)}] {change.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {resolvedAssumptions.length > 0 && (
               <div className="mt-3" data-testid="resolved-assumptions">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Assumptions Validated:</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Assumptions Fully Validated:</p>
                 <ul className="space-y-1.5">
                   {resolvedAssumptions.map((assumption, i) => (
                     <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
@@ -305,7 +422,7 @@ export function WorkshopComparison({
               </div>
             )}
 
-            {improvements.length === 0 && resolvedRisks.length === 0 && resolvedAssumptions.length === 0 && (
+            {improvements.length === 0 && resolvedRisks.length === 0 && resolvedAssumptions.length === 0 && assumptionTransitions.length === 0 && riskSeverityChanges.length === 0 && (
               <p className="text-sm text-muted-foreground">No improvements detected.</p>
             )}
           </div>
