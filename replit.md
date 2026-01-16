@@ -94,6 +94,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: Frontend Async Flow Hardening - Analyze Idea (January 2026)
+- Added 45-second client-side timeout using AbortController for analyze requests
+- timedApiRequest wrapper converts AbortError to AnalysisTimeoutError with code ANALYSIS_TIMEOUT
+- Error mapping returns user-friendly message: "Analysis is taking longer than expected..."
+- analyzeMutation uses timedApiRequest and onError callback for toast messaging
+- React Query isPending lifecycle guarantees loading state resolution in ALL exit paths
+- Button re-enables automatically on timeout, error, or success
+- No auto-retry, no scope expansion, no unresolved loading states
+
 ### Phase 4, Hardening Step: AI Integration Correction & Stabilization (January 2026)
 - Dynamic model discovery for Anthropic: Iterates preference list and resolves to first accessible Claude 3+ model
 - Dynamic model discovery for Gemini: Iterates preference list (gemini-1.5-pro-latest, gemini-1.5-pro, gemini-1.5-flash, etc.)

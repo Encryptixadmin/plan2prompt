@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, timedApiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,8 @@ import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useAdminStatus } from "@/hooks/use-admin-status";
 import { useRequireProject } from "@/components/require-project-guard";
 import { useAIProviderStatus } from "@/hooks/use-ai-provider-status";
-import { mapBackendError } from "@/lib/error-messages";
+import { mapBackendError, AnalysisTimeoutError } from "@/lib/error-messages";
+import { useToast } from "@/hooks/use-toast";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -356,6 +357,7 @@ export default function IdeasPage() {
   const { isAdmin } = useAdminStatus();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();
+  const { toast } = useToast();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
@@ -397,7 +399,7 @@ export default function IdeasPage() {
         throw new Error("Idea analysis is unavailable due to configuration issues.");
       }
       
-      const response = await apiRequest("POST", "/api/ideas/analyze", {
+      const response = await timedApiRequest("POST", "/api/ideas/analyze", {
         idea: {
           title: values.title,
           description: values.description,
@@ -410,13 +412,21 @@ export default function IdeasPage() {
           },
         },
       });
-      return response as unknown as { success: boolean; data: AnalyzeIdeaResponse };
+      return response.json() as Promise<{ success: boolean; data: AnalyzeIdeaResponse }>;
     },
     onSuccess: (data) => {
       if (data.success) {
         setAnalysis(data.data.analysis);
         setIsAccepted(false);
       }
+    },
+    onError: (error: Error) => {
+      const isTimeout = error instanceof AnalysisTimeoutError || error.name === "AnalysisTimeoutError";
+      toast({
+        variant: "destructive",
+        title: isTimeout ? "Analysis is taking longer than expected" : "Analysis failed",
+        description: mapBackendError(error),
+      });
     },
   });
 

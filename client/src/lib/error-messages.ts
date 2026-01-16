@@ -24,6 +24,14 @@ function extractErrorMessage(error: unknown): { message: string; code?: string }
   return { message: String(error) };
 }
 
+export class AnalysisTimeoutError extends Error {
+  code = "ANALYSIS_TIMEOUT";
+  constructor() {
+    super("Analysis is taking longer than expected");
+    this.name = "AnalysisTimeoutError";
+  }
+}
+
 export function mapBackendError(error: unknown): string {
   if (!error) {
     return "An unexpected error occurred. Please try again.";
@@ -31,6 +39,10 @@ export function mapBackendError(error: unknown): string {
 
   const { message, code } = extractErrorMessage(error);
   const lowerMessage = message.toLowerCase();
+
+  if (code === "ANALYSIS_TIMEOUT" || error instanceof AnalysisTimeoutError || lowerMessage.includes("analysis_timeout") || lowerMessage.includes("aborted")) {
+    return "Analysis is taking longer than expected. This can happen when models are under heavy load. Please try again in a moment.";
+  }
 
   if (code === "MISSING_PROJECT_CONTEXT" || lowerMessage.includes("missing_project_context") || lowerMessage.includes("project context") || lowerMessage.includes("x-project-id")) {
     return "Please create or select a project before continuing.";

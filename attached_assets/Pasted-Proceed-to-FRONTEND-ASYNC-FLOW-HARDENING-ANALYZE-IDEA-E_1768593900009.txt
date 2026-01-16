@@ -1,0 +1,155 @@
+Proceed to FRONTEND ASYNC FLOW HARDENING — ANALYZE IDEA.
+
+EXECUTION MODE:
+Correctness and UX reliability.
+NO backend changes.
+NO new features.
+
+OBJECTIVE:
+Ensure the "Analyze Idea" action:
+- Handles long-running requests correctly
+- Never leaves the UI in a stuck loading state
+- Surfaces timeout and network failures clearly to the user
+
+--------------------------------
+CORE PRINCIPLE
+--------------------------------
+Every async action must resolve to one of:
+- success
+- handled failure
+- handled timeout
+
+There must be NO unresolved loading state.
+
+--------------------------------
+PART 1 — IDENTIFY THE ANALYZE MUTATION
+--------------------------------
+
+Locate the frontend logic responsible for:
+- POST /api/ideas/analyze
+- Typically implemented via:
+  - React Query mutation
+  - Custom async handler
+  - useMutation / useAsync hook
+
+This fix applies ONLY to the analyze idea flow.
+
+--------------------------------
+PART 2 — ADD EXPLICIT CLIENT-SIDE TIMEOUT
+--------------------------------
+
+Wrap the analyze request with an AbortController.
+
+REQUIREMENTS:
+- Timeout duration: 45 seconds
+- Abort the request when timeout is exceeded
+- Convert abort into a known, handled error
+
+Example behaviour (conceptual):
+- If AbortController triggers:
+  - Throw a controlled error with code: ANALYSIS_TIMEOUT
+
+DO NOT:
+- Increase timeout beyond 45 seconds
+- Retry automatically
+- Leave the promise unresolved
+
+--------------------------------
+PART 3 — GUARANTEE LOADING STATE RESOLUTION
+--------------------------------
+
+Ensure that the loading state (e.g. isLoading / isAnalyzing):
+
+- Is set to TRUE when request starts
+- Is set to FALSE in ALL exit paths:
+  - successful response
+  - backend error response
+  - timeout / abort
+  - unexpected exception
+
+IMPLEMENTATION RULE:
+- Use a single finally block or equivalent
+- There must be NO code path where loading remains true
+
+--------------------------------
+PART 4 — ERROR MAPPING (USER-FACING)
+--------------------------------
+
+Extend the existing error mapping utility to handle:
+
+Error Code: ANALYSIS_TIMEOUT
+
+User-facing message:
+Title:
+"Analysis is taking longer than expected"
+
+Message:
+"This can happen when models are under heavy load.
+Please try again in a moment."
+
+DO NOT expose:
+- AbortController
+- Network jargon
+- Stack traces
+
+--------------------------------
+PART 5 — UI BEHAVIOUR ON FAILURE
+--------------------------------
+
+On timeout or error:
+
+- Spinner MUST disappear
+- Analyze button MUST re-enable
+- Error message MUST be shown clearly
+- User MUST be able to retry manually
+
+DO NOT:
+- Auto-retry
+- Leave the UI in an indeterminate state
+
+--------------------------------
+PART 6 — SUCCESS PATH (UNCHANGED)
+--------------------------------
+
+If the backend returns success:
+- Spinner stops
+- Results render as before
+- No change to success handling logic
+
+--------------------------------
+DO NOT
+--------------------------------
+- Modify backend endpoints
+- Change consensus logic
+- Add polling
+- Add streaming
+- Add retries
+- Suppress errors
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation, verify:
+
+1. Click "Analyze Idea"
+   - Spinner appears
+   - Button disables
+
+2. Simulate slow response (>45s):
+   - Spinner stops
+   - Timeout message appears
+   - Button re-enables
+
+3. Successful response:
+   - Spinner stops
+   - Analysis results render
+
+4. Network error:
+   - Spinner stops
+   - Error message shown
+
+There must be NO scenario where the spinner persists indefinitely.
+
+STOP.
+WAIT for confirmation.

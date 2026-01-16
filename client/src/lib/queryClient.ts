@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { AnalysisTimeoutError } from "./error-messages";
 
 let activeProjectId: string | null = null;
 
@@ -74,6 +75,42 @@ export async function apiRequest(
 
   await throwIfResNotOk(res);
   return res;
+}
+
+const ANALYSIS_TIMEOUT_MS = 45000;
+
+export async function timedApiRequest(
+  method: string,
+  url: string,
+  data?: unknown | undefined,
+  timeoutMs: number = ANALYSIS_TIMEOUT_MS,
+): Promise<Response> {
+  const projectHeaders = getProjectHeaders(url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        ...(data ? { "Content-Type": "application/json" } : {}),
+        ...projectHeaders,
+      },
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+      signal: controller.signal,
+    });
+
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new AnalysisTimeoutError();
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
