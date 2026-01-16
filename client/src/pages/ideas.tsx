@@ -49,10 +49,11 @@ import {
   ChevronDown,
   ChevronUp,
   ThumbsUp,
-  Pencil,
   Trash2,
   ArrowRight,
   FileCheck,
+  BookOpen,
+  Play,
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
@@ -66,6 +67,10 @@ import { useRequireProject } from "@/components/require-project-guard";
 import { useAIProviderStatus } from "@/hooks/use-ai-provider-status";
 import { mapBackendError, AnalysisTimeoutError } from "@/lib/error-messages";
 import { useToast } from "@/hooks/use-toast";
+import { WorkshopForm } from "@/components/workshop-form";
+import { WorkshopComparison } from "@/components/workshop-comparison";
+import { createWorkshopSession } from "@/lib/workshop-generator";
+import type { WorkshopSection, WorkshopAnswer } from "@shared/types/workshop";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -96,13 +101,25 @@ function SeverityBadge({ severity }: { severity: "low" | "medium" | "high" }) {
 interface AnalysisResultsProps {
   analysis: IdeaAnalysis;
   onAccept: () => void;
-  onEdit: () => void;
+  onStartWorkshop: () => void;
+  onProceedAnyway: () => void;
   onDiscard: () => void;
   isAccepting: boolean;
   isAccepted: boolean;
+  previousAnalysis?: IdeaAnalysis | null;
 }
 
-function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, isAccepted }: AnalysisResultsProps) {
+function AnalysisResults({ 
+  analysis, 
+  onAccept, 
+  onStartWorkshop, 
+  onProceedAnyway, 
+  onDiscard, 
+  isAccepting, 
+  isAccepted,
+  previousAnalysis,
+}: AnalysisResultsProps) {
+  const needsRefinement = analysis.recommendation === "revise" || analysis.recommendation === "stop";
   const getRecommendation = () => {
     if (analysis.overallScore >= 75) {
       return {
@@ -268,54 +285,91 @@ function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, i
         </CardContent>
       </Card>
 
+      {previousAnalysis && (
+        <WorkshopComparison
+          previousAnalysis={previousAnalysis}
+          newAnalysis={analysis}
+        />
+      )}
+
       {!isAccepted && (
         <Card className="border-2 border-primary/20">
           <CardHeader>
             <CardTitle className="text-lg">Review Complete</CardTitle>
             <CardDescription>
-              Accepting saves this as a validated idea. Editing returns you to the form. Discarding clears everything.
+              {needsRefinement
+                ? "This idea needs refinement. Use the Guided Workshop to improve it, or proceed with acknowledged risks."
+                : "Accepting saves this as a validated idea. Discarding clears everything."}
             </CardDescription>
           </CardHeader>
-          <CardFooter className="flex flex-col sm:flex-row gap-3 pt-0">
-            <Button
-              onClick={onAccept}
-              disabled={isAccepting}
-              className="flex-1"
-              size="lg"
-              data-testid="button-accept-idea"
-            >
-              {isAccepting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <ThumbsUp className="mr-2 h-4 w-4" />
-                  Accept as Validated Idea
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={onEdit}
-              variant="outline"
-              className="flex-1"
-              size="lg"
-              data-testid="button-edit-rerun"
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit & Re-run
-            </Button>
-            <Button
-              onClick={onDiscard}
-              variant="ghost"
-              className="flex-1"
-              size="lg"
-              data-testid="button-discard"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Discard
-            </Button>
+          <CardFooter className="flex flex-col gap-3 pt-0">
+            {needsRefinement ? (
+              <>
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <Button
+                    onClick={onStartWorkshop}
+                    className="flex-1"
+                    size="lg"
+                    data-testid="button-start-workshop"
+                  >
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Refine via Guided Workshop
+                  </Button>
+                  <Button
+                    onClick={onProceedAnyway}
+                    variant="outline"
+                    className="flex-1"
+                    size="lg"
+                    data-testid="button-proceed-anyway"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Proceed Anyway (Risk Acknowledged)
+                  </Button>
+                </div>
+                <Button
+                  onClick={onDiscard}
+                  variant="ghost"
+                  className="w-full"
+                  size="lg"
+                  data-testid="button-discard"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Discard
+                </Button>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button
+                  onClick={onAccept}
+                  disabled={isAccepting}
+                  className="flex-1"
+                  size="lg"
+                  data-testid="button-accept-idea"
+                >
+                  {isAccepting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <ThumbsUp className="mr-2 h-4 w-4" />
+                      Accept as Validated Idea
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={onDiscard}
+                  variant="ghost"
+                  className="flex-1"
+                  size="lg"
+                  data-testid="button-discard"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Discard
+                </Button>
+              </div>
+            )}
           </CardFooter>
         </Card>
       )}
@@ -359,11 +413,15 @@ export default function IdeasPage() {
   const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();
   const { toast } = useToast();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
+  const [previousAnalysis, setPreviousAnalysis] = useState<IdeaAnalysis | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [pendingFormValues, setPendingFormValues] = useState<IdeaFormValues | null>(null);
+  const [workshopMode, setWorkshopMode] = useState(false);
+  const [workshopSections, setWorkshopSections] = useState<WorkshopSection[]>([]);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
   
   const canAnalyze = hasValidatedProviders;
 
@@ -464,9 +522,93 @@ export default function IdeasPage() {
     }
   };
 
-  const handleEdit = () => {
-    setAnalysis(null);
-    setIsAccepted(false);
+  const handleStartWorkshop = () => {
+    if (!analysis) return;
+    const session = createWorkshopSession(analysis);
+    setWorkshopSections(session.sections);
+    setWorkshopMode(true);
+  };
+
+  const handleProceedAnyway = () => {
+    setShowAcceptDialog(true);
+  };
+
+  const handleWorkshopComplete = async (answers: WorkshopAnswer[]) => {
+    if (!analysis) return;
+    
+    setIsReanalyzing(true);
+    setPreviousAnalysis(analysis);
+    
+    try {
+      const isReady = await checkProviderReadiness();
+      if (!isReady) {
+        throw new Error("Idea analysis is unavailable due to configuration issues.");
+      }
+
+      const workshopContext = buildWorkshopContext(answers);
+      
+      const response = await timedApiRequest("POST", "/api/ideas/analyze", {
+        idea: {
+          title: analysis.input.title,
+          description: analysis.input.description,
+          context: {
+            ...analysis.input.context,
+            workshopRefinement: workshopContext,
+          },
+        },
+      });
+      
+      const data = await response.json() as { success: boolean; data: AnalyzeIdeaResponse };
+      
+      if (data.success) {
+        setAnalysis(data.data.analysis);
+        setWorkshopMode(false);
+        setIsAccepted(false);
+        toast({
+          title: "Re-analysis complete",
+          description: "Your idea has been re-analyzed with the workshop context.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Re-analysis failed",
+        description: mapBackendError(error),
+      });
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
+
+  const handleWorkshopCancel = () => {
+    setWorkshopMode(false);
+    setWorkshopSections([]);
+  };
+
+  const buildWorkshopContext = (answers: WorkshopAnswer[]): string => {
+    const answerMap = new Map(answers.map(a => [a.questionId, a.value]));
+    const contextParts: string[] = [];
+
+    for (const section of workshopSections) {
+      const sectionAnswers: string[] = [];
+      for (const question of section.questions) {
+        const answer = answerMap.get(question.id);
+        if (answer) {
+          const answerText = Array.isArray(answer) 
+            ? answer.map(v => {
+                const option = question.options?.find(o => o.value === v);
+                return option?.label || v;
+              }).join(", ")
+            : (question.options?.find(o => o.value === answer)?.label || answer);
+          sectionAnswers.push(`${question.prompt}: ${answerText}`);
+        }
+      }
+      if (sectionAnswers.length > 0) {
+        contextParts.push(`[${section.title}]\n${sectionAnswers.join("\n")}`);
+      }
+    }
+
+    return contextParts.join("\n\n");
   };
 
   const handleDiscard = () => {
@@ -475,14 +617,20 @@ export default function IdeasPage() {
 
   const confirmDiscard = () => {
     setAnalysis(null);
+    setPreviousAnalysis(null);
     setIsAccepted(false);
+    setWorkshopMode(false);
+    setWorkshopSections([]);
     form.reset();
     setShowDiscardDialog(false);
   };
 
   const handleNewIdea = () => {
     setAnalysis(null);
+    setPreviousAnalysis(null);
     setIsAccepted(false);
+    setWorkshopMode(false);
+    setWorkshopSections([]);
     form.reset();
   };
 
@@ -754,14 +902,24 @@ export default function IdeasPage() {
               <p>You will review the analysis before making any commitment.</p>
             </div>
           </div>
+        ) : workshopMode ? (
+          <WorkshopForm
+            analysis={analysis}
+            sections={workshopSections}
+            onComplete={handleWorkshopComplete}
+            onCancel={handleWorkshopCancel}
+            isSubmitting={isReanalyzing}
+          />
         ) : (
           <AnalysisResults
             analysis={analysis}
             onAccept={handleAccept}
-            onEdit={handleEdit}
+            onStartWorkshop={handleStartWorkshop}
+            onProceedAnyway={handleProceedAnyway}
             onDiscard={handleDiscard}
             isAccepting={acceptMutation.isPending}
             isAccepted={isAccepted}
+            previousAnalysis={previousAnalysis}
           />
         )}
       </main>

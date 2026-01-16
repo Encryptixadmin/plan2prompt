@@ -1,0 +1,197 @@
+Proceed to FEATURE IMPLEMENTATION: GUIDED REFINEMENT WORKSHOP.
+
+EXECUTION MODE:
+Structured discovery.
+NO free-form chat.
+NO conversational AI loops.
+
+OBJECTIVE:
+Replace the “Edit & Re-run” idea refinement flow with a
+deterministic, AI-led Guided Refinement Workshop that:
+- Extracts missing clarity
+- Reduces key risks
+- Improves idea quality before re-analysis
+
+--------------------------------
+CORE PRINCIPLES (NON-NEGOTIABLE)
+--------------------------------
+- This is a workshop, not a chat
+- Questions must be derived from analysis output
+- User answers structured prompts, not open conversation
+- The system asks only what matters
+
+--------------------------------
+WHEN THE WORKSHOP IS OFFERED
+--------------------------------
+
+Trigger the Guided Refinement Workshop when:
+- recommendation === "needs_refinement"
+OR
+- recommendation === "stop"
+
+In these cases:
+- Primary CTA: "Refine via Guided Workshop"
+- Secondary CTA: "Proceed anyway" (risk-acknowledged)
+
+--------------------------------
+WORKSHOP ENTRY BEHAVIOUR
+--------------------------------
+
+When user selects "Refine via Guided Workshop":
+
+1. Lock the original idea text (read-only)
+2. Carry forward:
+   - analysisId
+   - risk drivers
+   - assumption dependencies
+3. Create a new WorkshopSession linked to the idea artifact
+
+--------------------------------
+WORKSHOP STRUCTURE (FIXED)
+--------------------------------
+
+The workshop MUST be implemented as a
+multi-step, linear form with a fixed number of sections.
+
+DO NOT allow:
+- Free-text chat
+- User-initiated questions
+- Branching flows
+
+--------------------------------
+WORKSHOP SECTIONS (REQUIRED)
+--------------------------------
+
+Generate workshop questions dynamically based on
+the analysis output, but constrained to these sections:
+
+--------------------------------
+SECTION 1 — TARGET MARKET CLARITY
+--------------------------------
+Trigger if any riskDriver.category === "market"
+OR assumption.status === "unvalidated"
+
+Example prompt types:
+- Single-select
+- Multi-select
+- Short structured text
+
+--------------------------------
+SECTION 2 — PAIN & URGENCY VALIDATION
+--------------------------------
+Trigger if riskDriver.title includes:
+- "Unvalidated Market Demand"
+- "Problem Not Painful Enough"
+
+Ask about:
+- Current alternatives
+- Consequences of inaction
+- Frequency of the problem
+
+--------------------------------
+SECTION 3 — SCOPE & BOUNDARIES
+--------------------------------
+Trigger if scopeWarnings exist
+
+Ask:
+- What is explicitly NOT included
+- What must exist in v1
+- What can wait
+
+--------------------------------
+SECTION 4 — CONSTRAINTS & RESOURCES
+--------------------------------
+Trigger if assumptions include:
+- budget
+- timeline
+- team capacity
+
+Ask:
+- Budget range (banded)
+- Time horizon (banded)
+- Team composition (select)
+
+--------------------------------
+QUESTION GENERATION RULES
+--------------------------------
+
+- Questions must be:
+  - Direct
+  - Answerable
+  - Evidence-seeking
+- No more than:
+  - 3 questions per section
+  - 12 questions total
+- Each question must map to:
+  - A specific riskDriver OR assumption
+
+--------------------------------
+ANSWER HANDLING
+--------------------------------
+
+- All answers must be stored as structured data
+- No raw chat transcripts
+- No interpretation at this stage
+
+--------------------------------
+WORKSHOP COMPLETION
+--------------------------------
+
+When the user completes the workshop:
+
+1. Persist WorkshopSession with:
+   - originalAnalysisId
+   - answers
+   - resolvedRiskIds (derived)
+
+2. Automatically trigger:
+   - Re-analysis via AI consensus
+   - Pass original idea + workshop answers as additional context
+
+--------------------------------
+RE-ANALYSIS BEHAVIOUR
+--------------------------------
+
+During re-analysis:
+- Do NOT rewrite the original idea
+- Use workshop answers to:
+  - Resolve assumptions
+  - Reduce uncertainty
+  - Re-score feasibility and risks
+
+--------------------------------
+RESULT PRESENTATION
+--------------------------------
+
+After re-analysis, show:
+
+- Updated score
+- Updated recommendation
+- Explicit callout:
+  - "What improved"
+  - "What remains unresolved"
+
+--------------------------------
+DO NOT
+--------------------------------
+- Add chat UI
+- Allow arbitrary follow-up questions
+- Let AI ask new questions outside workshop
+- Change STOP enforcement rules
+- Modify core idea text automatically
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation, verify:
+
+1. “Edit & re-run” is no longer available
+2. Workshop appears for low-score ideas
+3. Workshop questions map to risks
+4. Re-analysis runs automatically
+5. User sees clear before/after difference
+6. No chat-like behaviour exists
+
+STOP.
+WAIT for confirmation.

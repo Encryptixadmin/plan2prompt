@@ -1,0 +1,378 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Minus, 
+  CheckCircle, 
+  AlertTriangle,
+  ArrowRight,
+} from "lucide-react";
+import type { IdeaAnalysis } from "@shared/types/ideas";
+
+interface WorkshopComparisonProps {
+  previousAnalysis: IdeaAnalysis;
+  newAnalysis: IdeaAnalysis;
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 75) return "text-green-600 dark:text-green-400";
+  if (score >= 50) return "text-yellow-600 dark:text-yellow-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function getRecommendationBadge(recommendation: "proceed" | "revise" | "stop") {
+  switch (recommendation) {
+    case "proceed":
+      return (
+        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Proceed
+        </Badge>
+      );
+    case "revise":
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+          <AlertTriangle className="h-3 w-3 mr-1" />
+          Revise
+        </Badge>
+      );
+    case "stop":
+      return (
+        <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+          <Minus className="h-3 w-3 mr-1" />
+          Stop
+        </Badge>
+      );
+  }
+}
+
+interface ResolvedRisk {
+  category: string;
+  description: string;
+}
+
+interface UnresolvedRisk {
+  category: string;
+  description: string;
+  severity: string;
+}
+
+function calculateImprovements(
+  prev: IdeaAnalysis,
+  next: IdeaAnalysis
+): { 
+  improvements: string[]; 
+  unresolvedIssues: string[]; 
+  resolvedRisks: ResolvedRisk[];
+  remainingRisks: UnresolvedRisk[];
+  resolvedAssumptions: string[];
+  remainingAssumptions: string[];
+} {
+  const improvements: string[] = [];
+  const unresolvedIssues: string[] = [];
+  const resolvedRisks: ResolvedRisk[] = [];
+  const remainingRisks: UnresolvedRisk[] = [];
+  const resolvedAssumptions: string[] = [];
+  const remainingAssumptions: string[] = [];
+
+  const scoreDiff = next.overallScore - prev.overallScore;
+  if (scoreDiff > 0) {
+    improvements.push(`Overall score improved by ${scoreDiff} points`);
+  }
+
+  if (next.feasibility.market.score > prev.feasibility.market.score) {
+    const diff = next.feasibility.market.score - prev.feasibility.market.score;
+    improvements.push(`Market feasibility improved (+${diff} points)`);
+  }
+
+  if (next.feasibility.technical.score > prev.feasibility.technical.score) {
+    const diff = next.feasibility.technical.score - prev.feasibility.technical.score;
+    improvements.push(`Technical feasibility improved (+${diff} points)`);
+  }
+
+  prev.risks.forEach((prevRisk) => {
+    const stillExists = next.risks.some(
+      r => r.category === prevRisk.category && r.description === prevRisk.description
+    );
+    if (!stillExists) {
+      resolvedRisks.push({
+        category: prevRisk.category,
+        description: prevRisk.description,
+      });
+    }
+  });
+
+  if (resolvedRisks.length > 0) {
+    improvements.push(`${resolvedRisks.length} risk(s) addressed`);
+  }
+
+  prev.assumptionDependencies
+    .filter(a => a.status === "unvalidated")
+    .forEach((prevAssumption) => {
+      const nowValidated = next.assumptionDependencies.find(
+        a => a.assumption === prevAssumption.assumption && a.status === "validated"
+      );
+      if (nowValidated) {
+        resolvedAssumptions.push(prevAssumption.assumption);
+      }
+    });
+
+  if (resolvedAssumptions.length > 0) {
+    improvements.push(`${resolvedAssumptions.length} assumption(s) validated`);
+  }
+
+  if (next.recommendation !== "stop" && prev.recommendation === "stop") {
+    improvements.push("Recommendation upgraded from STOP");
+  }
+
+  if (next.recommendation === "proceed" && prev.recommendation === "revise") {
+    improvements.push("Recommendation upgraded to PROCEED");
+  }
+
+  next.risks.forEach((risk) => {
+    remainingRisks.push({
+      category: risk.category,
+      description: risk.description,
+      severity: risk.severity,
+    });
+  });
+
+  const highSeverityRemaining = remainingRisks.filter(r => r.severity === "high");
+  if (highSeverityRemaining.length > 0) {
+    unresolvedIssues.push(`${highSeverityRemaining.length} high-severity risk(s) remain`);
+  }
+
+  next.assumptionDependencies
+    .filter(a => a.status === "unvalidated")
+    .forEach((assumption) => {
+      remainingAssumptions.push(assumption.assumption);
+    });
+
+  if (remainingAssumptions.length > 0) {
+    unresolvedIssues.push(`${remainingAssumptions.length} assumption(s) still unvalidated`);
+  }
+
+  if (next.scopeWarnings.length > 0) {
+    unresolvedIssues.push(`${next.scopeWarnings.length} scope warning(s) remain`);
+  }
+
+  if (next.recommendation === "stop") {
+    unresolvedIssues.push("Recommendation is still STOP");
+  }
+
+  return { 
+    improvements, 
+    unresolvedIssues, 
+    resolvedRisks, 
+    remainingRisks, 
+    resolvedAssumptions, 
+    remainingAssumptions 
+  };
+}
+
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    market: "Market",
+    technical: "Technical",
+    financial: "Financial",
+    legal: "Legal",
+    competitive: "Competitive",
+    execution: "Execution",
+  };
+  return labels[category] || category;
+}
+
+export function WorkshopComparison({
+  previousAnalysis,
+  newAnalysis,
+}: WorkshopComparisonProps) {
+  const scoreDiff = newAnalysis.overallScore - previousAnalysis.overallScore;
+  const { 
+    improvements, 
+    unresolvedIssues, 
+    resolvedRisks, 
+    remainingRisks, 
+    resolvedAssumptions, 
+    remainingAssumptions 
+  } = calculateImprovements(previousAnalysis, newAnalysis);
+
+  return (
+    <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          Workshop Results: Before & After
+        </CardTitle>
+        <CardDescription>
+          Compare how your idea analysis changed after providing additional context.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          <div className="text-center p-4 rounded-lg bg-muted/50" data-testid="score-previous">
+            <p className="text-sm text-muted-foreground mb-1">Previous Score</p>
+            <p className={`text-3xl font-bold ${getScoreColor(previousAnalysis.overallScore)}`}>
+              {previousAnalysis.overallScore}
+            </p>
+            <div className="mt-2">
+              {getRecommendationBadge(previousAnalysis.recommendation)}
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+              scoreDiff > 0 
+                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400"
+                : scoreDiff < 0
+                  ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400"
+                  : "bg-muted text-muted-foreground"
+            }`} data-testid="score-diff">
+              {scoreDiff > 0 ? (
+                <TrendingUp className="h-5 w-5" />
+              ) : scoreDiff < 0 ? (
+                <TrendingDown className="h-5 w-5" />
+              ) : (
+                <Minus className="h-5 w-5" />
+              )}
+              <span className="font-bold">
+                {scoreDiff > 0 ? `+${scoreDiff}` : scoreDiff}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center p-4 rounded-lg bg-muted/50" data-testid="score-new">
+            <p className="text-sm text-muted-foreground mb-1">New Score</p>
+            <p className={`text-3xl font-bold ${getScoreColor(newAnalysis.overallScore)}`}>
+              {newAnalysis.overallScore}
+            </p>
+            <div className="mt-2">
+              {getRecommendationBadge(newAnalysis.recommendation)}
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2 text-green-700 dark:text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              What Improved
+            </h4>
+            
+            {improvements.length > 0 && (
+              <ul className="space-y-2" data-testid="improvements-list">
+                {improvements.map((improvement, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    {improvement}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {resolvedRisks.length > 0 && (
+              <div className="mt-3" data-testid="resolved-risks">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Risks Addressed:</p>
+                <ul className="space-y-1.5">
+                  {resolvedRisks.map((risk, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0">
+                        {getCategoryLabel(risk.category)}
+                      </Badge>
+                      <span className="line-clamp-2">{risk.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {resolvedAssumptions.length > 0 && (
+              <div className="mt-3" data-testid="resolved-assumptions">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Assumptions Validated:</p>
+                <ul className="space-y-1.5">
+                  {resolvedAssumptions.map((assumption, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{assumption}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {improvements.length === 0 && resolvedRisks.length === 0 && resolvedAssumptions.length === 0 && (
+              <p className="text-sm text-muted-foreground">No improvements detected.</p>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="h-4 w-4" />
+              What Remains Unresolved
+            </h4>
+            
+            {unresolvedIssues.length > 0 && (
+              <ul className="space-y-2" data-testid="unresolved-issues-list">
+                {unresolvedIssues.map((issue, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    {issue}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {remainingRisks.filter(r => r.severity === "high").length > 0 && (
+              <div className="mt-3" data-testid="remaining-high-risks">
+                <p className="text-xs font-medium text-muted-foreground mb-2">High-Severity Risks Remaining:</p>
+                <ul className="space-y-1.5">
+                  {remainingRisks
+                    .filter(r => r.severity === "high")
+                    .map((risk, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                        <Badge className="text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0">
+                          {getCategoryLabel(risk.category)}
+                        </Badge>
+                        <span className="line-clamp-2">{risk.description}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
+            {remainingAssumptions.length > 0 && (
+              <div className="mt-3" data-testid="remaining-assumptions">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Assumptions Still Unvalidated:</p>
+                <ul className="space-y-1.5">
+                  {remainingAssumptions.slice(0, 3).map((assumption, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{assumption}</span>
+                    </li>
+                  ))}
+                  {remainingAssumptions.length > 3 && (
+                    <li className="text-xs text-muted-foreground">
+                      ...and {remainingAssumptions.length - 3} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {unresolvedIssues.length === 0 && remainingRisks.filter(r => r.severity === "high").length === 0 && remainingAssumptions.length === 0 && (
+              <p className="text-sm text-muted-foreground">All major issues resolved!</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
