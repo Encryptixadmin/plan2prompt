@@ -94,6 +94,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: Real-World Flow Hardening (January 2026)
+- Removed auto-creation of projects from ProjectContext (no silent defaults)
+- Added NoProjectGate component that blocks Ideas/Requirements/Prompts when no projects exist
+- Blocking state displays clear message: "You need a project before you can start working on ideas"
+- Explicit project creation flow with confirmation dialog: "Create your first project"
+- Updated RequireProjectGuard with improved confirmation dialog and error handling
+- Added useAIProviderStatus hook to check validated provider count from /api/admin/health
+- If zero validated providers, idea analysis is blocked with warning: "Idea analysis is temporarily unavailable"
+- Analyze button disabled when no AI providers are validated or when provider check fails
+- Added checkProviderReadiness() guard inside analyzeMutation to verify providers at execution time
+- Added mapBackendError utility for user-friendly error messages
+- Maps MISSING_PROJECT_CONTEXT → "Please create or select a project before continuing."
+- Maps NO_VALID_AI_PROVIDERS → "Idea analysis is unavailable due to configuration issues."
+- Handles structured error objects with code field for better error classification
+
 ### Phase 4, Hardening Step: AI Provider Model Validation (January 2026)
 - Updated AI provider model IDs: OpenAI uses gpt-4o-mini, Anthropic uses claude-3-5-sonnet-latest, Gemini uses gemini-1.5-pro
 - Added providerValidationService for startup model validation against each provider's API

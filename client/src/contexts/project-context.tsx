@@ -75,11 +75,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const projects = projectsData?.data || [];
 
-  useEffect(() => {
-    if (!isLoading && projects.length === 0) {
-      ensureDefaultMutation.mutate();
-    }
-  }, [isLoading, projects.length]);
 
   useEffect(() => {
     if (!isLoading && projects.length > 0 && !activeProjectId) {

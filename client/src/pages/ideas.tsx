@@ -63,6 +63,8 @@ import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useAdminStatus } from "@/hooks/use-admin-status";
 import { useRequireProject } from "@/components/require-project-guard";
+import { useAIProviderStatus } from "@/hooks/use-ai-provider-status";
+import { mapBackendError } from "@/lib/error-messages";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -353,12 +355,15 @@ function AnalysisResults({ analysis, onAccept, onEdit, onDiscard, isAccepting, i
 export default function IdeasPage() {
   const { isAdmin } = useAdminStatus();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
+  const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [pendingFormValues, setPendingFormValues] = useState<IdeaFormValues | null>(null);
+  
+  const canAnalyze = hasValidatedProviders;
 
   const form = useForm<IdeaFormValues>({
     resolver: zodResolver(ideaFormSchema),
@@ -373,8 +378,25 @@ export default function IdeasPage() {
     },
   });
 
+  const checkProviderReadiness = async (): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/admin/health");
+      if (!response.ok) return false;
+      const data = await response.json();
+      const providers = data?.data?.providers || [];
+      return providers.some((p: { validated: boolean; enabled: boolean }) => p.validated && p.enabled);
+    } catch {
+      return false;
+    }
+  };
+
   const analyzeMutation = useMutation({
     mutationFn: async (values: IdeaFormValues) => {
+      const isReady = await checkProviderReadiness();
+      if (!isReady) {
+        throw new Error("Idea analysis is unavailable due to configuration issues.");
+      }
+      
       const response = await apiRequest("POST", "/api/ideas/analyze", {
         idea: {
           title: values.title,
@@ -674,11 +696,25 @@ export default function IdeasPage() {
 
                     <Separator />
 
+                    {(!canAnalyze || isProviderError) && !isLoadingProviders && (
+                      <div className="p-4 rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 text-sm" data-testid="alert-no-providers">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium">Idea analysis is temporarily unavailable</p>
+                            <p className="mt-1 text-yellow-700 dark:text-yellow-300">
+                              No AI providers are correctly configured. Please contact an administrator.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <Button
                       type="submit"
                       className="w-full"
                       size="lg"
-                      disabled={analyzeMutation.isPending}
+                      disabled={analyzeMutation.isPending || !canAnalyze}
                       data-testid="button-analyze"
                     >
                       {analyzeMutation.isPending ? (
@@ -695,8 +731,8 @@ export default function IdeasPage() {
                     </Button>
 
                     {analyzeMutation.isError && (
-                      <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                        Something went wrong while analyzing your idea. Please try again in a moment.
+                      <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="alert-analyze-error">
+                        {mapBackendError(analyzeMutation.error)}
                       </div>
                     )}
                   </form>

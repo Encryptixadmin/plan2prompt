@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +16,7 @@ export function useRequireProject() {
   const { activeProject, ensureDefaultProject } = useProject();
   const [showDialog, setShowDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pendingActionRef = useRef<(() => void) | null>(null);
 
   const requireProject = (action: () => void) => {
@@ -26,8 +28,10 @@ export function useRequireProject() {
     }
   };
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = async (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsCreating(true);
+    setError(null);
     try {
       await ensureDefaultProject();
       setShowDialog(false);
@@ -35,8 +39,8 @@ export function useRequireProject() {
         pendingActionRef.current();
         pendingActionRef.current = null;
       }
-    } catch (error) {
-      console.error("Failed to create project:", error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create project. Please try again.");
     } finally {
       setIsCreating(false);
     }
@@ -44,20 +48,29 @@ export function useRequireProject() {
 
   const handleCancel = () => {
     setShowDialog(false);
+    setError(null);
     pendingActionRef.current = null;
   };
 
   const ProjectRequiredDialog = () => (
-    <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
+    <AlertDialog open={showDialog} onOpenChange={(open) => {
+      if (!open) handleCancel();
+      else setShowDialog(open);
+    }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Project Required</AlertDialogTitle>
+          <AlertDialogTitle>Create your first project</AlertDialogTitle>
           <AlertDialogDescription>
-            You need a project before continuing. Would you like to create one now?
+            Projects help keep your ideas and artifacts organised. You need a project before you can continue with this action.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {error && (
+          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            {error}
+          </div>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel} data-testid="button-cancel-project">
+          <AlertDialogCancel onClick={handleCancel} disabled={isCreating} data-testid="button-cancel-project">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction 
@@ -65,7 +78,14 @@ export function useRequireProject() {
             disabled={isCreating}
             data-testid="button-create-project"
           >
-            {isCreating ? "Creating..." : "Create a project"}
+            {isCreating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create a project"
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

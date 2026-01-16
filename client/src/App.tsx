@@ -13,6 +13,7 @@ import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
 import { ProjectProvider } from "@/contexts/project-context";
+import { NoProjectGate } from "@/components/no-project-gate";
 import { useTrackNonAdminRoute } from "@/hooks/use-admin-navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -115,9 +116,11 @@ function AppContent() {
 
   return (
     <ProjectProvider>
-      <OnboardingWrapper>
-        <AuthenticatedRouter />
-      </OnboardingWrapper>
+      <NoProjectGate>
+        <OnboardingWrapper>
+          <AuthenticatedRouter />
+        </OnboardingWrapper>
+      </NoProjectGate>
     </ProjectProvider>
   );
 }

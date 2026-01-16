@@ -1,0 +1,134 @@
+Proceed to REAL-WORLD FLOW HARDENING.
+
+EXECUTION MODE:
+Flow correctness and usability.
+NO backend invariant changes.
+NO product expansion.
+
+OBJECTIVE:
+Ensure the platform behaves correctly for real users by:
+1. Enforcing project-first flow in the UI
+2. Making project creation explicit
+3. Blocking idea analysis when AI providers are not usable
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- Users must understand context before action
+- No silent defaults
+- No misleading “it works” states
+
+--------------------------------
+PART 1 — PROJECT-FIRST UI GATING (REQUIRED)
+--------------------------------
+
+Implement a global project existence check on app load:
+
+1. After authentication:
+   - Call GET /api/projects
+
+2. If zero projects exist:
+   - Block access to:
+     - Ideas
+     - Requirements
+     - Prompts
+   - Render a blocking state explaining:
+     "You need a project before you can start working on ideas."
+
+3. Provide a single primary action:
+   - "Create a project"
+
+--------------------------------
+PART 2 — EXPLICIT PROJECT CREATION FLOW
+--------------------------------
+
+When the user clicks "Create a project":
+
+1. Show a simple confirmation dialog:
+   - Title: "Create your first project"
+   - Explanation: "Projects help keep your ideas and artifacts organised."
+
+2. On confirmation:
+   - Call POST /api/projects/ensure-default
+   - Set returned project as activeProjectId
+   - Unlock the rest of the platform
+
+DO NOT:
+- Auto-create a project without user confirmation
+- Retry automatically on failure
+
+--------------------------------
+PART 3 — ACTIVE PROJECT REQUIREMENT
+--------------------------------
+
+Before allowing ANY of the following actions:
+- Analyze Idea
+- Accept Idea
+- Generate Requirements
+- Lock Requirements
+- Generate Prompts
+- Submit Prompt Feedback
+
+The UI MUST:
+1. Verify activeProjectId exists
+2. If not:
+   - Block the action
+   - Prompt project selection or creation
+
+--------------------------------
+PART 4 — AI PROVIDER READINESS CHECK (REQUIRED)
+--------------------------------
+
+Before allowing POST /api/ideas/analyze:
+
+1. Check Admin Health data (already available):
+   - Count validated providers
+
+2. If validated provider count === 0:
+   - Block idea analysis
+   - Display message:
+     "Idea analysis is temporarily unavailable because no AI providers are correctly configured."
+
+3. Do NOT:
+   - Attempt analysis
+   - Fall back silently
+   - Hide provider errors
+
+--------------------------------
+PART 5 — ERROR MESSAGE ALIGNMENT
+--------------------------------
+
+Map backend errors to user-friendly messages:
+
+- MISSING_PROJECT_CONTEXT →
+  "Please create or select a project before continuing."
+
+- NO_VALID_AI_PROVIDERS →
+  "Idea analysis is unavailable due to configuration issues."
+
+--------------------------------
+DO NOT
+--------------------------------
+- Relax requireProjectContext
+- Auto-create projects silently
+- Hide AI provider failures
+- Add new backend routes
+- Add marketing copy
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. New user:
+   - Cannot analyze idea without creating project
+2. Returning user:
+   - Active project required before actions
+3. AI providers invalid:
+   - Idea analysis blocked with clear message
+4. Network tab:
+   - All requests include X-Project-Id
+
+STOP.
+WAIT for confirmation.
