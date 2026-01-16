@@ -27,6 +27,7 @@ interface ProviderStatus {
   validated: boolean;
   validationError: string | null;
   modelId: string;
+  resolvedModelId: string | null;
   configured: boolean;
   disabledAt?: string;
   disabledBy?: string;
@@ -91,6 +92,7 @@ class AdminService {
         validated: false,
         validationError: null,
         modelId: providerModels[provider],
+        resolvedModelId: null,
         configured: false,
         errorCount: 0,
         timeoutCount: 0,
@@ -236,6 +238,7 @@ class AdminService {
         status.validated = validationResult.validated;
         status.validationError = validationResult.validationError;
         status.modelId = validationResult.modelId;
+        status.resolvedModelId = validationResult.resolvedModelId;
         status.configured = validationResult.configured;
         if (!validationResult.validated && validationResult.configured) {
           status.enabled = false;

@@ -1,17 +1,21 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/ai";
 import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
+import { providerValidationService } from "./provider-validation.service";
 
-const ANTHROPIC_MODEL = "claude-3-5-sonnet-latest";
+const DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-latest";
 
 export class AnthropicService extends BaseAIProvider {
   readonly provider = "anthropic" as const;
-  readonly model = ANTHROPIC_MODEL;
   private client: Anthropic | null = null;
 
   constructor(config: Partial<ProviderConfig> = {}) {
     super(config);
     this.initializeClient();
+  }
+
+  get model(): string {
+    return providerValidationService.getResolvedModelId("anthropic") || DEFAULT_ANTHROPIC_MODEL;
   }
 
   private initializeClient(): void {
@@ -32,11 +36,13 @@ export class AnthropicService extends BaseAIProvider {
       return this.generateMockResponse(prompt, startTime);
     }
 
+    const resolvedModel = this.model;
+
     try {
       const response = await this.withRetry(() =>
         this.withTimeout(
           this.client!.messages.create({
-            model: this.model,
+            model: resolvedModel,
             max_tokens: prompt.maxTokens ?? this.config.maxTokens,
             system: prompt.system,
             messages: this.buildMessages(prompt),

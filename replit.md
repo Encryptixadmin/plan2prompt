@@ -94,6 +94,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 4, Hardening Step: AI Integration Correction & Stabilization (January 2026)
+- Dynamic model discovery for Anthropic: Iterates preference list and resolves to first accessible Claude 3+ model
+- Dynamic model discovery for Gemini: Iterates preference list (gemini-1.5-pro-latest, gemini-1.5-pro, gemini-1.5-flash, etc.)
+- OpenAI model verification with GPT-4 fallback logic if default model unavailable
+- Provider validation stores resolvedModelId (actual model in use) separately from modelId (configured default)
+- resolvedModelId is null when validation fails - accurately reflects provider unavailability
+- Admin health endpoint now shows: provider, configured, validated, enabled, modelId, resolvedModelId, validationError
+- AI services dynamically retrieve resolved model via providerValidationService.getResolvedModelId()
+- No hardcoded fallback model IDs at runtime - uses only validated models
+- Clear validation error messages: "No accessible Claude 3+ models available" or "No Gemini models available"
+
 ### Phase 4, Hardening Step: Real-World Flow Hardening (January 2026)
 - Removed auto-creation of projects from ProjectContext (no silent defaults)
 - Added NoProjectGate component that blocks Ideas/Requirements/Prompts when no projects exist

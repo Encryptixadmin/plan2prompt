@@ -1,17 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/ai";
 import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
+import { providerValidationService } from "./provider-validation.service";
 
-const GEMINI_MODEL = "gemini-1.5-pro";
+const DEFAULT_GEMINI_MODEL = "gemini-1.5-pro";
 
 export class GeminiService extends BaseAIProvider {
   readonly provider = "gemini" as const;
-  readonly model = GEMINI_MODEL;
   private client: GoogleGenerativeAI | null = null;
 
   constructor(config: Partial<ProviderConfig> = {}) {
     super(config);
     this.initializeClient();
+  }
+
+  get model(): string {
+    return providerValidationService.getResolvedModelId("gemini") || DEFAULT_GEMINI_MODEL;
   }
 
   private initializeClient(): void {
@@ -32,9 +36,11 @@ export class GeminiService extends BaseAIProvider {
       return this.generateMockResponse(prompt, startTime);
     }
 
+    const resolvedModel = this.model;
+
     try {
       const model = this.client.getGenerativeModel({
-        model: this.model,
+        model: resolvedModel,
         generationConfig: {
           temperature: prompt.temperature ?? this.config.temperature,
           maxOutputTokens: prompt.maxTokens ?? this.config.maxTokens,

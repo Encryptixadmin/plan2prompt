@@ -1,0 +1,148 @@
+Proceed to AI INTEGRATION CORRECTION & STABILISATION.
+
+EXECUTION MODE:
+Configuration correctness.
+No changes to product behaviour.
+No changes to consensus logic.
+
+OBJECTIVE:
+Correct Anthropic and Gemini model integration so that:
+- Supported, accessible models are used
+- Validation reflects real provider capability
+- The system never silently misconfigures again
+
+--------------------------------
+CORE PRINCIPLES (NON-NEGOTIABLE)
+--------------------------------
+- Provider configuration must match provider reality
+- Model IDs must be validated against provider APIs
+- No assumptions about account-level access
+- No silent fallbacks
+
+--------------------------------
+PART 1 — ANTHROPIC MODEL CORRECTION
+--------------------------------
+
+Replace the current Anthropic model configuration logic as follows:
+
+1. Default model:
+   - Use: "claude-3-5-sonnet-latest"
+
+2. HOWEVER:
+   - Do NOT assume this model is available on the account.
+
+3. During startup validation:
+   - Call the Anthropic models endpoint
+   - Retrieve the list of available models for the API key
+   - Select the FIRST model that:
+     - Is available to the account
+     - Supports text generation
+     - Is a Claude 3+ family model
+
+4. If NO suitable model is found:
+   - Mark Anthropic as:
+     validated = false
+     enabled = false
+   - Store validationError:
+     "No accessible Claude 3+ models available for this API key."
+
+5. Store the resolved model ID dynamically in provider state
+   (do not hardcode it after validation).
+
+--------------------------------
+PART 2 — GEMINI MODEL CORRECTION
+--------------------------------
+
+Replace the current Gemini model configuration logic as follows:
+
+1. Do NOT assume "gemini-1.5-pro" exists or is callable.
+
+2. During startup validation:
+   - Call the Gemini ListModels endpoint
+   - Filter models that:
+     - Support generateContent
+     - Are not deprecated
+     - Are accessible to the API key
+
+3. Prefer models in this order:
+   - gemini-1.5-pro-latest
+   - gemini-1.5-flash
+   - Any other generateContent-capable Gemini model
+
+4. Select the FIRST valid model from the preference list.
+
+5. If NO suitable model is found:
+   - Mark Gemini as:
+     validated = false
+     enabled = false
+   - Store validationError:
+     "No Gemini models available that support text generation for this API key."
+
+6. Store the resolved model ID dynamically in provider state.
+
+--------------------------------
+PART 3 — OPENAI (VERIFY ONLY)
+--------------------------------
+
+1. Verify that the configured OpenAI model:
+   - Exists
+   - Is callable
+   - Supports chat/text generation
+
+2. No changes required unless validation fails.
+
+--------------------------------
+PART 4 — PROVIDER STATE & ADMIN VISIBILITY
+--------------------------------
+
+For each provider, Admin Health MUST show:
+
+- provider
+- configured (API key present)
+- validated
+- enabled
+- resolvedModelId   // IMPORTANT: actual model in use
+- validationError (if any)
+
+Resolved model ID must reflect:
+- What the system is ACTUALLY calling
+- Not a static config value
+
+--------------------------------
+PART 5 — RUNTIME SAFETY
+--------------------------------
+
+At request time:
+
+- Use ONLY the resolvedModelId from provider state
+- NEVER use a model ID that failed startup validation
+- NEVER retry model resolution at runtime
+
+--------------------------------
+DO NOT
+--------------------------------
+- Hardcode fallback model IDs
+- Auto-switch models during requests
+- Mask provider failures
+- Change consensus thresholds
+- Change confidence semantics
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Restart the server
+2. Confirm startup logs show:
+   - Resolved model ID per provider
+3. Call /api/admin/health and verify:
+   - OpenAI shows validated + resolved model
+   - Anthropic shows validated OR clear "no accessible model"
+   - Gemini shows validated OR clear "no accessible model"
+4. Trigger idea analysis:
+   - Only validated providers are used
+   - No 404 model errors appear in logs
+
+STOP.
+WAIT for confirmation.

@@ -1,17 +1,21 @@
 import OpenAI from "openai";
 import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/ai";
 import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
+import { providerValidationService } from "./provider-validation.service";
 
-const OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 export class OpenAIService extends BaseAIProvider {
   readonly provider = "openai" as const;
-  readonly model = OPENAI_MODEL;
   private client: OpenAI | null = null;
 
   constructor(config: Partial<ProviderConfig> = {}) {
     super(config);
     this.initializeClient();
+  }
+
+  get model(): string {
+    return providerValidationService.getResolvedModelId("openai") || DEFAULT_OPENAI_MODEL;
   }
 
   private initializeClient(): void {
@@ -32,11 +36,13 @@ export class OpenAIService extends BaseAIProvider {
       return this.generateMockResponse(prompt, startTime);
     }
 
+    const resolvedModel = this.model;
+
     try {
       const response = await this.withRetry(() =>
         this.withTimeout(
           this.client!.chat.completions.create({
-            model: this.model,
+            model: resolvedModel,
             temperature: prompt.temperature ?? this.config.temperature,
             max_tokens: prompt.maxTokens ?? this.config.maxTokens,
             messages: this.buildMessages(prompt),
