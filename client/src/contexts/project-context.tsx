@@ -78,11 +78,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
-    if (!isLoading && projects.length > 0 && !activeProjectId) {
-      const firstProject = projects[0];
-      setActiveProjectId(firstProject.id);
-      localStorage.setItem(ACTIVE_PROJECT_KEY, firstProject.id);
-      setApiActiveProjectId(firstProject.id);
+    if (!isLoading && projects.length > 0) {
+      const storedIdValid = activeProjectId && projects.some((p) => p.id === activeProjectId);
+      if (!storedIdValid) {
+        const firstProject = projects[0];
+        setActiveProjectId(firstProject.id);
+        localStorage.setItem(ACTIVE_PROJECT_KEY, firstProject.id);
+        setApiActiveProjectId(firstProject.id);
+      }
     }
   }, [isLoading, projects, activeProjectId]);
 

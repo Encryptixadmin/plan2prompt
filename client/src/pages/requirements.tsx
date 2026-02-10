@@ -578,8 +578,11 @@ export default function RequirementsPage() {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
 
+  const { activeProject } = useProject();
+
   const ideasQuery = useQuery<{ success: boolean; data: IdeaOption[] }>({
     queryKey: ["/api/requirements/ideas"],
+    enabled: !!activeProject,
   });
 
   const previewMutation = useMutation({

@@ -101,9 +101,12 @@ export default function Prompts() {
   const [copiedAll, setCopiedAll] = useState(false);
   const { toast } = useToast();
 
+  const { activeProject } = useProject();
+
   const { data: requirements, isLoading: loadingRequirements } = useQuery<RequirementOption[]>({
     queryKey: ["/api/prompts/requirements"],
     select: (data: any) => data.data,
+    enabled: !!activeProject,
   });
 
   const generateMutation = useMutation({

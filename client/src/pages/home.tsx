@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Lightbulb, FileText, Terminal, ArrowRight, Sparkles, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { BillingStatus } from "@/components/billing-status";
+import { useProject } from "@/contexts/project-context";
 
 interface ArtifactSummary {
   id: string;
@@ -14,12 +15,16 @@ interface ArtifactSummary {
 }
 
 export default function Home() {
+  const { activeProject } = useProject();
+
   const { data: ideasData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
     queryKey: ["/api/ideas"],
+    enabled: !!activeProject,
   });
 
   const { data: requirementsData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
     queryKey: ["/api/requirements/ideas"],
+    enabled: !!activeProject,
   });
 
   const ideaCount = ideasData?.data?.length || 0;
