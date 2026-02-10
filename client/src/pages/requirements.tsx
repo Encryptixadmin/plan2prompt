@@ -104,7 +104,7 @@ interface RequirementsResultsProps {
 
 function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, isAccepting, isAccepted }: RequirementsResultsProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {isAccepted && (
         <StageCard 
           currentStage="LOCKED_REQUIREMENTS" 
@@ -685,7 +685,7 @@ export default function RequirementsPage() {
   const showBlockedState = !ideasQuery.isLoading && !hasValidatedIdeas && !requirements;
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-10">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-requirements-title">Requirements</h1>

@@ -897,7 +897,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6" data-testid="page-admin">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8" data-testid="page-admin">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-admin-title">Admin Console</h1>
         <p className="text-sm text-muted-foreground">

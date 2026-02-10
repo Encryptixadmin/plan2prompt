@@ -46,12 +46,12 @@ function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="!flex-row !p-0 h-14 min-h-14 items-center px-4 border-b border-sidebar-border" data-testid="sidebar-header">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
             <Lightbulb className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight" data-testid="text-app-name">IdeaForge</span>
-            <span className="text-[11px] text-muted-foreground leading-none">Build Pipeline</span>
+            <span className="text-[11px] text-sidebar-foreground/60 leading-none">Build Pipeline</span>
           </div>
         </div>
       </SidebarHeader>
@@ -99,7 +99,7 @@ function AppSidebar() {
         )}
       </SidebarContent>
       <SidebarFooter className="p-3">
-        <div className="text-[11px] text-muted-foreground text-center">
+        <div className="text-[11px] text-sidebar-foreground/50 text-center">
           Closed Alpha
         </div>
       </SidebarFooter>

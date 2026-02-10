@@ -142,7 +142,7 @@ function AnalysisResults({
   const recommendation = getRecommendation();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {isAccepted && (
         <StageCard 
           currentStage="VALIDATED_IDEA" 
@@ -660,7 +660,7 @@ export default function IdeasPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-10">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-ideas-title">Ideas</h1>
           <p className="text-sm text-muted-foreground">
