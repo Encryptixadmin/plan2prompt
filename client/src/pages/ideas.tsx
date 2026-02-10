@@ -69,6 +69,7 @@ import type { WorkshopSection, WorkshopAnswer, WorkshopResolutionResult } from "
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
+  purpose: z.enum(["commercial", "developer_tool", "internal", "open_source", "learning"]).optional(),
   targetMarket: z.string().optional(),
   skills: z.string().optional(),
   budget: z.enum(["low", "medium", "high", "enterprise"]).optional(),
@@ -423,6 +424,7 @@ export default function IdeasPage() {
     defaultValues: {
       title: "",
       description: "",
+      purpose: undefined,
       targetMarket: "",
       skills: "",
       budget: undefined,
@@ -454,6 +456,7 @@ export default function IdeasPage() {
         idea: {
           title: values.title,
           description: values.description,
+          purpose: values.purpose || undefined,
           context: {
             targetMarket: values.targetMarket || undefined,
             skills: values.skills ? values.skills.split(",").map((s) => s.trim()) : undefined,
@@ -546,6 +549,7 @@ export default function IdeasPage() {
         idea: {
           title: analysis.input.title,
           description: analysis.input.description,
+          purpose: analysis.input.purpose,
           context: {
             ...analysis.input.context,
             workshopRefinement: workshopFindings,
@@ -729,6 +733,33 @@ export default function IdeasPage() {
                             Be specific about the problem you're solving and your proposed solution.
                           </FormDescription>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="purpose"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>What type of project is this?</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-purpose">
+                                <SelectValue placeholder="Select project type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="commercial">Commercial Product (SaaS, marketplace, consumer app)</SelectItem>
+                              <SelectItem value="developer_tool">Developer Tool (SDK, CLI, library, devtool)</SelectItem>
+                              <SelectItem value="internal">Internal/Personal Tool (private use, team utility)</SelectItem>
+                              <SelectItem value="open_source">Open Source Project (community-driven)</SelectItem>
+                              <SelectItem value="learning">Learning/Experiment (skill-building, prototype)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            This shapes the analysis — a dev tool needs different validation than a consumer app.
+                          </FormDescription>
                         </FormItem>
                       )}
                     />

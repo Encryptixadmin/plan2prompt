@@ -26,6 +26,17 @@ router.post(
         });
       }
 
+      const validPurposes = ["commercial", "developer_tool", "internal", "open_source", "learning"];
+      if (request.idea.purpose && !validPurposes.includes(request.idea.purpose)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: `Invalid purpose. Must be one of: ${validPurposes.join(", ")}`,
+          },
+        });
+      }
+
       const projectId = req.headers["x-project-id"] as string | undefined;
       const userId = req.userId;
       const analysis = await ideasService.analyzeIdea(request.idea, projectId, userId);

@@ -4,10 +4,13 @@
  * Types for the idea validation and refinement module.
  */
 
+export type IdeaPurpose = "commercial" | "developer_tool" | "internal" | "open_source" | "learning";
+
 // User input for idea submission
 export interface IdeaInput {
   title: string;
   description: string;
+  purpose?: IdeaPurpose;
   context?: {
     targetMarket?: string;
     skills?: string[];

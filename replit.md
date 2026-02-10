@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Invariant Testing**: Vitest-based test harness for core platform behaviors, including pipeline sequencing, STOP recommendations, permission boundaries, failure classification, and usage tracking.
 
 ### Feature Specifications
-- **Ideas Module**: Validates and refines application ideas using AI consensus, producing `ideas-reference-{title}_v{n}.md`.
+- **Ideas Module**: Validates and refines application ideas using AI consensus, producing `ideas-reference-{title}_v{n}.md`. Analysis is fully AI-driven: the service instructs AI providers to return structured JSON with strengths, weaknesses, risks, feasibility, and next steps, then parses and validates the response with fallback extraction from free text. Purpose-aware analysis supports 5 project types (commercial, developer_tool, internal, open_source, learning) with tailored system prompts and validation criteria. Guided Refinement Workshop generates purpose-adaptive questions that skip already-answered context fields.
 - **Requirements Module**: Converts validated ideas into comprehensive requirements documents, producing `requirements-reference-{title}_v{n}.md`.
 - **Prompts Module**: Generates sequential, IDE-specific build prompts from requirements, supporting Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDEs, producing `build-prompts-{title}-{ide}_v{n}.md`. Includes structured prompt feedback loop with deterministic failure classification and static recovery steps.
 
