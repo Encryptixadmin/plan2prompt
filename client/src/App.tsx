@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -42,6 +42,7 @@ function AuthenticatedRouter() {
         <Route path="/requirements" component={Requirements} />
         <Route path="/prompts" component={Prompts} />
         <Route path="/admin" component={Admin} />
+        <Route path="/auth" component={AuthRedirect} />
         <Route component={NotFound} />
       </Switch>
     </>
@@ -104,6 +105,14 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+function AuthRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/");
+  }, [setLocation]);
+  return <LoadingScreen />;
 }
 
 function AppContent() {

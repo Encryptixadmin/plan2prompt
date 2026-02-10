@@ -68,6 +68,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         };
         setActiveProjectId(newProject.id);
         localStorage.setItem(ACTIVE_PROJECT_KEY, newProject.id);
+        setApiActiveProjectId(newProject.id);
         refetch();
       }
     },

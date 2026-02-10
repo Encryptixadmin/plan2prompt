@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +15,11 @@ import {
 import { useProject } from "@/contexts/project-context";
 
 export function useRequireProject() {
-  const { activeProject, ensureDefaultProject } = useProject();
+  const { activeProject, createProject } = useProject();
   const [showDialog, setShowDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
   const pendingActionRef = useRef<(() => void) | null>(null);
 
   const requireProject = (action: () => void) => {
@@ -24,16 +27,20 @@ export function useRequireProject() {
       action();
     } else {
       pendingActionRef.current = action;
+      setProjectName("");
       setShowDialog(true);
     }
   };
 
   const handleCreateProject = async (e: React.MouseEvent) => {
     e.preventDefault();
+    const trimmedName = projectName.trim();
+    if (!trimmedName) return;
+
     setIsCreating(true);
     setError(null);
     try {
-      await ensureDefaultProject();
+      await createProject({ name: trimmedName });
       setShowDialog(false);
       if (pendingActionRef.current) {
         pendingActionRef.current();
@@ -49,6 +56,7 @@ export function useRequireProject() {
   const handleCancel = () => {
     setShowDialog(false);
     setError(null);
+    setProjectName("");
     pendingActionRef.current = null;
   };
 
@@ -59,11 +67,23 @@ export function useRequireProject() {
     }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Create your first project</AlertDialogTitle>
+          <AlertDialogTitle>Create a project first</AlertDialogTitle>
           <AlertDialogDescription>
-            Projects help keep your ideas and artifacts organised. You need a project before you can continue with this action.
+            You need a project before you can continue. Give it a name to get started.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <Label htmlFor="require-project-name">Project name</Label>
+          <Input
+            id="require-project-name"
+            placeholder="e.g. My App Idea"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            disabled={isCreating}
+            autoFocus
+            data-testid="input-require-project-name"
+          />
+        </div>
         {error && (
           <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
             {error}
@@ -75,7 +95,7 @@ export function useRequireProject() {
           </AlertDialogCancel>
           <AlertDialogAction 
             onClick={handleCreateProject} 
-            disabled={isCreating}
+            disabled={isCreating || !projectName.trim()}
             data-testid="button-create-project"
           >
             {isCreating ? (
@@ -84,7 +104,7 @@ export function useRequireProject() {
                 Creating...
               </>
             ) : (
-              "Create a project"
+              "Create project"
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
