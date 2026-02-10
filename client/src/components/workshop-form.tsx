@@ -123,8 +123,8 @@ function QuestionRenderer({
         <Textarea
           value={(value as string) || ""}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Type your answer here..."
-          className="min-h-[100px] resize-none"
+          placeholder="Be specific — concrete details help the AI re-analyze more accurately..."
+          className="min-h-[120px]"
           data-testid={`textarea-${question.id}`}
         />
       );

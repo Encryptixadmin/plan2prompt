@@ -86,13 +86,19 @@ function getTriggerReason(analysis: IdeaAnalysis, sectionType: WorkshopSectionTy
   }
 }
 
+function truncate(text: string, maxLen: number = 80): string {
+  if (text.length <= maxLen) return text;
+  return text.substring(0, maxLen).trimEnd() + "...";
+}
+
 function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion[] {
   const purpose = getPurpose(analysis);
   const questions: WorkshopQuestion[] = [];
-  
+  const ideaTitle = analysis.input.title;
+
   const marketRisk = analysis.risks.find(r => r.category === "market");
   const marketRiskIndex = marketRisk ? analysis.risks.indexOf(marketRisk) : undefined;
-  
+
   const marketMapping: RiskMapping | undefined = marketRisk ? {
     type: "risk",
     riskCategory: "market",
@@ -105,16 +111,8 @@ function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion
       questions.push({
         id: getNextQuestionId("target_market_clarity"),
         sectionType: "target_market_clarity",
-        questionType: "single_select",
-        prompt: "What type of developer is this tool primarily for?",
-        options: [
-          { value: "frontend", label: "Frontend developers" },
-          { value: "backend", label: "Backend/infrastructure developers" },
-          { value: "fullstack", label: "Full-stack developers" },
-          { value: "devops", label: "DevOps/platform engineers" },
-          { value: "data", label: "Data engineers/scientists" },
-          { value: "other", label: "Other technical role" },
-        ],
+        questionType: "short_text",
+        prompt: `Describe the developer who would use "${ideaTitle}". What's their role, what tech stack do they work with, and what stage of their workflow would they use this in?`,
         mapping: marketMapping,
         required: true,
       });
@@ -122,30 +120,35 @@ function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion
       questions.push({
         id: getNextQuestionId("target_market_clarity"),
         sectionType: "target_market_clarity",
-        questionType: "single_select",
-        prompt: "Who will use this tool?",
-        options: [
-          { value: "just_me", label: "Just me (personal tool)" },
-          { value: "small_team", label: "My immediate team (2-10 people)" },
-          { value: "department", label: "Our department/org" },
-          { value: "company", label: "Company-wide" },
-        ],
+        questionType: "short_text",
+        prompt: `Who specifically will use "${ideaTitle}"? Describe the people/team, how many there are, and what their current workflow looks like.`,
         mapping: marketMapping,
         required: true,
       });
-    } else if (purpose !== "learning") {
+    } else if (purpose === "open_source") {
       questions.push({
         id: getNextQuestionId("target_market_clarity"),
         sectionType: "target_market_clarity",
-        questionType: "single_select",
-        prompt: "Who is the primary user for this product?",
-        options: [
-          { value: "individual_consumers", label: "Individual consumers (B2C)" },
-          { value: "small_business", label: "Small business owners" },
-          { value: "enterprise", label: "Enterprise/corporate teams" },
-          { value: "developers", label: "Developers/technical users" },
-          { value: "other", label: "Other specific group" },
-        ],
+        questionType: "short_text",
+        prompt: `What community or ecosystem would "${ideaTitle}" serve? Describe the typical contributor or user, and where they currently look for solutions like this.`,
+        mapping: marketMapping,
+        required: true,
+      });
+    } else if (purpose === "learning") {
+      questions.push({
+        id: getNextQuestionId("target_market_clarity"),
+        sectionType: "target_market_clarity",
+        questionType: "short_text",
+        prompt: `What specific skills or technologies do you want to learn by building "${ideaTitle}"? What's your current experience level with these?`,
+        mapping: marketMapping,
+        required: true,
+      });
+    } else {
+      questions.push({
+        id: getNextQuestionId("target_market_clarity"),
+        sectionType: "target_market_clarity",
+        questionType: "short_text",
+        prompt: `Describe the ideal first user of "${ideaTitle}". Who are they, what problem do they face daily, and how are they dealing with it right now?`,
         mapping: marketMapping,
         required: true,
       });
@@ -155,7 +158,7 @@ function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion
   const unvalidatedAssumptions = analysis.assumptionDependencies.filter(
     a => a.status === "unvalidated" || a.status === "risky"
   );
-  
+
   if (unvalidatedAssumptions.length > 0) {
     const relevantAssumption = unvalidatedAssumptions.find(a => {
       const lower = a.assumption.toLowerCase();
@@ -163,82 +166,52 @@ function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion
       if (purpose === "internal") return lower.includes("solve") || lower.includes("need") || lower.includes("problem");
       return lower.includes("market") || lower.includes("user") || lower.includes("need");
     }) || unvalidatedAssumptions[0];
-    
+
     const assumptionIndex = analysis.assumptionDependencies.indexOf(relevantAssumption);
-    
+
     const assumptionMapping: RiskMapping = {
       type: "assumption",
       assumptionIndex: assumptionIndex,
       sourceText: relevantAssumption.assumption,
     };
 
-    const promptText = purpose === "developer_tool"
-      ? `What evidence do you have that developers would adopt this? (Re: "${relevantAssumption.assumption}")`
-      : purpose === "internal"
-        ? `What evidence do you have this would save time/effort? (Re: "${relevantAssumption.assumption}")`
-        : `What evidence do you have for: "${relevantAssumption.assumption}"?`;
-
     questions.push({
       id: getNextQuestionId("target_market_clarity"),
       sectionType: "target_market_clarity",
       questionType: "short_text",
-      prompt: promptText,
+      prompt: `The analysis flagged an unvalidated assumption: "${truncate(relevantAssumption.assumption)}". What evidence or experience do you have that supports or challenges this?`,
       mapping: assumptionMapping,
       mappedAssumptionIndex: assumptionIndex,
       required: true,
     });
   }
 
-  if (purpose === "commercial" || purpose === "open_source") {
-    const marketRiskDriver = analysis.primaryRiskDrivers.find(
-      rd => rd.title.toLowerCase().includes("market") || rd.title.toLowerCase().includes("demand")
-    );
-    
-    const riskDriverMapping: RiskMapping | undefined = marketRiskDriver ? {
-      type: "risk_driver",
-      riskDriverRank: marketRiskDriver.rank,
-      sourceText: marketRiskDriver.title,
-    } : undefined;
-
-    const validationPrompt = purpose === "open_source"
-      ? "How have you validated community interest?"
-      : "How have you validated market interest?";
-
-    const validationOptions = purpose === "open_source"
-      ? [
-          { value: "github_issues", label: "Existing GitHub issues/requests for this" },
-          { value: "forum_discussions", label: "Forum/community discussions about this gap" },
-          { value: "competitor_stars", label: "Similar projects have significant adoption" },
-          { value: "personal_need", label: "I need this myself and others likely do too" },
-          { value: "none", label: "Not yet validated" },
-        ]
-      : [
-          { value: "customer_interviews", label: "Conducted customer interviews" },
-          { value: "surveys", label: "Ran surveys or polls" },
-          { value: "waitlist", label: "Built a waitlist with signups" },
-          { value: "competitor_analysis", label: "Analyzed competitor success" },
-          { value: "none", label: "Not yet validated" },
-        ];
-
-    questions.push({
-      id: getNextQuestionId("target_market_clarity"),
-      sectionType: "target_market_clarity",
-      questionType: "multi_select",
-      prompt: validationPrompt,
-      options: validationOptions,
-      mapping: riskDriverMapping,
-      required: true,
-    });
-  }
-
-  if (purpose === "developer_tool" && !hasContext(analysis, "competitors")) {
-    questions.push({
-      id: getNextQuestionId("target_market_clarity"),
-      sectionType: "target_market_clarity",
-      questionType: "short_text",
-      prompt: "What do developers currently use to solve this problem? How would your tool improve on that workflow?",
-      required: true,
-    });
+  if (!hasContext(analysis, "competitors")) {
+    if (purpose === "developer_tool") {
+      questions.push({
+        id: getNextQuestionId("target_market_clarity"),
+        sectionType: "target_market_clarity",
+        questionType: "short_text",
+        prompt: `What tools or approaches do developers currently use to solve the problem "${ideaTitle}" addresses? What's missing or frustrating about those existing options?`,
+        required: true,
+      });
+    } else if (purpose === "commercial") {
+      questions.push({
+        id: getNextQuestionId("target_market_clarity"),
+        sectionType: "target_market_clarity",
+        questionType: "short_text",
+        prompt: `What existing products or alternatives compete with "${ideaTitle}"? Why would someone switch from those to your solution?`,
+        required: true,
+      });
+    } else if (purpose === "open_source") {
+      questions.push({
+        id: getNextQuestionId("target_market_clarity"),
+        sectionType: "target_market_clarity",
+        questionType: "short_text",
+        prompt: `What existing open-source projects or tools overlap with "${ideaTitle}"? What gap do they leave that this project would fill?`,
+        required: true,
+      });
+    }
   }
 
   return questions.slice(0, MAX_QUESTIONS_PER_SECTION);
@@ -247,45 +220,20 @@ function generateTargetMarketQuestions(analysis: IdeaAnalysis): WorkshopQuestion
 function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[] {
   const purpose = getPurpose(analysis);
   const questions: WorkshopQuestion[] = [];
-
-  if (purpose === "learning") {
-    questions.push({
-      id: getNextQuestionId("pain_urgency_validation"),
-      sectionType: "pain_urgency_validation",
-      questionType: "short_text",
-      prompt: "What specific skills or concepts are you trying to learn by building this?",
-      required: true,
-    });
-
-    questions.push({
-      id: getNextQuestionId("pain_urgency_validation"),
-      sectionType: "pain_urgency_validation",
-      questionType: "single_select",
-      prompt: "How complex should this project be for your learning goals?",
-      options: [
-        { value: "weekend", label: "Weekend project (1-2 days)" },
-        { value: "week", label: "Week-long deep dive" },
-        { value: "month", label: "Multi-week exploration" },
-        { value: "ongoing", label: "Ongoing learning vehicle" },
-      ],
-      required: true,
-    });
-
-    return questions.slice(0, MAX_QUESTIONS_PER_SECTION);
-  }
+  const ideaTitle = analysis.input.title;
 
   const demandRiskDriver = analysis.primaryRiskDrivers.find(
     rd => rd.title.toLowerCase().includes("demand") || 
          rd.title.toLowerCase().includes("pain") ||
          rd.title.toLowerCase().includes("problem")
   );
-  
+
   const demandMapping: RiskMapping | undefined = demandRiskDriver ? {
     type: "risk_driver",
     riskDriverRank: demandRiskDriver.rank,
     sourceText: demandRiskDriver.title,
   } : undefined;
-  
+
   const painAssumption = analysis.assumptionDependencies.find(
     a => a.assumption.toLowerCase().includes("pain") || 
          a.assumption.toLowerCase().includes("problem") ||
@@ -301,12 +249,32 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
     sourceText: painAssumption.assumption,
   } : undefined;
 
+  if (purpose === "learning") {
+    questions.push({
+      id: getNextQuestionId("pain_urgency_validation"),
+      sectionType: "pain_urgency_validation",
+      questionType: "short_text",
+      prompt: `What specific concept or technique in "${ideaTitle}" are you most uncertain about? What would "success" look like for this learning project?`,
+      required: true,
+    });
+
+    questions.push({
+      id: getNextQuestionId("pain_urgency_validation"),
+      sectionType: "pain_urgency_validation",
+      questionType: "short_text",
+      prompt: `Have you attempted to build something similar before? What happened, and what would you do differently this time?`,
+      required: true,
+    });
+
+    return questions.slice(0, MAX_QUESTIONS_PER_SECTION);
+  }
+
   if (purpose === "developer_tool") {
     questions.push({
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
       questionType: "short_text",
-      prompt: "What's the current developer workflow this tool would replace or improve? What's frustrating about it?",
+      prompt: `Walk through the specific workflow "${ideaTitle}" would improve. What does a developer currently do step-by-step, and where does frustration or wasted time occur?`,
       mapping: demandMapping,
       required: true,
     });
@@ -314,14 +282,8 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
     questions.push({
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
-      questionType: "single_select",
-      prompt: "How often would a developer hit this pain point?",
-      options: [
-        { value: "every_commit", label: "Every commit/deployment" },
-        { value: "daily", label: "Daily during development" },
-        { value: "weekly", label: "Weekly (recurring task)" },
-        { value: "occasionally", label: "Occasionally (specific situations)" },
-      ],
+      questionType: "short_text",
+      prompt: `How have you validated that other developers share this pain point? Have you seen complaints, forum posts, tweets, or experienced it yourself on a team?`,
       mapping: painMapping,
       mappedAssumptionIndex: painAssumptionIndex,
       required: true,
@@ -331,7 +293,7 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
       questionType: "short_text",
-      prompt: "How is this task currently handled without this tool? How much time does it take?",
+      prompt: `Describe exactly how this task is currently handled without "${ideaTitle}". How much time does it take per occurrence, and how often does it happen?`,
       mapping: demandMapping,
       required: true,
     });
@@ -339,14 +301,8 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
     questions.push({
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
-      questionType: "single_select",
-      prompt: "How often is this task performed?",
-      options: [
-        { value: "daily", label: "Daily or multiple times per day" },
-        { value: "weekly", label: "Weekly" },
-        { value: "monthly", label: "Monthly" },
-        { value: "rarely", label: "Occasionally/rarely" },
-      ],
+      questionType: "short_text",
+      prompt: `What goes wrong when this task is done manually or with the current process? Have there been errors, delays, or missed deadlines because of it?`,
       mapping: painMapping,
       mappedAssumptionIndex: painAssumptionIndex,
       required: true,
@@ -356,24 +312,8 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
       questionType: "short_text",
-      prompt: "What do users currently do to solve this problem without your solution?",
+      prompt: `What do potential users of "${ideaTitle}" currently do to solve this problem? Describe their workaround and what makes it inadequate.`,
       mapping: demandMapping,
-      required: true,
-    });
-
-    questions.push({
-      id: getNextQuestionId("pain_urgency_validation"),
-      sectionType: "pain_urgency_validation",
-      questionType: "single_select",
-      prompt: "How often do users experience this problem?",
-      options: [
-        { value: "daily", label: "Daily or multiple times per day" },
-        { value: "weekly", label: "Weekly" },
-        { value: "monthly", label: "Monthly" },
-        { value: "rarely", label: "Occasionally/rarely" },
-      ],
-      mapping: painMapping,
-      mappedAssumptionIndex: painAssumptionIndex,
       required: true,
     });
 
@@ -381,10 +321,22 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
       id: getNextQuestionId("pain_urgency_validation"),
       sectionType: "pain_urgency_validation",
       questionType: "short_text",
-      prompt: "What happens if users don't solve this problem? What are the consequences?",
-      mapping: demandMapping,
+      prompt: `What happens if users DON'T solve this problem? What's the real cost — lost time, lost money, frustration, missed opportunities?`,
+      mapping: painMapping,
+      mappedAssumptionIndex: painAssumptionIndex,
       required: true,
     });
+
+    if (demandRiskDriver) {
+      questions.push({
+        id: getNextQuestionId("pain_urgency_validation"),
+        sectionType: "pain_urgency_validation",
+        questionType: "short_text",
+        prompt: `The analysis flagged "${truncate(demandRiskDriver.title)}" as a risk. What concrete evidence do you have that people want this badly enough to pay for it or change their behavior?`,
+        mapping: demandMapping,
+        required: true,
+      });
+    }
   }
 
   return questions.slice(0, MAX_QUESTIONS_PER_SECTION);
@@ -393,6 +345,7 @@ function generatePainUrgencyQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
 function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuestion[] {
   const purpose = getPurpose(analysis);
   const questions: WorkshopQuestion[] = [];
+  const ideaTitle = analysis.input.title;
 
   const scopeWarning = analysis.scopeWarnings.length > 0 ? analysis.scopeWarnings[0] : null;
   const scopeWarningIndex = scopeWarning ? analysis.scopeWarnings.indexOf(scopeWarning) : undefined;
@@ -411,7 +364,7 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
       questionType: "short_text",
-      prompt: "What's the minimum you could build to start learning the core concept?",
+      prompt: `What's the smallest version of "${ideaTitle}" you could build that would still teach you the core concepts? Describe just the essential pieces.`,
       mapping: scopeMapping,
       required: true,
     });
@@ -420,7 +373,7 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
       questionType: "short_text",
-      prompt: "What features are stretch goals that you'd add only if the basics work well?",
+      prompt: `What parts of "${ideaTitle}" are stretch goals you'd only tackle once the basics are working? List them so you have a clear stopping point.`,
       mapping: scopeMapping,
       required: true,
     });
@@ -429,7 +382,7 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
       questionType: "short_text",
-      prompt: "What features or capabilities are explicitly NOT included in version 1?",
+      prompt: `What is the single most important thing "${ideaTitle}" must do well in version 1? If users could only do ONE thing with it, what would that be?`,
       mapping: scopeMapping,
       required: true,
     });
@@ -438,7 +391,7 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
       questionType: "short_text",
-      prompt: "What is the single most important thing this product must do well in version 1?",
+      prompt: `What features or capabilities are explicitly OUT of scope for version 1 of "${ideaTitle}"? List anything users might expect but won't get initially.`,
       mapping: scopeMapping,
       required: true,
     });
@@ -455,14 +408,8 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
     questions.push({
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
-      questionType: "single_select",
-      prompt: `The analysis identified hidden complexity in "${highComplexityWarning.area}": ${highComplexityWarning.hiddenComplexity}. How will you address this?`,
-      options: [
-        { value: "defer", label: "Defer to a later version" },
-        { value: "simplify", label: "Simplify the approach significantly" },
-        { value: "outsource", label: "Use an existing solution/service" },
-        { value: "accept", label: "Accept the complexity as necessary" },
-      ],
+      questionType: "short_text",
+      prompt: `The analysis identified hidden complexity in "${highComplexityWarning.area}": "${truncate(highComplexityWarning.hiddenComplexity)}". How do you plan to handle this — simplify, defer, use an existing service, or tackle it head-on?`,
       mapping: highComplexityMapping,
       required: true,
     });
@@ -471,7 +418,7 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
       id: getNextQuestionId("scope_boundaries"),
       sectionType: "scope_boundaries",
       questionType: "short_text",
-      prompt: "What complexity or technical challenges do you anticipate in building this?",
+      prompt: `What's the hardest technical challenge you anticipate when building "${ideaTitle}"? How do you plan to approach it?`,
       required: true,
     });
   }
@@ -482,12 +429,13 @@ function generateScopeBoundariesQuestions(analysis: IdeaAnalysis): WorkshopQuest
 function generateConstraintsQuestions(analysis: IdeaAnalysis): WorkshopQuestion[] {
   const purpose = getPurpose(analysis);
   const questions: WorkshopQuestion[] = [];
+  const ideaTitle = analysis.input.title;
 
   const financialRisk = analysis.risks.find(r => r.category === "financial");
   const financialRiskIndex = financialRisk ? analysis.risks.indexOf(financialRisk) : undefined;
   const executionRisk = analysis.risks.find(r => r.category === "execution");
   const executionRiskIndex = executionRisk ? analysis.risks.indexOf(executionRisk) : undefined;
-  
+
   const budgetAssumption = analysis.assumptionDependencies.find(
     a => a.assumption.toLowerCase().includes("budget") || a.assumption.toLowerCase().includes("cost")
   );
@@ -517,7 +465,7 @@ function generateConstraintsQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
       id: getNextQuestionId("constraints_resources"),
       sectionType: "constraints_resources",
       questionType: "banded_range",
-      prompt: "What is your budget range for building version 1?",
+      prompt: `What is your budget range for building version 1 of "${ideaTitle}"?`,
       options: [
         { value: "bootstrap", label: "Bootstrap ($0 - $1,000)" },
         { value: "small", label: "Small ($1,000 - $10,000)" },
@@ -560,8 +508,8 @@ function generateConstraintsQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
       sectionType: "constraints_resources",
       questionType: "banded_range",
       prompt: purpose === "learning"
-        ? "How much time do you want to spend on this?"
-        : "What is your target timeline to launch version 1?",
+        ? `How much time do you want to spend building "${ideaTitle}"?`
+        : `What is your target timeline to launch version 1 of "${ideaTitle}"?`,
       options: timelineOptions,
       mapping: timelineMapping,
       mappedAssumptionIndex: timelineAssumptionIndex,
@@ -590,17 +538,18 @@ function generateConstraintsQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
     questions.push({
       id: getNextQuestionId("constraints_resources"),
       sectionType: "constraints_resources",
-      questionType: "single_select",
-      prompt: "What is your team composition for this project?",
-      options: [
-        { value: "solo", label: "Solo founder/developer" },
-        { value: "small_team", label: "Small team (2-5 people)" },
-        { value: "medium_team", label: "Medium team (6-15 people)" },
-        { value: "large_team", label: "Large team (15+ people)" },
-        { value: "outsourced", label: "Primarily outsourced/contracted" },
-      ],
+      questionType: "short_text",
+      prompt: `Who will actually build "${ideaTitle}"? Describe the team — size, key skills available, and any skill gaps you'd need to fill.`,
       mapping: teamMapping,
       mappedAssumptionIndex: teamAssumptionIndex,
+      required: true,
+    });
+  } else if (purpose === "internal" && !hasContext(analysis, "skills")) {
+    questions.push({
+      id: getNextQuestionId("constraints_resources"),
+      sectionType: "constraints_resources",
+      questionType: "short_text",
+      prompt: `What technical skills do you (or your team) have that are relevant to building "${ideaTitle}"? Are there any areas where you'd need to learn something new?`,
       required: true,
     });
   }
@@ -608,123 +557,111 @@ function generateConstraintsQuestions(analysis: IdeaAnalysis): WorkshopQuestion[
   return questions.slice(0, MAX_QUESTIONS_PER_SECTION);
 }
 
-function getSectionsForPurpose(purpose: IdeaPurpose): WorkshopSectionType[] {
-  switch (purpose) {
-    case "learning":
-      return ["pain_urgency_validation", "scope_boundaries", "constraints_resources"];
-    case "internal":
-      return ["pain_urgency_validation", "scope_boundaries", "constraints_resources"];
-    case "developer_tool":
-      return ["target_market_clarity", "pain_urgency_validation", "scope_boundaries", "constraints_resources"];
-    case "open_source":
-      return ["target_market_clarity", "pain_urgency_validation", "scope_boundaries", "constraints_resources"];
-    case "commercial":
-    default:
-      return ["target_market_clarity", "pain_urgency_validation", "scope_boundaries", "constraints_resources"];
-  }
+function buildSection(
+  type: WorkshopSectionType,
+  title: string,
+  description: string,
+  questions: WorkshopQuestion[],
+  analysis: IdeaAnalysis
+): WorkshopSection | null {
+  if (questions.length === 0) return null;
+  
+  return {
+    type,
+    title,
+    description,
+    questions,
+    triggered: true,
+    triggerReason: getTriggerReason(analysis, type),
+  };
 }
 
-const SECTION_META: Record<WorkshopSectionType, { title: string; description: string; descriptionByPurpose?: Partial<Record<IdeaPurpose, string>> }> = {
-  target_market_clarity: {
-    title: "Target Audience",
-    description: "Help us understand who this product is for and how you've validated the market.",
-    descriptionByPurpose: {
-      developer_tool: "Help us understand what type of developer this tool serves and how you've validated the need.",
-      open_source: "Help us understand the community this project would serve.",
-    },
-  },
-  pain_urgency_validation: {
-    title: "Problem Validation",
-    description: "Clarify the problem severity and how users currently cope without your solution.",
-    descriptionByPurpose: {
-      developer_tool: "Clarify the developer workflow pain point and how it's currently handled.",
-      internal: "Clarify the current process this tool would replace and the time it takes.",
-      learning: "Define your learning objectives so we can assess scope appropriately.",
-    },
-  },
-  scope_boundaries: {
-    title: "Scope & Boundaries",
-    description: "Define what's in and out of scope for version 1 to manage complexity.",
-    descriptionByPurpose: {
-      learning: "Define the minimum viable version that delivers your learning goals.",
-    },
-  },
-  constraints_resources: {
-    title: "Constraints & Resources",
-    description: "Clarify your resource constraints so the analysis can account for them.",
-    descriptionByPurpose: {
-      learning: "Help us understand how much time you want to invest.",
-    },
-  },
-};
+export interface WorkshopSessionResult {
+  sections: WorkshopSection[];
+  totalQuestions: number;
+}
 
-export function generateWorkshopSections(analysis: IdeaAnalysis): WorkshopSection[] {
+export function createWorkshopSession(analysis: IdeaAnalysis): WorkshopSessionResult {
   resetQuestionCounters(analysis.id);
-  
   const purpose = getPurpose(analysis);
-  const sectionTypes = getSectionsForPurpose(purpose);
+
   const sections: WorkshopSection[] = [];
-  let totalQuestions = 0;
 
-  const generators: Record<WorkshopSectionType, (a: IdeaAnalysis) => WorkshopQuestion[]> = {
-    target_market_clarity: generateTargetMarketQuestions,
-    pain_urgency_validation: generatePainUrgencyQuestions,
-    scope_boundaries: generateScopeBoundariesQuestions,
-    constraints_resources: generateConstraintsQuestions,
-  };
+  const targetTitle = purpose === "developer_tool" ? "Target Developers" :
+    purpose === "internal" ? "Target Users" :
+    purpose === "learning" ? "Learning Goals" :
+    purpose === "open_source" ? "Target Community" :
+    "Target Audience";
 
-  for (const sectionType of sectionTypes) {
-    if (totalQuestions >= MAX_TOTAL_QUESTIONS) break;
+  const targetDesc = purpose === "developer_tool" ? "Help us understand who will use this tool and why they'd adopt it." :
+    purpose === "internal" ? "Clarify who benefits from this tool and how it fits their work." :
+    purpose === "learning" ? "Define what you want to learn and how this project helps." :
+    purpose === "open_source" ? "Identify the community this serves and what gap it fills." :
+    "Define your ideal user and validate their need for this solution.";
 
-    const generator = generators[sectionType];
-    const questions = generator(analysis);
-    const remainingSlots = Math.min(MAX_QUESTIONS_PER_SECTION, MAX_TOTAL_QUESTIONS - totalQuestions);
-    const limitedQuestions = questions.slice(0, remainingSlots);
+  const targetMarketSection = buildSection(
+    "target_market_clarity",
+    targetTitle,
+    targetDesc,
+    generateTargetMarketQuestions(analysis),
+    analysis
+  );
 
-    if (limitedQuestions.length > 0) {
-      const meta = SECTION_META[sectionType];
-      const description = meta.descriptionByPurpose?.[purpose] || meta.description;
+  const painTitle = purpose === "developer_tool" ? "Developer Pain Point" :
+    purpose === "internal" ? "Problem Validation" :
+    purpose === "learning" ? "Learning Direction" :
+    "Problem & Urgency";
 
-      sections.push({
-        type: sectionType,
-        title: meta.title,
-        description,
-        questions: limitedQuestions,
-        triggered: true,
-        triggerReason: getTriggerReason(analysis, sectionType),
-      });
-      totalQuestions += limitedQuestions.length;
+  const painDesc = purpose === "developer_tool" ? "Validate that the workflow problem is real and worth solving with a dedicated tool." :
+    purpose === "internal" ? "Confirm the manual process is painful enough to justify building a tool." :
+    purpose === "learning" ? "Clarify your learning objectives and how this project addresses them." :
+    "Confirm the problem is urgent and painful enough that users will seek a solution.";
+
+  const painSection = buildSection(
+    "pain_urgency_validation",
+    painTitle,
+    painDesc,
+    generatePainUrgencyQuestions(analysis),
+    analysis
+  );
+
+  const scopeSection = buildSection(
+    "scope_boundaries",
+    "Scope & Boundaries",
+    "Define what version 1 includes and what it doesn't, so the analysis reflects realistic scope.",
+    generateScopeBoundariesQuestions(analysis),
+    analysis
+  );
+
+  const constraintsTitle = purpose === "learning" ? "Time & Resources" : "Constraints & Resources";
+  const constraintsDesc = purpose === "learning"
+    ? "Set realistic time expectations for this learning project."
+    : "Clarify the budget, timeline, and team resources available to build this.";
+
+  const constraintsSection = buildSection(
+    "constraints_resources",
+    constraintsTitle,
+    constraintsDesc,
+    generateConstraintsQuestions(analysis),
+    analysis
+  );
+
+  if (targetMarketSection) sections.push(targetMarketSection);
+  if (painSection) sections.push(painSection);
+  if (scopeSection) sections.push(scopeSection);
+  if (constraintsSection) sections.push(constraintsSection);
+
+  let totalQuestions = sections.reduce((sum, s) => sum + s.questions.length, 0);
+
+  if (totalQuestions > MAX_TOTAL_QUESTIONS) {
+    for (const section of sections) {
+      if (totalQuestions <= MAX_TOTAL_QUESTIONS) break;
+      while (section.questions.length > 2 && totalQuestions > MAX_TOTAL_QUESTIONS) {
+        section.questions.pop();
+        totalQuestions--;
+      }
     }
   }
 
-  return sections;
-}
-
-function generateDeterministicSessionId(analysisId: string): string {
-  return `ws_${simpleHash(analysisId)}`;
-}
-
-export function createWorkshopSession(analysis: IdeaAnalysis): {
-  id: string;
-  originalAnalysisId: string;
-  originalIdeaInput: { title: string; description: string };
-  sections: WorkshopSection[];
-  answers: [];
-  resolvedRiskIds: [];
-  status: "in_progress";
-  createdAt: string;
-} {
-  return {
-    id: generateDeterministicSessionId(analysis.id),
-    originalAnalysisId: analysis.id,
-    originalIdeaInput: {
-      title: analysis.input.title,
-      description: analysis.input.description,
-    },
-    sections: generateWorkshopSections(analysis),
-    answers: [],
-    resolvedRiskIds: [],
-    status: "in_progress",
-    createdAt: new Date().toISOString(),
-  };
+  return { sections, totalQuestions };
 }
