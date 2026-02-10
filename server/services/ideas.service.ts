@@ -109,6 +109,7 @@ export class IdeasService {
       }
 
       if (input.context.workshopRefinement) {
+        console.log(`[IdeasService] Including workshop refinement in re-analysis prompt (${input.context.workshopRefinement.length} chars)`);
         prompt += `\n${input.context.workshopRefinement}\n`;
       }
     }

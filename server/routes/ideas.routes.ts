@@ -175,9 +175,17 @@ router.post(
               (t: any) =>
                 t &&
                 typeof t.question === "string" &&
+                t.question.trim().length > 0 &&
                 typeof t.answer === "string" &&
-                typeof t.turnNumber === "number"
+                t.answer.trim().length > 0 &&
+                typeof t.turnNumber === "number" &&
+                t.turnNumber > 0
             )
+            .map((t: any, idx: number) => ({
+              question: t.question.trim(),
+              answer: t.answer.trim(),
+              turnNumber: idx + 1,
+            }))
             .slice(0, 7)
         : [];
 
