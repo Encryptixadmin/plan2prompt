@@ -59,7 +59,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-dashboard-title">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
@@ -126,6 +126,8 @@ export default function Home() {
         </Card>
       </div>
 
+      <hr className="border-border" />
+
       <div className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">Build Pipeline</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -155,6 +157,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <hr className="border-border" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
