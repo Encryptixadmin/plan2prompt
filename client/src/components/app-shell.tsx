@@ -44,7 +44,7 @@ function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="!flex-row !p-0 h-14 min-h-14 items-center px-4 border-b border-sidebar-border" data-testid="sidebar-header">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Lightbulb className="h-4 w-4" />
@@ -55,7 +55,6 @@ function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      <Separator />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium">Pipeline</SidebarGroupLabel>
@@ -126,7 +125,7 @@ function TopBar() {
   };
 
   return (
-    <header className="flex items-center justify-between gap-4 h-14 px-4 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+    <header className="flex items-center justify-between gap-4 h-14 px-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40" data-testid="top-bar">
       <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
         <Separator orientation="vertical" className="h-5" />
