@@ -83,8 +83,9 @@ class AdminService {
       openai: "gpt-4o-mini",
       anthropic: "claude-3-5-sonnet-latest",
       gemini: "gemini-1.5-pro",
+      "anthropic-opus": "claude-opus-4-6",
     };
-    const providers: AIProvider[] = ["openai", "anthropic", "gemini"];
+    const providers: AIProvider[] = ["openai", "anthropic", "gemini", "anthropic-opus"];
     for (const provider of providers) {
       this.providerStatus.set(provider, {
         provider,

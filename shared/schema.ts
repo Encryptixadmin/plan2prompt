@@ -61,7 +61,7 @@ export type ProjectMember = typeof projectMembers.$inferSelect;
 export const usageModules = ["ideas", "requirements", "prompts"] as const;
 export type UsageModule = typeof usageModules[number];
 
-export const aiProviders = ["openai", "anthropic", "gemini"] as const;
+export const aiProviders = ["openai", "anthropic", "gemini", "anthropic-opus"] as const;
 export type AIProvider = typeof aiProviders[number];
 
 export const usageRecords = pgTable("usage_records", {

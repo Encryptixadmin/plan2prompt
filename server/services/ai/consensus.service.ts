@@ -37,7 +37,9 @@ export class ConsensusService {
     usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
   ): Promise<AIConsensusResult> {
     const startTime = Date.now();
-    const requestedProviders = request.providers || (["openai", "anthropic", "gemini"] as AIProviderType[]);
+    const CONSENSUS_PROVIDERS: AIProviderType[] = ["openai", "anthropic", "gemini"];
+    const requestedProviders = (request.providers || CONSENSUS_PROVIDERS)
+      .filter((p) => CONSENSUS_PROVIDERS.includes(p));
     
     const validatedProviders = providerValidationService.getValidatedProviders();
     const providersToQuery = requestedProviders.filter((p) => validatedProviders.includes(p));

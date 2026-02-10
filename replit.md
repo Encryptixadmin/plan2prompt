@@ -2,7 +2,7 @@
 
 ## Overview
 
-A scalable and modular web platform designed for building production-grade web applications. It features a modular architecture supporting independent feature modules, advanced AI service integrations (OpenAI, Anthropic, Gemini), and structured Markdown outputs as first-class artifacts. The platform ensures a clean separation between frontend, backend, and shared contracts, aiming for extensibility and maintainability. Its primary purpose is to streamline the validation, refinement, and development of application ideas through an AI-powered pipeline, generating detailed requirements and sequential build prompts.
+A scalable and modular web platform designed for building production-grade web applications. Its primary purpose is to streamline the validation, refinement, and development of application ideas through an AI-powered pipeline. The platform aims to generate detailed requirements and sequential build prompts, ensuring a clean separation between frontend, backend, and shared contracts for extensibility and maintainability. It integrates advanced AI services (OpenAI, Anthropic, Gemini) and produces structured Markdown outputs as first-class artifacts.
 
 ## User Preferences
 
@@ -10,202 +10,47 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend
-- **Framework**: React 19 with TypeScript and Vite.
-- **Styling**: Tailwind CSS with shadcn/ui (New York style).
+### UI/UX Decisions
+- **Frontend Framework**: React 19 with TypeScript and Vite.
+- **Styling**: Tailwind CSS with shadcn/ui (New York style) built on Radix UI primitives.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.
 - **Form Handling**: React Hook Form with Zod validation.
+- **Admin Console**: `/admin` route for managing providers, usage, users, projects, and auditing actions.
 
-### Backend
-- **Runtime**: Node.js with Express.
+### Technical Implementations
+- **Backend Runtime**: Node.js with Express.
 - **API Design**: RESTful endpoints using `ApiResponse<T>` wrappers.
-- **Storage**: Interface-based `IStorage` with in-memory implementation for development.
-- **Modularity**: Feature-specific route files.
+- **Data Layer**: Drizzle ORM with PostgreSQL dialect, Zod schemas, and `MemStorage` for development.
+- **AI Service Integration**: Unified `IAIProvider` interface supporting OpenAI, Anthropic, and Gemini. `ConsensusService` for orchestrating multiple providers, handling retries, and tracking usage.
+- **Artifact System**: Markdown files with YAML frontmatter, stored in `artifacts/`, organized by module, with immutable versioning.
+- **Shared Contracts**: TypeScript interfaces in `shared/types/` with `@shared/*` aliases.
+- **Security & Isolation**: `X-Project-Id` enforcement, role-based access control, and pipeline sequencing enforcement. User authentication via Replit Auth (OpenID Connect) with PostgreSQL-backed sessions.
+- **Project Context**: Middleware and hooks ensure project isolation and guide users through project creation.
+- **Auditing & Feedback**: Persistence of admin audit logs and prompt feedback events to PostgreSQL.
+- **Invariant Testing**: Vitest-based test harness for core platform behaviors, including pipeline sequencing, STOP recommendations, permission boundaries, failure classification, and usage tracking.
 
-### Data Layer
-- **ORM**: Drizzle ORM with PostgreSQL dialect.
-- **Schema**: `shared/schema.ts` for database schemas.
-- **Validation**: Zod schemas with drizzle-zod.
-- **Development**: `MemStorage` class for in-memory data storage.
-
-### AI Service Integration
-- **Multi-Provider Support**: Integrates OpenAI (gpt-4o-mini), Anthropic (claude-3-5-sonnet), and Gemini (gemini-1.5-pro) via a unified `IAIProvider` interface.
-- **Consensus Mechanism**: `ConsensusService` orchestrates multiple providers for robust output and handles failures.
-- **Resilience**: Includes retry logic with exponential backoff and timeout handling.
-- **Usage Tracking**: `UsageService` tracks token usage and estimates costs.
-
-### Artifact System
-- **Format**: Markdown files with YAML frontmatter for metadata.
-- **Storage**: File-based in `artifacts/` directory, organized by module.
-- **Versioning**: Immutable versioning using `_v{version}.md` convention.
-- **Structure**: Each artifact contains metadata, sections, AI notes, and raw content.
-
-### Shared Contracts
-- **Location**: `shared/types/` for TypeScript interfaces shared across frontend and backend.
-- **Path Aliases**: `@shared/*` for clean imports.
-
-### Ideas Module
-- **Purpose**: Validate and refine application ideas using AI consensus.
-- **Process**: Submits ideas to `POST /api/ideas/analyze` for AI processing.
-- **Output**: Structured analysis saved as `ideas-reference-{title}_v{n}.md`.
-
-### Requirements Module
-- **Purpose**: Convert validated ideas into comprehensive requirements documents.
-- **Process**: Generates requirements from idea artifacts via `POST /api/requirements/generate`.
-- **Output**: Structured requirements saved as `requirements-reference-{title}_v{n}.md`.
-
-### Prompts Module
-- **Purpose**: Generate sequential, IDE-specific build prompts from requirements.
-- **Process**: Generates prompts from requirements artifacts via `POST /api/prompts/generate`.
-- **Output**: Ordered prompts saved as `build-prompts-{title}-{ide}_v{n}.md`.
-- **IDE Support**: Supports Replit, Cursor, Lovable, Antigravity, Warp, and Generic.
-
-### Security & Isolation
-- **Project Context**: `server/middleware/project-context.ts` enforces project isolation with `X-Project-Id`.
-- **Permission Guards**: Role-based access control (`canGenerate`, `canEdit`, `canLock`).
-- **Sequencing Enforcement**: Enforces a pipeline of stages (DRAFT_IDEA → VALIDATED_IDEA → LOCKED_REQUIREMENTS → PROMPTS_GENERATED) to maintain workflow integrity.
-- **Admin Console**: `/admin` route with admin middleware for managing providers, usage, users, projects, and auditing actions.
+### Feature Specifications
+- **Ideas Module**: Validates and refines application ideas using AI consensus, producing `ideas-reference-{title}_v{n}.md`.
+- **Requirements Module**: Converts validated ideas into comprehensive requirements documents, producing `requirements-reference-{title}_v{n}.md`.
+- **Prompts Module**: Generates sequential, IDE-specific build prompts from requirements, supporting Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDEs, producing `build-prompts-{title}-{ide}_v{n}.md`. Includes structured prompt feedback loop with deterministic failure classification and static recovery steps.
 
 ## External Dependencies
 
-### UI Component Libraries
-- **Radix UI**: Accessible, unstyled primitives.
-- **shadcn/ui**: Pre-configured Tailwind-styled components built on Radix.
-
-### AI Services
-- **OpenAI**: Requires `OPENAI_API_KEY`.
-- **Anthropic**: Requires `ANTHROPIC_API_KEY`.
-- **Google Gemini**: Requires `GEMINI_API_KEY`.
-
-### Database
-- **PostgreSQL**: Primary database, configured via `DATABASE_URL`.
-- **Drizzle Kit**: For database migrations.
-
-### Build Tools
-- **Vite**: Frontend development and bundling.
-- **esbuild**: Server-side bundling.
-- **TypeScript**: Full type checking.
-
-### Replit-Specific
-- **@replit/vite-plugin-runtime-error-modal**: Development error overlay.
-- **@replit/vite-plugin-cartographer**: Development tooling.
-- **@replit/vite-plugin-dev-banner**: Development banner.
-
-## Recent Changes
-
-### Phase 4, Hardening Step: Frontend Async Flow Hardening - Analyze Idea (January 2026)
-- Added 45-second client-side timeout using AbortController for analyze requests
-- timedApiRequest wrapper converts AbortError to AnalysisTimeoutError with code ANALYSIS_TIMEOUT
-- Error mapping returns user-friendly message: "Analysis is taking longer than expected..."
-- analyzeMutation uses timedApiRequest and onError callback for toast messaging
-- React Query isPending lifecycle guarantees loading state resolution in ALL exit paths
-- Button re-enables automatically on timeout, error, or success
-- No auto-retry, no scope expansion, no unresolved loading states
-
-### Phase 4, Hardening Step: AI Integration Correction & Stabilization (January 2026)
-- Dynamic model discovery for Anthropic: Iterates preference list and resolves to first accessible Claude 3+ model
-- Dynamic model discovery for Gemini: Iterates preference list (gemini-1.5-pro-latest, gemini-1.5-pro, gemini-1.5-flash, etc.)
-- OpenAI model verification with GPT-4 fallback logic if default model unavailable
-- Provider validation stores resolvedModelId (actual model in use) separately from modelId (configured default)
-- resolvedModelId is null when validation fails - accurately reflects provider unavailability
-- Admin health endpoint now shows: provider, configured, validated, enabled, modelId, resolvedModelId, validationError
-- AI services dynamically retrieve resolved model via providerValidationService.getResolvedModelId()
-- No hardcoded fallback model IDs at runtime - uses only validated models
-- Clear validation error messages: "No accessible Claude 3+ models available" or "No Gemini models available"
-
-### Phase 4, Hardening Step: Real-World Flow Hardening (January 2026)
-- Removed auto-creation of projects from ProjectContext (no silent defaults)
-- Added NoProjectGate component that blocks Ideas/Requirements/Prompts when no projects exist
-- Blocking state displays clear message: "You need a project before you can start working on ideas"
-- Explicit project creation flow with confirmation dialog: "Create your first project"
-- Updated RequireProjectGuard with improved confirmation dialog and error handling
-- Added useAIProviderStatus hook to check validated provider count from /api/admin/health
-- If zero validated providers, idea analysis is blocked with warning: "Idea analysis is temporarily unavailable"
-- Analyze button disabled when no AI providers are validated or when provider check fails
-- Added checkProviderReadiness() guard inside analyzeMutation to verify providers at execution time
-- Added mapBackendError utility for user-friendly error messages
-- Maps MISSING_PROJECT_CONTEXT → "Please create or select a project before continuing."
-- Maps NO_VALID_AI_PROVIDERS → "Idea analysis is unavailable due to configuration issues."
-- Handles structured error objects with code field for better error classification
-
-### Phase 4, Hardening Step: AI Provider Model Validation (January 2026)
-- Updated AI provider model IDs: OpenAI uses gpt-4o-mini, Anthropic uses claude-3-5-sonnet-latest, Gemini uses gemini-1.5-pro
-- Added providerValidationService for startup model validation against each provider's API
-- Validation runs ONCE at application startup (server/index.ts calls validateAllProvidersAtStartup)
-- Distinguishes between "not configured" (no API key - mock mode available) and "misconfigured" (invalid model - disabled)
-- Admin health endpoint (/api/admin/health) now returns: enabled, validated, validationError, modelId, configured for each provider
-- ConsensusService filters to validated providers only - prevents requests to misconfigured providers
-- If all providers are invalid, consensus throws clear error: "No AI providers are currently available due to configuration errors"
-- Admin UI shows validation status prominently with model ID and error message when failed
-- Mock mode providers remain enabled (validated=true, configured=false) to support development without API keys
-- Providers failing validation are automatically disabled (enabled=false) only when configured=true and validated=false
-
-### Phase 4, Hardening Step: Project Context Propagation (January 2026)
-- X-Project-Id header now automatically injected by API client for all project-scoped routes
-- queryClient.ts maintains module-level activeProjectId state synchronized from ProjectContext
-- getProjectHeaders() automatically injects X-Project-Id for routes matching /api/ideas, /api/requirements, /api/prompts, /api/artifacts
-- MissingProjectContextError thrown if project-scoped route called without activeProjectId
-- useRequireProject hook gates all project-scoped mutations with dialog prompt
-- ensureDefaultProject() uses /api/projects/ensure-default flow for project creation
-- RequireProjectGuard dialog offers to create project before resuming action
-- Guards applied to: Ideas (analyze, accept), Requirements (preview, generate, accept, regenerate), Prompts (generate), StepFeedback (submit)
-- All guarded mutations use apiRequest for proper X-Project-Id header injection
-- Session cookie security adapts to environment (secure: true only in production)
-
-### Phase 4, Hardening Step: Persist Audit & Feedback Logs (January 2026)
-- Admin audit logs now persisted to PostgreSQL `admin_action_log` table
-- Prompt feedback events now persisted to PostgreSQL `prompt_feedback_events` table
-- AdminService.logAction() writes to database (fail-safe: action fails if persistence fails)
-- AdminService.getActionLog() reads from database (survives server restart)
-- FeedbackMetricsService.recordEvent() writes to database (non-blocking: failures don't block user response)
-- All FeedbackMetricsService query methods read from database
-- No raw output stored (hash-only for feedback events)
-- Write-once pattern preserved for both log types
-- In-memory cache retained as optimization for AdminService
-- No UI changes (data layer hardening only)
-
-### Phase 4, Step 3: Invariant Test Harness (January 2026)
-- Added Vitest-based test harness in /tests/invariants/
-- Exactly 12 invariant tests protecting core platform behavior
-- Pipeline Sequencing: 4 tests (stage validation, outdated blocking)
-- STOP Recommendation: 2 tests (acknowledgment enforcement, audit logging)
-- Permission Boundaries: 3 tests (viewer, collaborator, admin restrictions)
-- Failure Classification: 2 tests (determinism, unknown classification)
-- Usage & Billing: 1 test (recordGeneration, usage increment, threshold warning)
-- Extracted validation modules: server/validation/pipeline.validation.ts, server/validation/stop-recommendation.validation.ts
-- Production routes (requirements.routes.ts, prompts.routes.ts) now use shared validation modules
-- Tests exercise the same validation functions used in production (single source of truth)
-- No UI tests, no snapshot tests, no coverage tooling
-
-### Phase 4, Step 2: Feedback Metrics & Failure Pattern Taxonomy (January 2026)
-- Added PromptFeedbackEvent schema for write-once metrics logging
-- Added FailureCategory enum and FailurePatternDefinition schema
-- FeedbackMetricsService records events with hash-only storage (no raw output stored)
-- ClassifierService uses deterministic pattern matching against failure taxonomy
-- 12 known failure patterns defined in FAILURE_PATTERN_TAXONOMY
-- UNKNOWN_UNCLASSIFIED default pattern for unclassified failures
-- Documented promotion rule: unknown → known requires 3+ occurrences across 2+ projects
-- No billing/usage impact from feedback events
-
-### Phase 4, Step 1: Structured Prompt Feedback Loop (January 2026)
-- Added deterministic failure classification for build prompts
-- POST /api/prompts/feedback endpoint for step-scoped issue resolution
-- FeedbackService with pattern matching against known failure patterns
-- Static recovery steps defined for common failures (dependency conflicts, database errors, CORS, etc.)
-- Known failures return: failure pattern name, cause, recovery steps, STOP instruction
-- Unknown failures return: unclassified statement, STOP instruction only (no suggestions)
-- Anti-chat enforcement: no questions, no conversational responses, no scope expansion
-- StepFeedbackForm component with read-only step/IDE, paste-only textarea
-- "Resolve Step Issue" button per prompt step in prompts page
-- Audit logging of feedback attempts (transient, not stored long-term)
-
-### Phase 3, Enforcement Step 4: User Authentication (January 2026)
-- Replaced hardcoded default user with Replit Auth (OpenID Connect)
-- User model extended with role, billingPlan, isAdmin, generationDisabled fields
-- Session handling via PostgreSQL-backed sessions with SESSION_SECRET
-- Data persistence: Users, Projects, Memberships now stored in PostgreSQL
-- Artifacts remain file-based as specified
-- Landing page for logged-out users with login via /api/login
-- Home page displays user profile with logout via /api/logout
-- Admin role assignment remains manual (update role field in database)
+- **AI Services**:
+    - OpenAI (`OPENAI_API_KEY`)
+    - Anthropic (`ANTHROPIC_API_KEY`)
+    - Google Gemini (`GEMINI_API_KEY`)
+- **Database**:
+    - PostgreSQL (`DATABASE_URL`)
+    - Drizzle Kit (for migrations)
+- **Build Tools**:
+    - Vite (frontend)
+    - esbuild (server-side)
+    - TypeScript
+- **Replit-Specific Integrations**:
+    - `@replit/vite-plugin-runtime-error-modal`
+    - `@replit/vite-plugin-cartographer`
+    - `@replit/vite-plugin-dev-banner`
+- **Authentication**:
+    - Replit Auth (OpenID Connect)

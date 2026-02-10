@@ -6,7 +6,7 @@
  */
 
 // Supported AI providers
-export type AIProviderType = "openai" | "anthropic" | "gemini";
+export type AIProviderType = "openai" | "anthropic" | "gemini" | "anthropic-opus";
 
 // Input prompt structure
 export interface AIPrompt {

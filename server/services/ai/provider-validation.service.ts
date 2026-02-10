@@ -22,6 +22,14 @@ const ANTHROPIC_MODEL_PREFERENCE = [
   "claude-3-haiku-20240307",
 ];
 
+const ANTHROPIC_OPUS_MODEL_PREFERENCE = [
+  "claude-opus-4-6",
+  "claude-opus-4-0-20250514",
+  "claude-opus-latest",
+  "claude-3-opus-latest",
+  "claude-3-opus-20240229",
+];
+
 const GEMINI_MODEL_PREFERENCE = [
   "gemini-1.5-pro-latest",
   "gemini-1.5-pro",
@@ -46,6 +54,7 @@ class ProviderValidationService {
       this.validateOpenAI(),
       this.validateAnthropic(),
       this.validateGemini(),
+      this.validateAnthropicOpus(),
     ]);
 
     this.validationCompleted = true;
@@ -211,6 +220,62 @@ class ProviderValidationService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.setValidationResult(provider, defaultModelId, defaultModelId, false, `Validation failed: ${message}`, true);
+    }
+  }
+
+  private async validateAnthropicOpus(): Promise<void> {
+    const defaultModelId = "claude-opus-4-6";
+    const provider: AIProviderType = "anthropic-opus";
+    
+    try {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        this.setValidationResult(provider, defaultModelId, null, false, "ANTHROPIC_API_KEY not configured - Opus compiler unavailable", false);
+        return;
+      }
+
+      const client = new Anthropic({ apiKey });
+      
+      let resolvedModel: string | null = null;
+      let lastError: string | null = null;
+      
+      for (const modelId of ANTHROPIC_OPUS_MODEL_PREFERENCE) {
+        try {
+          console.log(`[ProviderValidation] Anthropic Opus: Testing model '${modelId}'...`);
+          
+          const response = await client.messages.create({
+            model: modelId,
+            max_tokens: 10,
+            messages: [{ role: "user", content: "Respond with only: OK" }],
+          });
+          
+          if (response.content && response.content.length > 0) {
+            resolvedModel = modelId;
+            console.log(`[ProviderValidation] Anthropic Opus: Model '${modelId}' is accessible`);
+            break;
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.log(`[ProviderValidation] Anthropic Opus: Model '${modelId}' not accessible: ${msg.slice(0, 100)}`);
+          lastError = msg;
+        }
+      }
+      
+      if (resolvedModel) {
+        this.setValidationResult(provider, defaultModelId, resolvedModel, true, null, true);
+      } else {
+        this.setValidationResult(
+          provider, 
+          defaultModelId, 
+          null, 
+          false, 
+          `No accessible Anthropic Opus model available for this API key. Last error: ${lastError || 'Unknown'}`,
+          true
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.setValidationResult(provider, defaultModelId, null, false, `Validation failed: ${message}`, true);
     }
   }
 

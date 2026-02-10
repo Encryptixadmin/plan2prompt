@@ -8,7 +8,10 @@ import { feedbackService } from "../services/feedback.service";
 import { classifierService } from "../services/classifier.service";
 import { feedbackMetricsService } from "../services/feedback-metrics.service";
 import { validatePromptGenerationStage, validateNotOutdated } from "../validation/pipeline.validation";
+import { anthropicOpusService } from "../services/ai/anthropic-opus.service";
+import { providerValidationService } from "../services/ai/provider-validation.service";
 import type { PromptFeedbackRequest, BuildPrompt } from "@shared/types/prompts";
+import type { OpusCompilerInput } from "@shared/types/opus-compiler";
 
 const router = Router();
 
@@ -265,5 +268,154 @@ router.post("/feedback", async (req: Request, res: Response) => {
     });
   }
 });
+
+const compileSchema = z.object({
+  promptDocumentId: z.string().uuid("Invalid prompt document ID"),
+  stepNumber: z.number().int().min(1, "Step number must be at least 1"),
+  ide: z.enum(["replit", "cursor", "lovable", "antigravity", "warp", "other"]),
+});
+
+router.post(
+  "/compile",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  async (req: Request, res: Response) => {
+    try {
+      const validation = compileSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid compile request",
+            details: validation.error.flatten(),
+          },
+        });
+      }
+
+      const { promptDocumentId, stepNumber, ide } = validation.data;
+
+      const artifact = await artifactService.getById(promptDocumentId);
+      if (!artifact) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Prompt document not found" },
+        });
+      }
+
+      if (artifact.metadata.projectId && artifact.metadata.projectId !== req.projectId) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: "PROJECT_ISOLATION_VIOLATION",
+            message: "This artifact belongs to a different project.",
+          },
+        });
+      }
+
+      const promptsSection = artifact.sections.find((s) => s.heading === "Build Prompts");
+      if (!promptsSection) {
+        return res.status(400).json({
+          success: false,
+          error: { code: "NO_PROMPTS", message: "No build prompts found in this artifact" },
+        });
+      }
+
+      let prompts: BuildPrompt[];
+      try {
+        prompts = JSON.parse(promptsSection.content);
+      } catch {
+        return res.status(500).json({
+          success: false,
+          error: { code: "PARSE_ERROR", message: "Failed to parse prompt data" },
+        });
+      }
+
+      const step = prompts.find((p) => p.step === stepNumber);
+      if (!step) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "STEP_NOT_FOUND", message: `Step ${stepNumber} not found in prompt document` },
+        });
+      }
+
+      const ideNames: Record<string, string> = {
+        replit: "Replit",
+        cursor: "Cursor",
+        lovable: "Lovable",
+        antigravity: "Antigravity",
+        warp: "Warp",
+        other: "Generic IDE",
+      };
+
+      const opusValidation = providerValidationService.getResolvedModelId("anthropic-opus");
+      if (!opusValidation) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            code: "OPUS_UNAVAILABLE",
+            message: "Opus compiler is not available. Check provider configuration in Admin console.",
+          },
+        });
+      }
+
+      const previousStepsCompleted = Array.from(
+        { length: Math.min(stepNumber - 1, prompts.length) },
+        (_, i) => i + 1
+      );
+
+      const compilerInput: OpusCompilerInput = {
+        stepId: `${promptDocumentId}-step-${stepNumber}`,
+        stepNumber,
+        objective: step.title,
+        promptContent: step.prompt,
+        executionContext: {
+          ide,
+          ideName: ideNames[ide] || "Generic IDE",
+          ideaTitle: artifact.title || "Untitled",
+          totalSteps: prompts.length,
+          currentStep: stepNumber,
+          previousStepsCompleted,
+        },
+        constraints: [
+          `Target IDE: ${ideNames[ide] || ide}`,
+          "Do not add features beyond this step's scope",
+          "Do not modify files outside this step's scope",
+        ],
+        expectedOutcome: step.title,
+        verificationSteps: [
+          "Application compiles without errors",
+          `Step objective achieved: ${step.title}`,
+        ],
+        failureModes: [],
+        scopeGuardrails: [
+          `This is step ${stepNumber} of ${prompts.length}. Do not implement later steps.`,
+          "Do not refactor existing code unless this step requires it.",
+        ],
+      };
+
+      const result = await anthropicOpusService.executePrompt(compilerInput);
+
+      if (req.userId) {
+        const tokensUsed = result.tokenUsage?.totalTokens || 0;
+        billingService.recordGeneration(req.userId, tokensUsed);
+      }
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error("Error compiling prompt step:", error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "COMPILATION_ERROR",
+          message: error instanceof Error ? error.message : "Failed to compile prompt step",
+        },
+      });
+    }
+  }
+);
 
 export default router;

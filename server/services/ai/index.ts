@@ -7,6 +7,7 @@
 export { openaiService, OpenAIService } from "./openai.service";
 export { anthropicService, AnthropicService } from "./anthropic.service";
 export { geminiService, GeminiService } from "./gemini.service";
+export { anthropicOpusService, AnthropicOpusService } from "./anthropic-opus.service";
 export { consensusService, ConsensusService } from "./consensus.service";
 export { usageService } from "./usage.service";
 export { providerValidationService, type ProviderValidationResult } from "./provider-validation.service";

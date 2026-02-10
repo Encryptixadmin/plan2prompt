@@ -1,0 +1,213 @@
+Proceed to AI PROVIDER IMPLEMENTATION: ANTHROPIC OPUS 4.6 (COMPILER MODE).
+
+EXECUTION MODE:
+Deterministic compilation.
+NO autonomous coding.
+NO repo inspection.
+NO execution.
+
+OBJECTIVE:
+Integrate Anthropic Opus 4.6 as an AI provider that:
+- Translates structured build prompts into IDE-ready execution instructions
+- Acts as a compiler, not an agent
+- Fits cleanly into the existing IAIProvider abstraction
+- Preserves STOP discipline and platform authority
+
+--------------------------------
+CORE ROLE DEFINITION
+--------------------------------
+Anthropic Opus is a TRANSLATION ENGINE.
+
+It converts:
+- Structured intent
+- Constraints
+- Execution context
+
+Into:
+- IDE-executable instructions
+- Reviewable code blocks
+- Explicit STOP / VERIFY boundaries
+
+It does NOT:
+- Run code
+- Inspect repositories
+- Decide next steps
+- Retry or fix errors autonomously
+
+--------------------------------
+PART 1 — PROVIDER CLASS (REQUIRED)
+--------------------------------
+
+Create:
+server/providers/anthropic-opus.provider.ts
+
+Implement:
+IAIProvider
+
+Required methods:
+- validateConfiguration()
+- executePrompt()
+
+--------------------------------
+PART 2 — STARTUP VALIDATION (REQUIRED)
+--------------------------------
+
+In validateConfiguration():
+
+1. Confirm ANTHROPIC_API_KEY is present
+2. Call Anthropic model listing endpoint
+3. Select a model that:
+   - Is available to the API key
+   - Is a Claude 4 / Opus-class model
+   - Supports text generation
+
+Preferred order:
+1. claude-opus-4-6
+2. claude-opus-latest
+3. Any Opus-class model accessible
+
+4. If no suitable model is found:
+   - validated = false
+   - enabled = false
+   - validationError =
+     "No accessible Anthropic Opus model available for this API key."
+
+5. Persist resolvedModelId in provider state
+
+--------------------------------
+PART 3 — INPUT CONTRACT TO OPUS (CRITICAL)
+--------------------------------
+
+executePrompt() MUST accept a STRUCTURED payload, not raw text.
+
+Example input structure:
+{
+  stepId,
+  objective,
+  executionContext,
+  constraints[],
+  expectedOutcome,
+  verificationSteps[],
+  failureModes[],
+  ide
+}
+
+--------------------------------
+OPUS PROMPT TEMPLATE (FIXED)
+--------------------------------
+
+Construct a SINGLE system prompt that instructs Opus:
+
+- You are a COMPILER.
+- Output executable IDE instructions only.
+- Follow constraints exactly.
+- Do NOT improvise.
+- Do NOT add features.
+- Do NOT inspect the repo.
+- Do NOT run code.
+
+Explicitly instruct Opus to output sections in this order:
+
+1. EXECUTION STEPS
+2. CODE BLOCKS (only where necessary)
+3. VERIFICATION
+4. STOP CONDITIONS
+5. FAILURE RECOVERY (referencing known failure modes only)
+
+--------------------------------
+PART 4 — OUTPUT CONTRACT (REQUIRED)
+--------------------------------
+
+executePrompt() MUST return a structured response:
+
+{
+  provider: "anthropic-opus",
+  model: resolvedModelId,
+  executionInstructions: [
+    {
+      stepNumber,
+      instructionText,
+      codeBlock?,
+      stopAfter: boolean
+    }
+  ],
+  verification: [],
+  failureRecovery: [],
+  warnings: []
+}
+
+DO NOT return:
+- Conversational text
+- Commentary
+- Suggestions
+- Multiple alternatives
+
+--------------------------------
+PART 5 — RUNTIME SAFETY GUARARDS
+--------------------------------
+
+At runtime:
+
+- Use ONLY resolvedModelId
+- Never fall back to other Anthropic models
+- Never retry model selection
+- Never execute returned code
+- Never modify platform artefacts automatically
+
+--------------------------------
+PART 6 — ADMIN HEALTH INTEGRATION
+--------------------------------
+
+Expose via /api/admin/health:
+
+- provider: anthropic-opus
+- configured
+- validated
+- enabled
+- resolvedModelId
+- validationError
+
+--------------------------------
+PART 7 — CONSENSUS LAYER BEHAVIOUR
+--------------------------------
+
+Anthropic Opus:
+
+- Participates ONLY in the Prompts execution compilation stage
+- Does NOT participate in:
+  - Idea analysis
+  - Requirements generation
+  - Risk scoring
+
+Consensus logic MUST:
+- Treat Opus as a specialised compiler provider
+- Not mix its output with analytical providers
+
+--------------------------------
+DO NOT
+--------------------------------
+- Allow Opus to rewrite prompts
+- Allow Opus to update requirements
+- Allow Opus to execute or test code
+- Allow Opus to run loops
+- Add chat behaviour
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Restart server
+2. Confirm startup logs show:
+   - Anthropic Opus validated with resolved model
+3. Call /api/admin/health
+4. Generate a build prompt
+5. Confirm:
+   - Opus output is structured
+   - STOP boundaries exist
+   - No chatty language appears
+6. Confirm IDE execution is still user-driven
+
+STOP.
+WAIT for confirmation.
