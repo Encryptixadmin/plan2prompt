@@ -204,82 +204,91 @@ export function resolveWorkshopAnswers(
   };
 }
 
+function findQuestionPrompt(sections: WorkshopSection[], questionId: string): string | null {
+  for (const section of sections) {
+    for (const q of section.questions) {
+      if (q.id === questionId) {
+        return q.prompt;
+      }
+    }
+  }
+  return null;
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  target_market_clarity: "Target Audience & Market Clarity",
+  pain_urgency_validation: "Problem Validation & Urgency",
+  scope_boundaries: "Scope & Boundaries",
+  constraints_resources: "Constraints & Resources",
+};
+
 export function buildWorkshopFindings(
   analysis: IdeaAnalysis,
   resolutionResult: WorkshopResolutionResult,
-  answers: WorkshopAnswer[]
+  answers: WorkshopAnswer[],
+  sections?: WorkshopSection[]
 ): string {
   const parts: string[] = [];
-  
-  parts.push("=== WORKSHOP FINDINGS (NEW EVIDENCE) ===");
+
+  parts.push("=== WORKSHOP FINDINGS (NEW EVIDENCE FROM THE BUILDER) ===");
   parts.push("");
-  parts.push("The user has completed a Guided Refinement Workshop providing additional context.");
-  parts.push("The following uncertainties have been reduced based on user input.");
-  parts.push("You MUST incorporate these findings into your re-analysis.");
-  parts.push("Do NOT ignore this section. Do NOT re-assess as if no refinement occurred.");
+  parts.push("The builder completed a Guided Refinement Workshop. Below is the full Q&A exchange and its impact on the initial analysis.");
+  parts.push("You MUST incorporate these findings into your re-analysis. Treat each answer as new evidence that may validate or invalidate assumptions from the initial analysis.");
+  parts.push("Do NOT re-derive information the builder already provided. Do NOT ignore this section.");
   parts.push("");
-  
+
   if (resolutionResult.assumptions.length > 0) {
     parts.push("--- ASSUMPTION STATUS CHANGES ---");
     for (const assumption of resolutionResult.assumptions) {
-      parts.push(`[${assumption.previousStatus.toUpperCase()} → ${assumption.newStatus.toUpperCase()}] "${assumption.assumptionText}"`);
-      parts.push(`   Evidence: ${assumption.evidenceProvided.substring(0, 200)}${assumption.evidenceProvided.length > 200 ? "..." : ""}`);
+      parts.push(`[${assumption.previousStatus.toUpperCase()} -> ${assumption.newStatus.toUpperCase()}] "${assumption.assumptionText}"`);
+      parts.push(`   Evidence provided: ${assumption.evidenceProvided.substring(0, 300)}${assumption.evidenceProvided.length > 300 ? "..." : ""}`);
     }
     parts.push("");
   }
-  
+
   if (resolutionResult.risks.length > 0) {
     parts.push("--- RISK SEVERITY ADJUSTMENTS ---");
     for (const risk of resolutionResult.risks) {
-      parts.push(`[${risk.previousSeverity.toUpperCase()} → ${risk.newSeverity.toUpperCase()}] "${risk.riskDescription}"`);
+      parts.push(`[${risk.previousSeverity.toUpperCase()} -> ${risk.newSeverity.toUpperCase()}] "${risk.riskDescription}"`);
       parts.push(`   Reason: ${risk.adjustmentReason}`);
     }
     parts.push("");
   }
-  
-  parts.push("--- USER-PROVIDED CONTEXT ---");
-  
-  const targetMarketAnswers = answers.filter(a => a.sectionType === "target_market_clarity");
-  if (targetMarketAnswers.length > 0) {
-    parts.push("Target Market Clarity:");
-    for (const answer of targetMarketAnswers) {
-      parts.push(`  - ${answer.rawAnswer}`);
-    }
-  }
-  
-  const painAnswers = answers.filter(a => a.sectionType === "pain_urgency_validation");
-  if (painAnswers.length > 0) {
-    parts.push("Pain & Urgency Validation:");
-    for (const answer of painAnswers) {
-      parts.push(`  - ${answer.rawAnswer}`);
-    }
-  }
-  
-  const scopeAnswers = answers.filter(a => a.sectionType === "scope_boundaries");
-  if (scopeAnswers.length > 0) {
-    parts.push("Scope Boundaries:");
-    for (const answer of scopeAnswers) {
-      parts.push(`  - ${answer.rawAnswer}`);
-    }
-  }
-  
-  const constraintAnswers = answers.filter(a => a.sectionType === "constraints_resources");
-  if (constraintAnswers.length > 0) {
-    parts.push("Constraints & Resources:");
-    for (const answer of constraintAnswers) {
-      parts.push(`  - ${answer.rawAnswer}`);
-    }
-  }
-  
+
+  parts.push("--- FULL WORKSHOP Q&A TRANSCRIPT ---");
   parts.push("");
-  parts.push("--- SCORING ADJUSTMENT INSTRUCTIONS ---");
-  parts.push(`Based on workshop findings, the analysis should reflect:`);
-  parts.push(`- ${resolutionResult.summary.assumptionsValidated} assumption(s) moved to VALIDATED status`);
-  parts.push(`- ${resolutionResult.summary.assumptionsPartiallyValidated} assumption(s) moved to PARTIALLY_VALIDATED status`);
-  parts.push(`- ${resolutionResult.summary.risksReduced} risk(s) reduced in severity`);
-  parts.push(`- Suggested score improvement: +${resolutionResult.summary.overallImprovementScore} points`);
+
+  const sectionTypes = ["target_market_clarity", "pain_urgency_validation", "scope_boundaries", "constraints_resources"];
+
+  for (const sectionType of sectionTypes) {
+    const sectionAnswers = answers.filter(a => a.sectionType === sectionType);
+    if (sectionAnswers.length === 0) continue;
+
+    parts.push(`## ${SECTION_LABELS[sectionType] || sectionType}`);
+    parts.push("");
+
+    for (const answer of sectionAnswers) {
+      const questionPrompt = sections
+        ? findQuestionPrompt(sections, answer.questionId)
+        : null;
+
+      if (questionPrompt) {
+        parts.push(`Q: ${questionPrompt}`);
+      }
+      parts.push(`A: ${answer.rawAnswer}`);
+      parts.push("");
+    }
+  }
+
+  parts.push("--- ANALYSIS ADJUSTMENT GUIDANCE ---");
+  parts.push(`Based on the workshop evidence:`);
+  parts.push(`- ${resolutionResult.summary.assumptionsValidated} assumption(s) now have supporting evidence (VALIDATED)`);
+  parts.push(`- ${resolutionResult.summary.assumptionsPartiallyValidated} assumption(s) have partial evidence (PARTIALLY_VALIDATED)`);
+  parts.push(`- ${resolutionResult.summary.risksReduced} risk(s) should be reduced in severity`);
+  parts.push(`- Use the builder's specific answers to ground your updated analysis in their actual situation`);
+  parts.push(`- If the builder provided domain-specific details (e.g., target aircraft types, regulatory requirements, specific workflows), reference those details in your analysis`);
   parts.push("");
   parts.push("=== END WORKSHOP FINDINGS ===");
-  
+
   return parts.join("\n");
 }

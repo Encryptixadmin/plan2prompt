@@ -16,6 +16,7 @@ import type {
 } from "@shared/types/ideas";
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
+import { researchService } from "./research.service";
 import type { AIConsensusResult } from "@shared/types/ai";
 import type { PipelineStage } from "@shared/types/pipeline";
 import type { UsageModule } from "@shared/schema";
@@ -30,14 +31,35 @@ const PURPOSE_LABELS: Record<string, string> = {
 
 export class IdeasService {
   async analyzeIdea(input: IdeaInput, projectId?: string, userId?: string): Promise<IdeaAnalysis> {
+    const isRefinement = !!(input.context?.workshopRefinement);
+
+    if (!input.context) {
+      input.context = {};
+    }
+
+    let researchBrief = input.context.researchBrief || "";
+    if (!researchBrief) {
+      try {
+        researchBrief = await researchService.generateResearchBrief(input, projectId, userId);
+        if (researchBrief) {
+          input.context.researchBrief = researchBrief;
+        }
+      } catch (error) {
+        console.error("[Ideas] Research brief generation failed, proceeding without:", error);
+      }
+    }
+
     const prompt = this.buildAnalysisPrompt(input);
+    const systemPrompt = isRefinement
+      ? this.getRefinementSystemPrompt(input.purpose)
+      : this.getSystemPrompt(input.purpose);
     const usageContext = projectId
       ? { projectId, module: "ideas" as UsageModule, userId }
       : undefined;
 
     const consensus = await consensusService.getConsensus({
       prompt: {
-        system: this.getSystemPrompt(input.purpose),
+        system: systemPrompt,
         user: prompt,
         context: JSON.stringify(input.context || {}),
       },
@@ -77,6 +99,13 @@ export class IdeasService {
       }
       if (input.context.competitors) {
         prompt += `- Known Alternatives/Competitors: ${input.context.competitors}\n`;
+      }
+
+      if (input.context.researchBrief) {
+        prompt += `\n=== DOMAIN RESEARCH BRIEF ===\n`;
+        prompt += `The following research was gathered about this idea's domain, market, and competitive landscape. Use it to ground your analysis in real-world context.\n\n`;
+        prompt += `${input.context.researchBrief}\n`;
+        prompt += `\n=== END RESEARCH BRIEF ===\n`;
       }
 
       if (input.context.workshopRefinement) {
@@ -139,6 +168,44 @@ OUTPUT REQUIREMENTS:
 - Respond with valid JSON only, no markdown wrapping
 
 The builder should be able to decide: Proceed, Revise, or Stop based on your analysis alone.`;
+  }
+
+  private getRefinementSystemPrompt(purpose?: IdeaPurpose): string {
+    const purposeGuidance = this.getPurposeGuidance(purpose);
+
+    return `You are a critical-minded advisor performing a REFINEMENT RE-ANALYSIS. This is NOT a fresh analysis — the builder has already received an initial analysis and has completed a Guided Refinement Workshop providing additional context, evidence, and clarifications.
+
+PROJECT TYPE: ${PURPOSE_LABELS[purpose || "commercial"] || "Not specified"}
+
+${purposeGuidance}
+
+REFINEMENT-SPECIFIC INSTRUCTIONS:
+1. The prompt contains a WORKSHOP FINDINGS section with Q&A pairs. These are the builder's direct responses to specific questions about their idea. Treat each answer as new evidence.
+2. If a DOMAIN RESEARCH BRIEF is provided, use it to ground your analysis in real-world context — reference specific competitors, regulations, market data, and technical standards mentioned in the research.
+3. Do NOT repeat the same generic analysis from before. Your job is to produce an UPDATED analysis that reflects:
+   - Assumptions that have been validated or partially validated by the builder's answers
+   - Risks that should be adjusted (up or down) based on new evidence
+   - New strengths or weaknesses revealed by the builder's domain knowledge
+   - More specific, grounded recommendations based on the research brief
+4. If the builder mentioned specific details (e.g., target aircraft models, specific user workflows, regulatory requirements, competitor products), reference those details by name in your analysis.
+5. If the research brief mentions specific competitors or products, evaluate the idea's differentiation against those specific products.
+
+WHAT CHANGED vs. FIRST ANALYSIS:
+- Previously unvalidated assumptions may now have supporting evidence
+- Risk severities may have shifted based on builder's clarifications
+- Scope may be better defined (what's in v1 vs. what's deferred)
+- Budget, timeline, and team constraints may now be specified
+- Domain-specific context from research should inform feasibility scores
+
+OUTPUT REQUIREMENTS:
+- Reference the builder's specific answers and research findings in your analysis text
+- Adjusted feasibility scores should reflect the new information
+- Risk descriptions should be more specific based on domain research
+- Recommendations should reference specific products, tools, or approaches from the research
+- No encouragement language ("great idea", "promising", "exciting")
+- Respond with valid JSON only, no markdown wrapping
+
+The builder should leave this re-analysis with a clearer, more grounded picture than the first pass.`;
   }
 
   private getPurposeGuidance(purpose?: IdeaPurpose): string {

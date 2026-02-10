@@ -19,6 +19,7 @@ export interface IdeaInput {
     competitors?: string;
     workshopRefinement?: string;
     workshopResolution?: unknown;
+    researchBrief?: string;
   };
 }
 

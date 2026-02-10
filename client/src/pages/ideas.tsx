@@ -543,7 +543,7 @@ export default function IdeasPage() {
 
       const resolutionResult = resolveWorkshopAnswers(analysis, workshopSections, answers);
       
-      const workshopFindings = buildWorkshopFindings(analysis, resolutionResult, answers);
+      const workshopFindings = buildWorkshopFindings(analysis, resolutionResult, answers, workshopSections);
       
       const response = await timedApiRequest("POST", "/api/ideas/analyze", {
         idea: {
