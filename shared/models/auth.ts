@@ -21,6 +21,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  passwordHash: varchar("password_hash"),
+  authProvider: text("auth_provider").default("replit").$type<"replit" | "local">(),
   // Extended fields for platform
   role: text("role").default("user").$type<"user" | "admin">(),
   billingPlan: text("billing_plan").default("free").$type<"free" | "starter" | "professional" | "team">(),

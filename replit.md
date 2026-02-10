@@ -56,3 +56,6 @@ Preferred communication style: Simple, everyday language.
     - `@replit/vite-plugin-dev-banner`
 - **Authentication**:
     - Replit Auth (OpenID Connect)
+    - Email/password local auth (bcryptjs, express-session)
+    - Dual auth: users table has `authProvider` field ("replit" | "local") and optional `passwordHash`
+    - Test user: mat@mte-software.com (admin, professional plan)

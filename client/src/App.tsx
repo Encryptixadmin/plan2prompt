@@ -11,6 +11,7 @@ import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
+import AuthPage from "@/pages/auth";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
 import { ProjectProvider } from "@/contexts/project-context";
 import { NoProjectGate } from "@/components/no-project-gate";
@@ -113,6 +114,10 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
+    const path = window.location.pathname;
+    if (path === "/auth") {
+      return <AuthPage />;
+    }
     return <Landing />;
   }
 

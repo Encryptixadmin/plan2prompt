@@ -20,9 +20,7 @@ export async function requireProjectContext(
 ) {
   const projectId = req.headers["x-project-id"] as string;
   
-  // Get userId from authenticated session
-  const user = req.user as any;
-  const userId = user?.claims?.sub;
+  const userId = (req.session as any)?.localUserId || (req.user as any)?.claims?.sub;
   
   if (!userId) {
     return res.status(401).json({

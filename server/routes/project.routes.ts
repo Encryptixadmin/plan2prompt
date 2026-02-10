@@ -7,6 +7,9 @@ import { isAuthenticated } from "../replit_integrations/auth";
 const router = Router();
 
 function getUserId(req: any): string | undefined {
+  if (req.session?.localUserId) {
+    return req.session.localUserId;
+  }
   return req.user?.claims?.sub;
 }
 

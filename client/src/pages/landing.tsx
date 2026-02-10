@@ -25,10 +25,10 @@ export default function Landing() {
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
               <Button variant="ghost" asChild data-testid="link-login-nav">
-                <a href="/api/login" target="_top">Log in</a>
+                <a href="/auth">Log in</a>
               </Button>
               <Button asChild data-testid="button-get-started-nav">
-                <a href="/api/login" target="_top">Get Started</a>
+                <a href="/auth">Get Started</a>
               </Button>
             </div>
           </div>
@@ -50,7 +50,7 @@ export default function Landing() {
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <Button size="lg" asChild data-testid="button-get-started-hero">
-                  <a href="/api/login" target="_top">
+                  <a href="/auth">
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
@@ -59,7 +59,7 @@ export default function Landing() {
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5" />
-                  Replit Auth
+                  Secure Auth
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
@@ -134,10 +134,10 @@ export default function Landing() {
                 Ready to validate your next idea?
               </h2>
               <p className="text-sm text-muted-foreground">
-                Sign in with your Replit account to start the pipeline.
+                Sign in or create an account to start the pipeline.
               </p>
               <Button asChild data-testid="button-get-started-cta">
-                <a href="/api/login" target="_top">
+                <a href="/auth">
                   Get Started
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>

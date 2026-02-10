@@ -17,8 +17,13 @@ async function fetchUser(): Promise<User | null> {
   return response.json();
 }
 
-async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+async function logout(user: User | null | undefined): Promise<void> {
+  if (user?.authProvider === "local") {
+    await fetch("/api/auth/local-logout", { method: "POST", credentials: "include" });
+    window.location.href = "/";
+  } else {
+    window.location.href = "/api/logout";
+  }
 }
 
 export function useAuth() {
@@ -27,11 +32,11 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   const logoutMutation = useMutation({
-    mutationFn: logout,
+    mutationFn: () => logout(user),
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
     },
