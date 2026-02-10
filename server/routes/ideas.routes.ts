@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ideasService } from "../services/ideas.service";
+import { workshopService } from "../services/workshop.service";
 import type { AnalyzeIdeaRequest, IdeaAnalysis } from "@shared/types/ideas";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { adminService } from "../services/admin.service";
@@ -140,6 +141,68 @@ router.post(
         error: {
           code: "ACCEPT_ERROR",
           message: error instanceof Error ? error.message : "Failed to accept idea",
+        },
+      });
+    }
+  }
+);
+
+router.post(
+  "/workshop/next",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  async (req, res) => {
+    try {
+      const { analysis, conversationHistory, researchBrief } = req.body as {
+        analysis: IdeaAnalysis;
+        conversationHistory: { question: string; answer: string; turnNumber: number }[];
+        researchBrief?: string;
+      };
+
+      if (!analysis?.input?.title || !analysis?.input?.description) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Missing required analysis data",
+          },
+        });
+      }
+
+      const validatedHistory = Array.isArray(conversationHistory)
+        ? conversationHistory
+            .filter(
+              (t: any) =>
+                t &&
+                typeof t.question === "string" &&
+                typeof t.answer === "string" &&
+                typeof t.turnNumber === "number"
+            )
+            .slice(0, 7)
+        : [];
+
+      const projectId = req.headers["x-project-id"] as string | undefined;
+      const userId = req.userId;
+
+      const result = await workshopService.generateNextQuestion(
+        analysis,
+        validatedHistory,
+        researchBrief,
+        projectId,
+        userId
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        metadata: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "WORKSHOP_ERROR",
+          message: error instanceof Error ? error.message : "Failed to generate workshop question",
         },
       });
     }

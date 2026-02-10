@@ -60,11 +60,10 @@ import { useRequireProject } from "@/components/require-project-guard";
 import { useAIProviderStatus } from "@/hooks/use-ai-provider-status";
 import { mapBackendError, AnalysisTimeoutError } from "@/lib/error-messages";
 import { useToast } from "@/hooks/use-toast";
-import { WorkshopForm } from "@/components/workshop-form";
+import { WorkshopConversation } from "@/components/workshop-conversation";
 import { WorkshopComparison } from "@/components/workshop-comparison";
-import { createWorkshopSession } from "@/lib/workshop-generator";
-import { resolveWorkshopAnswers, buildWorkshopFindings } from "@/lib/workshop-resolution";
-import type { WorkshopSection, WorkshopAnswer, WorkshopResolutionResult } from "@shared/types/workshop";
+import { buildConversationFindings } from "@/lib/workshop-resolution";
+import type { WorkshopResolutionResult } from "@shared/types/workshop";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -414,7 +413,6 @@ export default function IdeasPage() {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [pendingFormValues, setPendingFormValues] = useState<IdeaFormValues | null>(null);
   const [workshopMode, setWorkshopMode] = useState(false);
-  const [workshopSections, setWorkshopSections] = useState<WorkshopSection[]>([]);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   
   const canAnalyze = hasValidatedProviders;
@@ -520,8 +518,6 @@ export default function IdeasPage() {
 
   const handleStartWorkshop = () => {
     if (!analysis) return;
-    const session = createWorkshopSession(analysis);
-    setWorkshopSections(session.sections);
     setWorkshopMode(true);
   };
 
@@ -529,7 +525,7 @@ export default function IdeasPage() {
     setShowAcceptDialog(true);
   };
 
-  const handleWorkshopComplete = async (answers: WorkshopAnswer[]) => {
+  const handleWorkshopComplete = async (turns: { question: string; answer: string; turnNumber: number }[]) => {
     if (!analysis) return;
     
     setIsReanalyzing(true);
@@ -541,9 +537,7 @@ export default function IdeasPage() {
         throw new Error("Idea analysis is unavailable due to configuration issues.");
       }
 
-      const resolutionResult = resolveWorkshopAnswers(analysis, workshopSections, answers);
-      
-      const workshopFindings = buildWorkshopFindings(analysis, resolutionResult, answers, workshopSections);
+      const workshopFindings = buildConversationFindings(turns);
       
       const response = await timedApiRequest("POST", "/api/ideas/analyze", {
         idea: {
@@ -553,7 +547,6 @@ export default function IdeasPage() {
           context: {
             ...analysis.input.context,
             workshopRefinement: workshopFindings,
-            workshopResolution: resolutionResult,
           },
         },
       });
@@ -561,21 +554,15 @@ export default function IdeasPage() {
       const data = await response.json() as { success: boolean; data: AnalyzeIdeaResponse };
       
       if (data.success) {
-        let adjustedAnalysis = data.data.analysis;
-        
-        adjustedAnalysis = applyWorkshopResolution(adjustedAnalysis, resolutionResult);
+        const adjustedAnalysis = data.data.analysis;
         
         setAnalysis(adjustedAnalysis);
         setWorkshopMode(false);
         setIsAccepted(false);
         
-        const improvementMessage = resolutionResult.summary.overallImprovementScore > 0
-          ? `Score improved by +${resolutionResult.summary.overallImprovementScore} based on workshop findings.`
-          : "Your idea has been re-analyzed with the workshop context.";
-        
         toast({
           title: "Re-analysis complete",
-          description: improvementMessage,
+          description: "Your idea has been re-analyzed with the interview context.",
         });
       }
     } catch (error) {
@@ -649,7 +636,6 @@ export default function IdeasPage() {
 
   const handleWorkshopCancel = () => {
     setWorkshopMode(false);
-    setWorkshopSections([]);
   };
 
   const handleDiscard = () => {
@@ -661,7 +647,6 @@ export default function IdeasPage() {
     setPreviousAnalysis(null);
     setIsAccepted(false);
     setWorkshopMode(false);
-    setWorkshopSections([]);
     form.reset();
     setShowDiscardDialog(false);
   };
@@ -671,7 +656,6 @@ export default function IdeasPage() {
     setPreviousAnalysis(null);
     setIsAccepted(false);
     setWorkshopMode(false);
-    setWorkshopSections([]);
     form.reset();
   };
 
@@ -936,9 +920,9 @@ export default function IdeasPage() {
             </div>
           </div>
         ) : workshopMode ? (
-          <WorkshopForm
+          <WorkshopConversation
             analysis={analysis}
-            sections={workshopSections}
+            researchBrief={analysis.input.context?.researchBrief}
             onComplete={handleWorkshopComplete}
             onCancel={handleWorkshopCancel}
             isSubmitting={isReanalyzing}

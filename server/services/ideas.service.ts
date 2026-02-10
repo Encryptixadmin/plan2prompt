@@ -133,7 +133,13 @@ export class IdeasService {
 }\n`;
 
     if (input.context?.workshopRefinement) {
-      prompt += `\nIMPORTANT: The user completed a Guided Refinement Workshop. Factor the workshop findings into your analysis. Adjust scores and severity levels based on the validated assumptions and reduced uncertainties.\n`;
+      prompt += `\nCRITICAL RE-ANALYSIS INSTRUCTIONS:\n`;
+      prompt += `The builder completed a Refinement Interview. You MUST:\n`;
+      prompt += `1. Reference SPECIFIC details from the interview by name (e.g., competitor names, pricing figures, technical choices, target demographics).\n`;
+      prompt += `2. Use the builder's exact data points in strength/weakness descriptions and feasibility notes.\n`;
+      prompt += `3. Adjust risk severities and assumption statuses based on the concrete evidence provided.\n`;
+      prompt += `4. Do NOT generalize or abstract away the specific information the builder shared.\n`;
+      prompt += `5. Every strength, weakness, and risk should cite relevant interview evidence where applicable.\n`;
     }
 
     return prompt;
