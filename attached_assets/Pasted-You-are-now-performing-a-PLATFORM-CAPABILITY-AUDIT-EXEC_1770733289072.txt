@@ -1,0 +1,199 @@
+You are now performing a PLATFORM CAPABILITY AUDIT.
+
+EXECUTION MODE:
+Audit and verification.
+NO new code.
+NO refactors.
+NO feature suggestions unless explicitly requested.
+
+OBJECTIVE:
+Determine what this platform can ACTUALLY do end-to-end today,
+based strictly on the existing codebase,
+so we know what must be built next for real-world execution.
+
+This is NOT a roadmap.
+This is NOT a product pitch.
+This is NOT a UX review.
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+1. Base ALL findings on:
+   - Implemented backend logic
+   - Frontend flows
+   - Guards, invariants, and enforcement
+   - Tests that exist
+2. Do NOT rely on:
+   - Comments
+   - TODOs
+   - Intended design
+   - Planned features
+3. If something is partial, say so.
+4. If something requires human workaround, say so.
+5. If something works only under ideal conditions, say so.
+6. Prefer brutal honesty over completeness.
+
+--------------------------------
+AUDIT DIMENSIONS (STRICT)
+--------------------------------
+
+Audit ONLY the following six platform capabilities:
+
+--------------------------------
+1. IDEA DISCOVERY & JUDGEMENT
+--------------------------------
+Evaluate whether the platform can:
+
+- Accept an idea
+- Analyse it via AI consensus
+- Produce a clear recommendation (Proceed / Refine / Stop)
+- Enforce STOP discipline
+- Help the user understand *why* the recommendation exists
+
+Answer explicitly:
+- Does this capability work end-to-end?
+- Where does the user get stuck or confused?
+- Is any human workaround required?
+
+--------------------------------
+2. GUIDED REFINEMENT & RE-ANALYSIS
+--------------------------------
+Evaluate whether the platform can:
+
+- Identify missing clarity
+- Conduct a guided refinement workshop
+- Capture structured answers
+- Re-run analysis using the new information
+- Produce a meaningfully different outcome when warranted
+
+Answer explicitly:
+- Do workshop answers affect scoring and risks?
+- Is progress visible even if STOP remains?
+- Are assumptions and risks updated deterministically?
+
+--------------------------------
+3. REQUIREMENTS FORMATION
+--------------------------------
+Evaluate whether the platform can:
+
+- Generate bounded, buildable requirements
+- Carry assumptions and risks forward from ideas
+- Explicitly exclude out-of-scope features
+- Produce requirements that constrain prompt generation
+
+Answer explicitly:
+- Are requirements sufficient to guide implementation?
+- Are scope boundaries explicit?
+- Are risks preserved or lost?
+
+--------------------------------
+4. PROMPT ORCHESTRATION
+--------------------------------
+Evaluate whether the platform can:
+
+- Generate ordered, dependency-aware prompts
+- Enforce STOP / VERIFY semantics
+- Prevent users from skipping steps
+- Guide execution without improvisation
+
+Answer explicitly:
+- Do prompts assume missing context?
+- Do users ever ask “what next?” implicitly?
+- Is prompt execution deterministic?
+
+--------------------------------
+5. EXECUTION TRANSLATION (IDE / OPUS LAYER)
+--------------------------------
+Evaluate whether the platform can:
+
+- Translate prompts into IDE-executable instructions
+- Remove copy/paste friction
+- Integrate Anthropic Opus (or similar) as a compiler
+- Hand off execution cleanly to an IDE
+
+Answer explicitly:
+- Is this capability implemented?
+- Is it partial, stubbed, or missing?
+- Does execution require manual interpretation?
+
+--------------------------------
+6. EXECUTION FEEDBACK & RECOVERY
+--------------------------------
+Evaluate whether the platform can:
+
+- Receive raw execution output
+- Classify failures deterministically
+- Decide retry vs STOP vs refinement
+- Route the user back to the correct layer (Prompt / Requirements / Ideas)
+
+Answer explicitly:
+- Does recovery work end-to-end?
+- Are failures actionable?
+- Are loops prevented?
+
+--------------------------------
+7. GOVERNANCE, SAFETY & OPERABILITY
+--------------------------------
+Evaluate whether the platform can:
+
+- Run safely with real users
+- Enforce project context
+- Enforce permissions
+- Surface AI provider health honestly
+- Bound cost and usage
+- Allow admin intervention without damage
+
+Answer explicitly:
+- Is this production-safe?
+- What operational risks remain?
+
+--------------------------------
+REQUIRED OUTPUT FORMAT
+--------------------------------
+
+Produce a single audit report with:
+
+--------------------------------
+A. CAPABILITY MATRIX
+--------------------------------
+
+A table with columns:
+- Capability
+- End-to-End Works? (Yes / Partial / No)
+- Human Workaround Required? (Yes / No)
+- Severity (Low / Medium / High / Critical)
+- Evidence (file names, functions, routes)
+
+--------------------------------
+B. CAPABILITY FINDINGS
+--------------------------------
+
+One subsection per capability explaining:
+- What works
+- What does not
+- Why (based on code)
+
+--------------------------------
+C. EXECUTION READINESS SUMMARY
+--------------------------------
+
+- Is the platform ready for real-world testing?
+- Which capabilities are blockers?
+- Which are safe to rely on?
+
+--------------------------------
+D. BUILD PRIORITY SIGNAL
+--------------------------------
+
+Without proposing a roadmap, answer:
+- Which capability MUST be fixed next for execution readiness?
+- Which capabilities should NOT be expanded yet?
+
+--------------------------------
+FINAL INSTRUCTION
+--------------------------------
+After producing the audit:
+STOP.
+DO NOT suggest features.
+DO NOT write a roadmap.
+DO NOT propose solutions unless explicitly asked.

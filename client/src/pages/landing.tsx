@@ -36,7 +36,7 @@ export default function Landing() {
       </nav>
 
       <main className="pt-14">
-        <section className="py-24 px-4 sm:px-6 lg:px-8">
+        <section className="py-24 px-4 sm:px-6 lg:px-8 bg-card">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-2xl space-y-6">
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
@@ -70,7 +70,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8 border-t">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 border-t border-b">
           <div className="max-w-6xl mx-auto">
             <div className="mb-12 space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight">
@@ -127,7 +127,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8 border-t">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-lg space-y-4">
               <h2 className="text-2xl font-semibold tracking-tight">
