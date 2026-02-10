@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +40,6 @@ import {
   Layout,
   Code,
   ArrowRight,
-  FileCode,
   Lightbulb,
   ThumbsUp,
   RefreshCw,
@@ -53,12 +51,9 @@ import {
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
-import { ActiveProjectIndicator } from "@/components/active-project-indicator";
-import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
-import { useAdminStatus } from "@/hooks/use-admin-status";
 import { useRequireProject } from "@/components/require-project-guard";
 
 interface IdeaOption {
@@ -575,7 +570,6 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
 }
 
 export default function RequirementsPage() {
-  const { isAdmin } = useAdminStatus();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [ideaPreview, setIdeaPreview] = useState<IdeaPreview | null>(null);
@@ -688,39 +682,21 @@ export default function RequirementsPage() {
   const showBlockedState = !ideasQuery.isLoading && !hasValidatedIdeas && !requirements;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-primary/10">
-              <FileCode className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-semibold">Requirements Module</h1>
-              <p className="text-xs text-muted-foreground">Generate detailed requirements</p>
-            </div>
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-requirements-title">Requirements</h1>
+            <p className="text-sm text-muted-foreground">
+              Convert validated ideas into comprehensive technical specifications.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <ActiveProjectIndicator />
-            <ProjectSwitcher />
-            {(requirements || isAccepted) && (
-              <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
-                New Requirements
-              </Button>
-            )}
-            {isAdmin && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm" data-testid="link-admin">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-          </div>
+          {(requirements || isAccepted) && (
+            <Button variant="outline" onClick={handleReset} data-testid="button-new-requirements">
+              New Requirements
+            </Button>
+          )}
         </div>
-      </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
         {ideasQuery.isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -729,16 +705,6 @@ export default function RequirementsPage() {
           <ModuleBlockedState type="requirementsNeedsIdea" />
         ) : !requirements ? (
           <div className="space-y-8">
-            <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">Generate Requirements Document</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">
-                Convert a validated idea into a structured requirements document. This includes 
-                functional requirements, architecture, data models, and security considerations.
-              </p>
-              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
-                Requirements are versioned. Once accepted, they become the reference for all subsequent work.
-              </p>
-            </div>
 
             <Card>
               <CardHeader>
@@ -845,7 +811,6 @@ export default function RequirementsPage() {
             isAccepted={isAccepted}
           />
         )}
-      </main>
 
       <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
         <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

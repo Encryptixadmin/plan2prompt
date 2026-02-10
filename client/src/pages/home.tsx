@@ -1,255 +1,208 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CheckCircle, Layers, Zap, Shield, Lightbulb, FileCode, Terminal, ArrowRight, HelpCircle, BookOpen, LogOut, User } from "lucide-react";
-import { useOnboardingContext } from "@/App";
-import { ActiveProjectIndicator } from "@/components/active-project-indicator";
-import { ProjectSwitcher } from "@/components/project-switcher";
-import { useAdminStatus } from "@/hooks/use-admin-status";
+import { Lightbulb, FileText, Terminal, ArrowRight, Sparkles, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { BillingStatus } from "@/components/billing-status";
-import { useAuth } from "@/hooks/use-auth";
+
+interface ArtifactSummary {
+  id: string;
+  title: string;
+  version: number;
+  createdAt: string;
+  stage?: string;
+}
 
 export default function Home() {
-  const { openOnboarding } = useOnboardingContext();
-  const { isAdmin } = useAdminStatus();
-  const { user } = useAuth();
+  const { data: ideasData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
+    queryKey: ["/api/ideas"],
+  });
 
-  const handleReopenOnboarding = () => {
-    openOnboarding();
-  };
+  const { data: requirementsData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
+    queryKey: ["/api/requirements/ideas"],
+  });
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
-  };
+  const ideaCount = ideasData?.data?.length || 0;
+  const reqCount = requirementsData?.data?.length || 0;
 
-  const displayName = user?.firstName 
-    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
-    : user?.email || 'User';
-  
-  const initials = user?.firstName 
-    ? `${user.firstName[0]}${user.lastName?.[0] || ''}`
-    : user?.email?.[0]?.toUpperCase() || 'U';
+  const pipelineSteps = [
+    {
+      title: "Ideas",
+      description: "Validate your concepts with AI consensus analysis before committing to building",
+      href: "/ideas",
+      icon: Lightbulb,
+      count: ideaCount,
+      countLabel: "validated",
+      accentClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      testId: "link-ideas-module",
+    },
+    {
+      title: "Requirements",
+      description: "Convert validated ideas into comprehensive technical requirements documents",
+      href: "/requirements",
+      icon: FileText,
+      count: reqCount,
+      countLabel: "generated",
+      accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      testId: "link-requirements-module",
+    },
+    {
+      title: "Prompts",
+      description: "Generate sequential, IDE-specific build instructions from your requirements",
+      href: "/prompts",
+      icon: Terminal,
+      count: 0,
+      countLabel: "generated",
+      accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      testId: "link-prompts-module",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Layers className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">Platform</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <ActiveProjectIndicator />
-            <ProjectSwitcher />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" data-testid="button-help-menu">
-                  <HelpCircle className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleReopenOnboarding} data-testid="menu-item-onboarding">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  View Introduction
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {isAdmin && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm" data-testid="link-admin">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="flex items-center gap-2 p-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">{displayName}</p>
-                    {user?.email && (
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    )}
+    <div className="p-6 max-w-6xl mx-auto space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-dashboard-title">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          Your build pipeline overview. Start with an idea and work through each stage.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ideas</p>
+                <p className="text-2xl font-semibold">{ideaCount}</p>
+              </div>
+              <div className="h-9 w-9 rounded-md bg-amber-500/10 flex items-center justify-center">
+                <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Requirements</p>
+                <p className="text-2xl font-semibold">{reqCount}</p>
+              </div>
+              <div className="h-9 w-9 rounded-md bg-blue-500/10 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Build Prompts</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="h-9 w-9 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pipeline</p>
+                <p className="text-2xl font-semibold">{ideaCount > 0 ? "Active" : "Ready"}</p>
+              </div>
+              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                {ideaCount > 0 ? (
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-primary" />
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold tracking-tight">Build Pipeline</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {pipelineSteps.map((step, index) => (
+            <Card key={step.title} className="group relative">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className={`h-9 w-9 rounded-md flex items-center justify-center ${step.accentClass}`}>
+                    <step.icon className="h-4 w-4" />
                   </div>
+                  <span className="text-xs font-medium text-muted-foreground tabular-nums">Step {index + 1}</span>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} data-testid="menu-item-logout">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                <CardTitle className="text-base mt-2">{step.title}</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  {step.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Link href={step.href}>
+                  <Button variant="outline" className="w-full" data-testid={step.testId}>
+                    {step.count > 0 ? `View ${step.title}` : `Start ${step.title}`}
+                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center space-y-6 mb-16">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
-            Production-Ready Web Platform
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            A scalable foundation built with React, TypeScript, Express, and Tailwind CSS.
-            Ready for modular expansion with AI service integrations.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold tracking-tight">Getting Started</h2>
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Zap className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Fast & Modern</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                Built with Vite for lightning-fast development and optimized production builds.
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Layers className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Modular Architecture</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                Clean separation of concerns with shared types and abstracted service layers.
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Shield className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Type-Safe</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                Full TypeScript support across frontend and backend with Zod validation.
-              </CardDescription>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Lightbulb className="h-5 w-5 text-primary" />
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary">1</span>
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Ideas Module</CardTitle>
-                  <CardDescription>
-                    Validate your concept before committing to building
-                  </CardDescription>
+                  <p className="text-sm font-medium">Submit your app idea</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Describe your concept and get AI-powered consensus analysis
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Link href="/ideas">
-                <Button data-testid="link-ideas-module">
-                  Start Here
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <FileCode className="h-5 w-5 text-primary" />
+              <div className="flex items-start gap-3">
+                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary">2</span>
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Requirements Module</CardTitle>
-                  <CardDescription>
-                    Turn a validated idea into detailed requirements
-                  </CardDescription>
+                  <p className="text-sm font-medium">Generate requirements</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Turn validated ideas into comprehensive technical specs
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Link href="/requirements">
-                <Button data-testid="link-requirements-module">
-                  Generate Requirements
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Terminal className="h-5 w-5 text-primary" />
+              <div className="flex items-start gap-3">
+                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary">3</span>
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Prompts Module</CardTitle>
-                  <CardDescription>
-                    Create step-by-step build instructions for your environment
-                  </CardDescription>
+                  <p className="text-sm font-medium">Get build prompts</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Receive step-by-step instructions tailored to your IDE
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Link href="/prompts">
-                <Button data-testid="link-prompts-module">
-                  Generate Prompts
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mt-16 max-w-md mx-auto">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
           <BillingStatus />
         </div>
-
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Platform initialized and ready for module development</span>
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

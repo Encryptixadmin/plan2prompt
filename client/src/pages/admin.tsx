@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,16 +35,13 @@ import {
   CreditCard,
   DollarSign,
   FileText,
-  LogOut,
   Power,
   PowerOff,
   RefreshCw,
   Shield,
   Users,
-  FolderOpen,
 } from "lucide-react";
 
-import { getLastNonAdminRoute } from "@/hooks/use-admin-navigation";
 
 interface ProviderStatus {
   provider: string;
@@ -873,8 +869,6 @@ function ActionLogPanel() {
 }
 
 export default function Admin() {
-  const [, navigate] = useLocation();
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [hasActiveAction, setHasActiveAction] = useState(false);
   
   const { data: healthData, isError } = useQuery<{ success: boolean }>({
@@ -882,22 +876,9 @@ export default function Admin() {
     retry: false,
   });
 
-  const handleExitAdmin = () => {
-    if (hasActiveAction) {
-      setShowExitConfirm(true);
-    } else {
-      performExit();
-    }
-  };
-
-  const performExit = () => {
-    const lastRoute = getLastNonAdminRoute();
-    navigate(lastRoute);
-  };
-
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background" data-testid="admin-access-denied">
+      <div className="flex items-center justify-center flex-1" data-testid="admin-access-denied">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
@@ -916,102 +897,66 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-background" data-testid="page-admin">
-      <header className="border-b sticky top-0 bg-background z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold">Admin Console</h1>
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" data-testid="badge-admin-mode">
-              Admin Mode
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline">Internal Use Only</Badge>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleExitAdmin}
-              data-testid="button-exit-admin"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Exit Admin
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="p-6 max-w-7xl mx-auto space-y-6" data-testid="page-admin">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-admin-title">Admin Console</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage providers, users, usage, and platform integrity.
+        </p>
+      </div>
 
-      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Exit Admin Console?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You may have an action in progress. Are you sure you want to exit the Admin Console?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-exit">Stay</AlertDialogCancel>
-            <AlertDialogAction onClick={performExit} data-testid="button-confirm-exit">
-              Exit Admin
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Tabs defaultValue="providers" className="space-y-6">
+        <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+          <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
+            <Activity className="h-4 w-4" />
+            Providers
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="flex items-center gap-2" data-testid="tab-billing">
+            <CreditCard className="h-4 w-4" />
+            Billing
+          </TabsTrigger>
+          <TabsTrigger value="usage" className="flex items-center gap-2" data-testid="tab-usage">
+            <DollarSign className="h-4 w-4" />
+            Usage
+          </TabsTrigger>
+          <TabsTrigger value="artifacts" className="flex items-center gap-2" data-testid="tab-artifacts">
+            <FileText className="h-4 w-4" />
+            Artifacts
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="flex items-center gap-2" data-testid="tab-actions">
+            <Clock className="h-4 w-4" />
+            Actions
+          </TabsTrigger>
+        </TabsList>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="providers" className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
-            <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
-              <Activity className="h-4 w-4" />
-              Providers
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
-              <Users className="h-4 w-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2" data-testid="tab-billing">
-              <CreditCard className="h-4 w-4" />
-              Billing
-            </TabsTrigger>
-            <TabsTrigger value="usage" className="flex items-center gap-2" data-testid="tab-usage">
-              <DollarSign className="h-4 w-4" />
-              Usage
-            </TabsTrigger>
-            <TabsTrigger value="artifacts" className="flex items-center gap-2" data-testid="tab-artifacts">
-              <FileText className="h-4 w-4" />
-              Artifacts
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="flex items-center gap-2" data-testid="tab-actions">
-              <Clock className="h-4 w-4" />
-              Actions
-            </TabsTrigger>
-          </TabsList>
+        <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
+          <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
+        </TabsContent>
 
-          <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
-            <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
-          </TabsContent>
+        <TabsContent value="users" className="space-y-6" data-testid="panel-users">
+          <UsersPanel onActionStateChange={setHasActiveAction} />
+        </TabsContent>
 
-          <TabsContent value="users" className="space-y-6" data-testid="panel-users">
-            <UsersPanel onActionStateChange={setHasActiveAction} />
-          </TabsContent>
+        <TabsContent value="billing" className="space-y-6" data-testid="panel-billing">
+          <BillingPanel />
+        </TabsContent>
 
-          <TabsContent value="billing" className="space-y-6" data-testid="panel-billing">
-            <BillingPanel />
-          </TabsContent>
+        <TabsContent value="usage" className="space-y-6" data-testid="panel-usage">
+          <UsagePanel />
+        </TabsContent>
 
-          <TabsContent value="usage" className="space-y-6" data-testid="panel-usage">
-            <UsagePanel />
-          </TabsContent>
+        <TabsContent value="artifacts" className="space-y-6" data-testid="panel-artifacts">
+          <ArtifactIntegrityPanel />
+        </TabsContent>
 
-          <TabsContent value="artifacts" className="space-y-6" data-testid="panel-artifacts">
-            <ArtifactIntegrityPanel />
-          </TabsContent>
-
-          <TabsContent value="actions" className="space-y-6" data-testid="panel-actions">
-            <ActionLogPanel />
-          </TabsContent>
-        </Tabs>
-      </main>
+        <TabsContent value="actions" className="space-y-6" data-testid="panel-actions">
+          <ActionLogPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

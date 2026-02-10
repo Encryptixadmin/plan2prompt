@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { apiRequest, timedApiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +38,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Lightbulb,
   CheckCircle,
   AlertTriangle,
   Shield,
@@ -57,12 +55,7 @@ import {
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
-import { ActiveProjectIndicator } from "@/components/active-project-indicator";
-import { ProjectSwitcher } from "@/components/project-switcher";
-import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
-import { ConfidenceCopy } from "@/components/commitment-confirmation";
-import { useAdminStatus } from "@/hooks/use-admin-status";
 import { useRequireProject } from "@/components/require-project-guard";
 import { useAIProviderStatus } from "@/hooks/use-ai-provider-status";
 import { mapBackendError, AnalysisTimeoutError } from "@/lib/error-messages";
@@ -409,7 +402,6 @@ function AnalysisResults({
 }
 
 export default function IdeasPage() {
-  const { isAdmin } = useAdminStatus();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();
   const { toast } = useToast();
@@ -680,51 +672,16 @@ export default function IdeasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-primary/10">
-              <Lightbulb className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-semibold">Ideas Module</h1>
-              <p className="text-xs text-muted-foreground">Validate and refine your idea</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <ActiveProjectIndicator />
-            <ProjectSwitcher />
-            {(analysis || isAccepted) && (
-              <Button variant="outline" onClick={handleNewIdea} data-testid="button-new-idea">
-                New Idea
-              </Button>
-            )}
-            {isAdmin && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm" data-testid="link-admin">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-          </div>
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-ideas-title">Ideas</h1>
+          <p className="text-sm text-muted-foreground">
+            Validate your concepts with AI-powered consensus analysis.
+          </p>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
         {!analysis ? (
           <div className="space-y-8">
-            <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">Validate Your Idea</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">
-                Describe your concept and receive a structured analysis. The evaluation identifies 
-                strengths, weaknesses, risks, and feasibility before you proceed to building.
-              </p>
-              <p className="text-sm text-muted-foreground/70 max-w-lg mx-auto">
-                This step helps you decide whether to proceed. No commitments are made until you explicitly accept the analysis.
-              </p>
-            </div>
 
             <Card>
               <CardHeader>
@@ -967,7 +924,6 @@ export default function IdeasPage() {
             previousAnalysis={previousAnalysis}
           />
         )}
-      </main>
 
       <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
         <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

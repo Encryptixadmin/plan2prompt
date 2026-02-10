@@ -16,6 +16,8 @@ import { ProjectProvider } from "@/contexts/project-context";
 import { NoProjectGate } from "@/components/no-project-gate";
 import { useTrackNonAdminRoute } from "@/hooks/use-admin-navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AppShell } from "@/components/app-shell";
 import { Loader2 } from "lucide-react";
 
 interface OnboardingContextType {
@@ -95,9 +97,9 @@ function OnboardingWrapper({ children }: { children: React.ReactNode }) {
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading...</p>
+      <div className="text-center space-y-3">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     </div>
   );
@@ -118,7 +120,9 @@ function AppContent() {
     <ProjectProvider>
       <NoProjectGate>
         <OnboardingWrapper>
-          <AuthenticatedRouter />
+          <AppShell>
+            <AuthenticatedRouter />
+          </AppShell>
         </OnboardingWrapper>
       </NoProjectGate>
     </ProjectProvider>
@@ -128,10 +132,12 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <AppContent />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <AppContent />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

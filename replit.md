@@ -12,7 +12,9 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 - **Frontend Framework**: React 19 with TypeScript and Vite.
-- **Styling**: Tailwind CSS with shadcn/ui (New York style) built on Radix UI primitives.
+- **Styling**: Tailwind CSS with shadcn/ui (New York style) built on Radix UI primitives. Inter (primary) + JetBrains Mono (code) fonts.
+- **Design System**: Indigo primary palette (238 76% 60%), sophisticated neutral scale, refined shadows, full dark mode support via ThemeProvider with localStorage persistence.
+- **Layout**: AppShell component wraps all authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/Admin) and a top bar (project switcher, theme toggle, user menu). Pages render content within the AppShell without individual headers.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.
 - **Form Handling**: React Hook Form with Zod validation.

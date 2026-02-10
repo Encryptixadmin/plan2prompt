@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,18 +25,14 @@ import {
   Target,
   ListOrdered,
   Hand,
-  Shield,
   AlertTriangle,
 } from "lucide-react";
 import { StepFeedbackForm } from "@/components/step-feedback-form";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
-import { ActiveProjectIndicator } from "@/components/active-project-indicator";
-import { ProjectSwitcher } from "@/components/project-switcher";
 import { useProject } from "@/contexts/project-context";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
-import { useAdminStatus } from "@/hooks/use-admin-status";
 import { useRequireProject } from "@/components/require-project-guard";
 
 const ideOptions: typeof IDE_OPTIONS = [
@@ -97,7 +91,6 @@ interface RequirementOption {
 type FlowStep = "select-requirements" | "select-ide" | "view-prompts";
 
 export default function Prompts() {
-  const { isAdmin } = useAdminStatus();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [flowStep, setFlowStep] = useState<FlowStep>("select-requirements");
   const [selectedRequirements, setSelectedRequirements] = useState<string>("");
@@ -268,42 +261,20 @@ export default function Prompts() {
   const selectedIDEInfo = ideOptions.find((ide) => ide.id === selectedIDE);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="sm" data-testid="link-home">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Home
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-prompts-title">Build Prompts</h1>
+            <p className="text-sm text-muted-foreground">
+              Generate step-by-step build instructions tailored to your IDE.
+            </p>
+          </div>
+          {flowStep !== "select-requirements" && (
+            <Button variant="outline" onClick={handleReset} data-testid="button-start-over">
+              Start Over
             </Button>
-          </Link>
-          <Separator orientation="vertical" className="h-6" />
-          <div className="flex items-center gap-2">
-            <Terminal className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Build Prompts</h1>
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-3">
-            <ActiveProjectIndicator />
-            <ProjectSwitcher />
-            {flowStep !== "select-requirements" && (
-              <Button variant="outline" size="sm" onClick={handleReset} data-testid="button-start-over">
-                Start Over
-              </Button>
-            )}
-            {isAdmin && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm" data-testid="link-admin">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-          </div>
+          )}
         </div>
-      </header>
-
-      <main className="container py-8 max-w-4xl mx-auto">
         {flowStep === "select-requirements" && (
           loadingRequirements ? (
             <div className="flex items-center justify-center py-16">
@@ -560,7 +531,6 @@ export default function Prompts() {
             </Card>
           </div>
         )}
-      </main>
 
       <ProjectRequiredDialog />
     </div>
