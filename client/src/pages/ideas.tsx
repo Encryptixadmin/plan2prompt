@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, timedApiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, timedApiRequest, queryClient } from "@/lib/queryClient";
+import { Link } from "wouter";
+import { useProject } from "@/contexts/project-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,8 @@ import {
   FileCheck,
   BookOpen,
   Play,
+  Clock,
+  ArrowLeft,
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
@@ -401,8 +405,141 @@ function AnalysisResults({
   );
 }
 
+interface SavedIdeasListProps {
+  savedIdeas: { id: string; title: string; version: number; createdAt: string; stage?: string }[];
+  onSelectIdea: (id: string) => void;
+  onNewIdea: () => void;
+}
+
+function SavedIdeasList({ savedIdeas, onSelectIdea, onNewIdea }: SavedIdeasListProps) {
+  return (
+    <Card data-testid="list-saved-ideas">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-primary" />
+            Saved Ideas
+          </CardTitle>
+          <CardDescription>{savedIdeas.length} validated {savedIdeas.length === 1 ? "idea" : "ideas"}</CardDescription>
+        </div>
+        <Button variant="outline" onClick={onNewIdea} data-testid="button-new-idea">
+          <Sparkles className="mr-2 h-4 w-4" />
+          New Idea
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {savedIdeas.map((idea) => (
+          <div
+            key={idea.id}
+            className="flex items-center justify-between gap-4 p-3 rounded-md cursor-pointer hover-elevate flex-wrap"
+            onClick={() => onSelectIdea(idea.id)}
+            data-testid={`saved-idea-${idea.id}`}
+          >
+            <div className="space-y-1 min-w-0">
+              <p className="font-medium text-sm truncate">{idea.title}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {new Date(idea.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge variant="secondary" className="text-xs">v{idea.version}</Badge>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface SavedIdeaViewProps {
+  idea: {
+    id: string;
+    title: string;
+    version: number;
+    createdAt: string;
+    stage?: string;
+    score?: number | null;
+    rawContent?: string;
+    sections?: { id: string; heading: string; level: number; content: string }[];
+  };
+  isLoading: boolean;
+  onBack: () => void;
+}
+
+function SavedIdeaView({ idea, isLoading, onBack }: SavedIdeaViewProps) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="ghost" onClick={onBack} data-testid="button-back-to-ideas">
+          <ArrowRight className="mr-2 h-4 w-4 rotate-180" />
+          Back to Ideas
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1">
+              <CardTitle className="text-xl">{idea.title}</CardTitle>
+              <CardDescription className="flex items-center gap-3 flex-wrap">
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {new Date(idea.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                </span>
+                <Badge variant="secondary" className="text-xs">v{idea.version}</Badge>
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="default">Validated</Badge>
+              {idea.score != null && (
+                <Badge variant="outline">Score: {idea.score}/100</Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {idea.sections && idea.sections.length > 0 && (
+        <Card>
+          <CardContent className="pt-6 space-y-6">
+            {idea.sections.map((section) => (
+              <div key={section.id} className="space-y-2">
+                <h3 className="font-semibold text-sm">{section.heading}</h3>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{section.content}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <Link href="/requirements">
+          <Button data-testid="button-generate-requirements">
+            <ArrowRight className="mr-2 h-4 w-4" />
+            Generate Requirements
+          </Button>
+        </Link>
+        <Button variant="ghost" onClick={onBack} data-testid="button-back-to-ideas-bottom">
+          Back to Ideas
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function IdeasPage() {
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
+  const { activeProject } = useProject();
   const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();
   const { toast } = useToast();
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
@@ -414,6 +551,18 @@ export default function IdeasPage() {
   const [pendingFormValues, setPendingFormValues] = useState<IdeaFormValues | null>(null);
   const [workshopMode, setWorkshopMode] = useState(false);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [viewingIdeaId, setViewingIdeaId] = useState<string | null>(null);
+
+  const savedIdeasQuery = useQuery<{ success: boolean; data: { id: string; title: string; version: number; createdAt: string; stage?: string }[] }>({
+    queryKey: ["/api/ideas"],
+    enabled: !!activeProject,
+  });
+  const savedIdeas = savedIdeasQuery.data?.data || [];
+
+  const savedIdeaQuery = useQuery<{ success: boolean; data: any }>({
+    queryKey: ["/api/ideas", viewingIdeaId],
+    enabled: !!viewingIdeaId,
+  });
   
   const canAnalyze = hasValidatedProviders;
 
@@ -493,6 +642,7 @@ export default function IdeasPage() {
       if (data.success) {
         setAnalysis(data.data.analysis);
         setIsAccepted(true);
+        queryClient.invalidateQueries({ queryKey: ["/api/ideas"] });
       }
     },
   });
@@ -652,6 +802,7 @@ export default function IdeasPage() {
   };
 
   const handleNewIdea = () => {
+    setViewingIdeaId(null);
     setAnalysis(null);
     setPreviousAnalysis(null);
     setIsAccepted(false);
@@ -668,8 +819,42 @@ export default function IdeasPage() {
           </p>
         </div>
 
-        {!analysis ? (
+        {viewingIdeaId ? (
+          savedIdeaQuery.isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : savedIdeaQuery.isError ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="alert-saved-idea-error">
+                Failed to load saved idea. It may have been deleted or you may not have access.
+              </div>
+              <Button variant="outline" onClick={() => setViewingIdeaId(null)} data-testid="button-back-to-ideas">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Ideas
+              </Button>
+            </div>
+          ) : savedIdeaQuery.data?.data ? (
+            <SavedIdeaView
+              idea={savedIdeaQuery.data.data}
+              isLoading={false}
+              onBack={() => setViewingIdeaId(null)}
+            />
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )
+        ) : !analysis ? (
           <div className="space-y-8">
+
+            {savedIdeas.length > 0 && (
+              <SavedIdeasList
+                savedIdeas={savedIdeas}
+                onSelectIdea={(id) => setViewingIdeaId(id)}
+                onNewIdea={() => setViewingIdeaId(null)}
+              />
+            )}
 
             <Card>
               <CardHeader>

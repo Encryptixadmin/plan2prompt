@@ -1,11 +1,87 @@
 import { Router } from "express";
 import { ideasService } from "../services/ideas.service";
 import { workshopService } from "../services/workshop.service";
+import { artifactService } from "../services/artifact.service";
 import type { AnalyzeIdeaRequest, IdeaAnalysis } from "@shared/types/ideas";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { adminService } from "../services/admin.service";
 
 const router = Router();
+
+router.get(
+  "/",
+  requireProjectContext,
+  async (req, res) => {
+    try {
+      const artifacts = await artifactService.listByProject(req.projectId!, "ideas");
+      const validated = artifacts.filter((a) => a.stage === "VALIDATED_IDEA");
+      const data = validated.map((a) => ({
+        id: a.id,
+        title: a.title.replace(/^Ideas Reference:\s*/i, ""),
+        version: a.version,
+        createdAt: a.createdAt,
+        stage: a.stage,
+      }));
+      res.json({ success: true, data });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "LIST_ERROR",
+          message: error instanceof Error ? error.message : "Failed to list saved ideas",
+        },
+      });
+    }
+  }
+);
+
+router.get(
+  "/:id",
+  requireProjectContext,
+  async (req, res) => {
+    try {
+      const artifact = await artifactService.getById(req.params.id);
+      if (!artifact) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Idea not found" },
+        });
+      }
+      if (artifact.metadata.projectId !== req.projectId) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Idea not found" },
+        });
+      }
+      let score: number | null = null;
+      const scoreMatch = artifact.rawContent.match(/\*\*Overall Score:\*\*\s*(\d+)\/100/);
+      if (scoreMatch) {
+        score = parseInt(scoreMatch[1], 10);
+      }
+      res.json({
+        success: true,
+        data: {
+          id: artifact.metadata.id,
+          title: artifact.metadata.title.replace(/^Ideas Reference:\s*/i, ""),
+          version: artifact.metadata.version,
+          createdAt: artifact.metadata.createdAt,
+          stage: artifact.metadata.stage,
+          score,
+          rawContent: artifact.rawContent,
+          sections: artifact.sections,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "GET_ERROR",
+          message: error instanceof Error ? error.message : "Failed to get idea",
+        },
+      });
+    }
+  }
+);
 
 // Analyze an idea (does NOT save - just returns analysis for review)
 // Requires project context and generate permission
