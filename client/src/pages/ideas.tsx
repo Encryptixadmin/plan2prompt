@@ -636,14 +636,25 @@ export default function IdeasPage() {
       const response = await apiRequest("POST", "/api/ideas/accept", {
         analysis: analysisData,
       });
-      return response as unknown as { success: boolean; data: { analysis: IdeaAnalysis } };
+      return response.json() as Promise<{ success: boolean; data: { analysis: IdeaAnalysis } }>;
     },
     onSuccess: (data) => {
       if (data.success) {
         setAnalysis(data.data.analysis);
         setIsAccepted(true);
         queryClient.invalidateQueries({ queryKey: ["/api/ideas"] });
+        toast({
+          title: "Idea accepted",
+          description: "Your idea has been saved and is ready for requirements generation.",
+        });
       }
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to save idea",
+        description: mapBackendError(error),
+      });
     },
   });
 

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { mapBackendError } from "@/lib/error-messages";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -570,6 +572,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
 }
 
 export default function RequirementsPage() {
+  const { toast } = useToast();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [ideaPreview, setIdeaPreview] = useState<IdeaPreview | null>(null);
@@ -602,13 +605,20 @@ export default function RequirementsPage() {
       const response = await apiRequest("POST", "/api/requirements/generate", {
         ideaArtifactId,
       });
-      return response as unknown as { success: boolean; data: GenerateRequirementsResponse };
+      return response.json() as Promise<{ success: boolean; data: GenerateRequirementsResponse }>;
     },
     onSuccess: (data) => {
       if (data.success) {
         setRequirements(data.data.requirements);
         setIsAccepted(false);
       }
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Generation failed",
+        description: mapBackendError(error),
+      });
     },
   });
 
@@ -617,13 +627,24 @@ export default function RequirementsPage() {
       const response = await apiRequest("POST", "/api/requirements/accept", {
         requirements: reqs,
       });
-      return response as unknown as { success: boolean; data: { requirements: RequirementsDocument } };
+      return response.json() as Promise<{ success: boolean; data: { requirements: RequirementsDocument } }>;
     },
     onSuccess: (data) => {
       if (data.success) {
         setRequirements(data.data.requirements);
         setIsAccepted(true);
+        toast({
+          title: "Requirements accepted",
+          description: "Requirements have been saved and are ready for prompt generation.",
+        });
       }
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to save requirements",
+        description: mapBackendError(error),
+      });
     },
   });
 
