@@ -76,14 +76,17 @@ export const MODEL_COSTS: Record<string, ModelCostConfig> = {
   "gpt-4o-mini": { inputPer1k: 0.00015, outputPer1k: 0.0006 },
   "claude-3-5-sonnet-20241022": { inputPer1k: 0.003, outputPer1k: 0.015 },
   "claude-3-opus-20240229": { inputPer1k: 0.015, outputPer1k: 0.075 },
-  "gemini-1.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.005 },
-  "gemini-pro": { inputPer1k: 0.00025, outputPer1k: 0.0005 },
+  "gemini-2.5-flash": { inputPer1k: 0.00015, outputPer1k: 0.0006 },
+  "gemini-2.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.005 },
+  "gemini-2.0-flash": { inputPer1k: 0.0001, outputPer1k: 0.0004 },
+  "gemini-2.0-flash-lite": { inputPer1k: 0.000075, outputPer1k: 0.0003 },
 };
 
 export const COST_PER_1K_TOKENS: Record<AIProvider, number> = {
   openai: 0.002,
   anthropic: 0.003,
   gemini: 0.001,
+  "anthropic-opus": 0.045,
 };
 
 export const USAGE_SOFT_THRESHOLDS = {

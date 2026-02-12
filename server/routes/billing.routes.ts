@@ -26,7 +26,7 @@ router.get("/plans", async (_req, res) => {
 router.get("/my-plan", isAuthenticated, async (req, res) => {
   try {
     const user = req.user as any;
-    const userId = user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId || user?.claims?.sub;
     
     if (!userId) {
       return res.status(401).json({

@@ -31,11 +31,10 @@ const ANTHROPIC_OPUS_MODEL_PREFERENCE = [
 ];
 
 const GEMINI_MODEL_PREFERENCE = [
-  "gemini-1.5-pro-latest",
-  "gemini-1.5-pro",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash",
-  "gemini-pro",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
 ];
 
 class ProviderValidationService {
@@ -169,7 +168,7 @@ class ProviderValidationService {
   }
 
   private async validateGemini(): Promise<void> {
-    const defaultModelId = "gemini-1.5-pro";
+    const defaultModelId = "gemini-2.5-flash";
     const provider: AIProviderType = "gemini";
     
     try {

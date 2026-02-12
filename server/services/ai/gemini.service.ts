@@ -3,7 +3,7 @@ import type { AIPrompt, AIProviderResponse, AITokenUsage } from "@shared/types/a
 import { BaseAIProvider, type ProviderConfig } from "./provider.interface";
 import { providerValidationService } from "./provider-validation.service";
 
-const DEFAULT_GEMINI_MODEL = "gemini-1.5-pro";
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 export class GeminiService extends BaseAIProvider {
   readonly provider = "gemini" as const;
