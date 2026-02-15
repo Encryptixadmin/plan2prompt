@@ -1,0 +1,162 @@
+You are acting as a senior product strategist, commercial analyst, and technical writer.
+
+Your task is to produce a structured Product Summary and Target Market Profile for the current application.
+
+All products must be clearly positioned as built, owned, and operated by MTE Software Ltd.
+
+Do not use marketing hype.
+Do not invent features.
+Base everything strictly on the implemented functionality and real platform capabilities.
+
+The output must be suitable for:
+• Website product pages
+• Investor materials
+• Partnership discussions
+• Capability decks
+• Commercial proposals
+
+────────────────────────────────────────
+PRIMARY OBJECTIVE
+────────────────────────────────────────
+
+Create a professional, structured document that:
+
+1. Clearly explains what the product does
+2. Defines who it is for
+3. Describes the problem it solves
+4. Explains the value it delivers
+5. Positions MTE Software Ltd as the technology builder and operator
+
+────────────────────────────────────────
+OUTPUT FORMAT (STRICT)
+────────────────────────────────────────
+
+Return a single markdown document using the exact structure below.
+No emojis.
+No exaggerated claims.
+No speculative roadmap features.
+Be precise and commercially clear.
+
+────────────────────────────────────────
+SECTION 1 — PRODUCT OVERVIEW
+────────────────────────────────────────
+
+• Product Name
+• Built and operated by: MTE Software Ltd
+• Product category (e.g. SaaS platform, AI-assisted tool, marketplace, compliance system, etc.)
+• One-paragraph executive summary explaining what the platform does and its primary purpose
+
+────────────────────────────────────────
+SECTION 2 — CORE FUNCTIONALITY
+────────────────────────────────────────
+
+List the platform’s key capabilities grouped logically.
+
+For each capability include:
+• What it does
+• Who uses it
+• The outcome it produces
+• Whether it is core, supporting, or administrative
+
+Focus on operational capability, not UI detail.
+
+────────────────────────────────────────
+SECTION 3 — PROBLEM STATEMENT
+────────────────────────────────────────
+
+Define:
+• The primary problem(s) the product solves
+• The inefficiencies or risks it reduces
+• The gap in the market it addresses
+
+Base this on actual functionality, not aspiration.
+
+────────────────────────────────────────
+SECTION 4 — TARGET MARKET
+────────────────────────────────────────
+
+Define clearly:
+
+• Primary target users (roles, industries, business size)
+• Secondary users (if applicable)
+• Geographic scope (if relevant)
+• Regulatory or operational context (if applicable)
+
+Be specific and realistic.
+
+────────────────────────────────────────
+SECTION 5 — IDEAL CUSTOMER PROFILE (ICP)
+────────────────────────────────────────
+
+Describe:
+
+• Organisation type
+• Size or maturity level
+• Pain points
+• Decision maker profile
+• Budget sensitivity (low, medium, high)
+• Technical capability expectations
+
+────────────────────────────────────────
+SECTION 6 — VALUE PROPOSITION
+────────────────────────────────────────
+
+Explain:
+
+• Why this product exists
+• What measurable benefit it delivers
+• Time, cost, risk, or efficiency impact
+• How it improves decision-making or operational performance
+
+Avoid generic claims.
+
+────────────────────────────────────────
+SECTION 7 — COMPETITIVE POSITIONING
+────────────────────────────────────────
+
+Without naming specific competitors unless clearly applicable, describe:
+
+• What makes this product structurally different
+• Where it has operational depth
+• Whether it competes on compliance, automation, usability, integration, intelligence, or cost
+
+Only describe advantages that are supported by real functionality.
+
+────────────────────────────────────────
+SECTION 8 — DELIVERY & OWNERSHIP
+────────────────────────────────────────
+
+State clearly:
+
+• The product is built, maintained, and operated by MTE Software Ltd
+• MTE Software Ltd controls the architecture and roadmap
+• The platform is developed using modern, scalable technology
+• The company provides ongoing technical stewardship and iteration
+
+Do not overstate scale or compliance unless implemented.
+
+────────────────────────────────────────
+SECTION 9 — COMMERCIAL MODEL (IF APPLICABLE)
+────────────────────────────────────────
+
+If relevant, describe:
+
+• Subscription model
+• Usage-based pricing
+• Licensing structure
+• Enterprise or partner deployment options
+
+If pricing is not implemented, state that the commercial model is configurable.
+
+────────────────────────────────────────
+CONSTRAINTS
+────────────────────────────────────────
+
+• Do NOT invent features
+• Do NOT reference future roadmap items
+• Do NOT exaggerate
+• Do NOT use promotional language
+• Ensure MTE Software Ltd is clearly positioned as builder and operator
+• Base all statements on actual platform capability
+
+The final document must be suitable for direct inclusion in commercial materials.
