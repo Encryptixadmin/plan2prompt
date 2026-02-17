@@ -4,11 +4,11 @@
 
 ## Section 1 -- Product Overview
 
-- **Product Name:** IdeaForge
+- **Product Name:** Plan2Prompt
 - **Built and operated by:** MTE Software Ltd
 - **Product Category:** AI-assisted product validation and development planning platform (SaaS)
 
-IdeaForge is a web-based platform that helps individuals and teams validate application ideas through structured, AI-driven analysis before committing resources to development. It uses multiple AI providers (OpenAI, Anthropic, Google Gemini) operating through a consensus mechanism to assess idea viability across technical, market, financial, and timeline dimensions. The platform enforces a sequential pipeline -- Idea Validation, Requirements Generation, Build Prompt Generation -- producing versioned Markdown artifacts at each stage. Its primary purpose is to reduce the risk of building products that lack viability by providing structured, evidence-based analysis and actionable development plans.
+Plan2Prompt is a web-based platform that helps individuals and teams validate application ideas through structured, AI-driven analysis before committing resources to development. It uses multiple AI providers (OpenAI, Anthropic, Google Gemini) operating through a consensus mechanism to assess idea viability across technical, market, financial, and timeline dimensions. The platform enforces a sequential pipeline -- Idea Validation, Requirements Generation, Build Prompt Generation -- producing versioned Markdown artifacts at each stage. Its primary purpose is to reduce the risk of building products that lack viability by providing structured, evidence-based analysis and actionable development plans.
 
 ---
 
@@ -125,11 +125,11 @@ IdeaForge is a web-based platform that helps individuals and teams validate appl
 
 ### Primary Problems Solved
 
-1. **Premature development investment.** Builders frequently commit weeks or months to products before validating whether the idea is technically feasible, commercially viable, or differentiated from existing alternatives. IdeaForge forces structured evaluation before development begins.
+1. **Premature development investment.** Builders frequently commit weeks or months to products before validating whether the idea is technically feasible, commercially viable, or differentiated from existing alternatives. Plan2Prompt forces structured evaluation before development begins.
 
 2. **Shallow or biased self-assessment.** Individual builders and small teams lack the diversity of perspective needed to identify blind spots in their own ideas. The multi-provider AI consensus mechanism provides analysis from multiple reasoning approaches, reducing single-source bias.
 
-3. **Unstructured transition from idea to development.** Even when ideas are validated, the path from concept to actionable development plan is typically ad hoc. IdeaForge produces structured requirements and IDE-specific build plans, reducing ambiguity in the planning phase.
+3. **Unstructured transition from idea to development.** Even when ideas are validated, the path from concept to actionable development plan is typically ad hoc. Plan2Prompt produces structured requirements and IDE-specific build plans, reducing ambiguity in the planning phase.
 
 4. **Misapplied evaluation frameworks.** A learning project should not be evaluated with the same commercial metrics as a SaaS product. Purpose-aware analysis applies the right evaluation criteria to the right type of project.
 
@@ -142,7 +142,7 @@ IdeaForge is a web-based platform that helps individuals and teams validate appl
 
 ### Market Gap Addressed
 
-Existing tools in this space tend to be either simple idea scoring tools with superficial analysis, or heavyweight product management platforms that assume the product already exists. IdeaForge occupies the space between initial concept and first line of code -- the validation and planning phase that is currently handled informally by most builders.
+Existing tools in this space tend to be either simple idea scoring tools with superficial analysis, or heavyweight product management platforms that assume the product already exists. Plan2Prompt occupies the space between initial concept and first line of code -- the validation and planning phase that is currently handled informally by most builders.
 
 ---
 
@@ -185,7 +185,7 @@ The platform operates in the product development lifecycle, specifically the pre
 
 ### Why This Product Exists
 
-Most software products fail not because of poor engineering, but because the idea was insufficiently validated before development began. IdeaForge exists to make structured idea validation fast, accessible, and actionable -- replacing informal gut-feel decisions with evidence-based analysis.
+Most software products fail not because of poor engineering, but because the idea was insufficiently validated before development began. Plan2Prompt exists to make structured idea validation fast, accessible, and actionable -- replacing informal gut-feel decisions with evidence-based analysis.
 
 ### Measurable Benefits
 
@@ -205,7 +205,7 @@ The platform surfaces information that builders typically discover too late: unv
 
 ### Structural Differences
 
-- **Multi-provider AI consensus:** Unlike tools that rely on a single AI model, IdeaForge aggregates analysis from multiple providers and measures inter-provider agreement, providing a confidence metric alongside the analysis itself.
+- **Multi-provider AI consensus:** Unlike tools that rely on a single AI model, Plan2Prompt aggregates analysis from multiple providers and measures inter-provider agreement, providing a confidence metric alongside the analysis itself.
 - **Enforced pipeline sequencing:** The platform does not allow users to skip validation stages. This is a deliberate design decision that prevents the common pattern of rushing from concept to code without intermediate validation.
 - **Purpose-aware evaluation:** The platform applies different evaluation frameworks for different project types, avoiding the common mistake of applying commercial metrics to non-commercial projects.
 - **End-to-end artifact chain:** The platform maintains a versioned chain of artifacts from initial idea through requirements to build prompts, with dependency tracking and outdated-artifact detection. This provides traceability from concept to code.
@@ -216,13 +216,13 @@ The platform has particular depth in the idea validation phase, with features su
 
 ### Competitive Axis
 
-IdeaForge competes primarily on **intelligence and structured process** rather than on price, integration breadth, or feature quantity. Its value is in the quality and structure of its analysis output and the discipline it imposes on the validation-to-development workflow.
+Plan2Prompt competes primarily on **intelligence and structured process** rather than on price, integration breadth, or feature quantity. Its value is in the quality and structure of its analysis output and the discipline it imposes on the validation-to-development workflow.
 
 ---
 
 ## Section 8 -- Delivery and Ownership
 
-- IdeaForge is built, maintained, and operated by **MTE Software Ltd**.
+- Plan2Prompt is built, maintained, and operated by **MTE Software Ltd**.
 - MTE Software Ltd controls the full technology architecture, product roadmap, and operational infrastructure.
 - The platform is developed using modern, scalable web technologies: React 19, TypeScript, Node.js, PostgreSQL, and integrates with enterprise-grade AI services (OpenAI, Anthropic, Google Gemini).
 - MTE Software Ltd provides ongoing technical stewardship, including AI provider management, model updates, security maintenance, and feature iteration.
