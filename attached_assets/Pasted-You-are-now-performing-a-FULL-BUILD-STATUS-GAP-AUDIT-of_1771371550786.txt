@@ -1,0 +1,180 @@
+You are now performing a FULL BUILD STATUS & GAP AUDIT of this platform.
+
+EXECUTION MODE:
+Audit and verification.
+NO new code.
+NO refactors.
+NO feature suggestions unless explicitly requested.
+
+OBJECTIVE:
+Determine:
+1. What is actually implemented today (based strictly on code)
+2. What is partially implemented
+3. What is missing or incomplete
+4. What must be completed before production readiness
+
+This is NOT a roadmap.
+This is NOT a product pitch.
+This is NOT a marketing summary.
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+1. Base ALL findings strictly on:
+   - Backend routes
+   - Services
+   - Middleware
+   - Database schema
+   - Frontend flows
+   - Tests
+2. Do NOT rely on:
+   - TODO comments
+   - Intended design
+   - Planned features
+   - Assumptions
+3. If something is template-based or mocked, explicitly state it.
+4. If something requires manual workaround, explicitly state it.
+5. If something exists but is not wired into the UI, explicitly state it.
+6. Be blunt and precise.
+
+--------------------------------
+AUDIT SCOPE
+--------------------------------
+
+Audit the platform under these categories:
+
+--------------------------------
+1. IDEA DISCOVERY & CONSENSUS
+--------------------------------
+- Are AI responses truly parsed or template-generated?
+- Is consensus real or simulated?
+- Is STOP enforcement complete?
+- Is scoring formula-driven or AI-driven?
+- Is provider validation reliable?
+
+--------------------------------
+2. GUIDED REFINEMENT WORKSHOP
+--------------------------------
+- Are workshop sessions persisted?
+- Do workshop answers affect scoring?
+- Are risk severities recalculated?
+- Is before/after comparison accurate?
+- Can users resume workshops?
+
+--------------------------------
+3. REQUIREMENTS GENERATION
+--------------------------------
+- Are requirements generated dynamically from AI output?
+- Or template-based?
+- Are idea risks carried into requirements?
+- Is scope explicitly enforced?
+- Are assumptions versioned?
+
+--------------------------------
+4. PROMPT ORCHESTRATION
+--------------------------------
+- Are prompts derived from requirements?
+- Or static templates?
+- Are step dependencies enforced?
+- Is execution state tracked?
+- Can steps be skipped?
+
+--------------------------------
+5. OPUS EXECUTION COMPILATION
+--------------------------------
+- Is Opus integrated?
+- Is model validation dynamic?
+- Is output structured and deterministic?
+- Is there frontend integration?
+- Is IDE handoff implemented?
+- Is copy/paste still required?
+
+--------------------------------
+6. EXECUTION FEEDBACK LOOP
+--------------------------------
+- Are failure patterns comprehensive?
+- Is classification deterministic?
+- Is recovery actionable?
+- Can failures escalate to requirements refinement?
+- Is loop prevention implemented?
+
+--------------------------------
+7. GOVERNANCE & SAFETY
+--------------------------------
+- Is project isolation enforced?
+- Are permissions correct?
+- Are billing limits enforced or soft-only?
+- Is usage persisted?
+- Are artifacts stored safely?
+- Is file storage production-safe?
+
+--------------------------------
+8. TESTING & INVARIANTS
+--------------------------------
+- Are invariant tests present?
+- What is covered?
+- What is not tested?
+- Are there type errors or warnings?
+- Are critical flows covered?
+
+--------------------------------
+9. INFRASTRUCTURE READINESS
+--------------------------------
+- Is hosting environment production-ready?
+- Are logs persisted?
+- Are restarts handled?
+- Is rate limiting implemented?
+- Are environment variables validated?
+
+--------------------------------
+OUTPUT FORMAT
+--------------------------------
+
+Produce:
+
+--------------------------------
+A. BUILD STATUS MATRIX
+--------------------------------
+
+A table with columns:
+- Capability
+- Status (Complete / Partial / Missing)
+- Production-Ready? (Yes / No)
+- Requires Human Workaround? (Yes / No)
+- Evidence (file names / functions)
+
+--------------------------------
+B. CRITICAL GAPS
+--------------------------------
+
+List the top 5 blockers for:
+- Real-world testing
+- Production deployment
+
+Rank them by severity.
+
+--------------------------------
+C. WHAT NOT TO BUILD YET
+--------------------------------
+
+Based on the codebase, explicitly list:
+- Features that should NOT be expanded yet
+- Areas that are premature to invest in
+
+--------------------------------
+D. MINIMUM PRODUCTION CHECKLIST
+--------------------------------
+
+List ONLY the items that MUST be completed
+before moving to real-world production testing.
+
+--------------------------------
+FINAL INSTRUCTION
+--------------------------------
+
+After producing the audit:
+STOP.
+DO NOT write a roadmap.
+DO NOT propose improvements.
+DO NOT add new features.
+DO NOT speculate.
