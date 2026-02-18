@@ -1,0 +1,153 @@
+Proceed to LANDING PAGE REDESIGN.
+
+EXECUTION MODE:
+Design refinement only.
+Do NOT change core application logic.
+Do NOT alter authentication, routing, or modules.
+Focus only on visual hierarchy, messaging clarity, and structural layout.
+
+OBJECTIVE:
+Redesign the landing page so it reflects:
+
+- Structured AI-native build orchestration
+- Deterministic multi-stage pipeline
+- Execution integrity
+- Real-world production maturity
+
+The current design is too basic and does not communicate depth.
+
+--------------------------------
+CORE POSITIONING
+--------------------------------
+
+This is NOT:
+- A chat app
+- A prompt playground
+- A vibe coding tool
+
+This IS:
+- A structured build compiler
+- A staged orchestration engine
+- A deterministic AI-assisted execution system
+
+The design must communicate seriousness, structure, and capability.
+
+--------------------------------
+SECTION STRUCTURE (REQUIRED)
+--------------------------------
+
+1. HERO SECTION
+   - Headline must communicate structured orchestration.
+   - Example direction:
+     "From Idea to Production Build — With Control at Every Step."
+   - Subheading must emphasize:
+     - AI consensus
+     - Requirements intelligence
+     - Execution discipline
+   - Primary CTA:
+     "Start a Structured Build"
+   - Secondary CTA:
+     "See How It Works"
+
+2. HOW IT WORKS (PIPELINE VISUAL)
+   Show a horizontal staged flow:
+     Idea → Requirements → Prompts → Execution → Feedback → Refinement
+   Each stage should have:
+     - Short explanation
+     - One key capability highlight
+
+3. INTELLIGENCE CAPABILITIES SECTION
+   Highlight:
+     - Multi-model consensus analysis
+     - Technical & commercial viability modelling
+     - Structured requirements derivation
+     - Prompt-to-requirement traceability
+     - Execution integrity controls
+     - Deterministic escalation
+
+4. EXECUTION DISCIPLINE SECTION
+   Emphasize:
+     - No skipping steps
+     - Idempotency detection
+     - Failure classification
+     - Controlled clarification loops
+     - Upstream validation
+
+5. IDE INTEGRATION SECTION
+   Explain clearly:
+     - Prompts compile into executable instructions
+     - IDE remains runtime
+     - Platform remains orchestrator
+
+6. GOVERNANCE & SAFETY SECTION
+   Highlight:
+     - Project isolation
+     - Role-based permissions
+     - Usage tracking
+     - Structured logging
+     - AI provider validation
+
+7. FINAL CTA SECTION
+   Clear, simple:
+     "Build With Structure"
+     "Start a Project"
+
+--------------------------------
+VISUAL DESIGN RULES
+--------------------------------
+
+- Clean, modern, structured layout
+- Use clear sectional separation
+- No emojis
+- No playful copy
+- No hype language
+- Avoid "AI magic" phrasing
+- Emphasize discipline and clarity
+
+--------------------------------
+TONE
+--------------------------------
+
+Professional.
+Technical.
+Confident.
+Precise.
+No fluff.
+No buzzwords.
+No startup hyperbole.
+
+--------------------------------
+DO NOT
+--------------------------------
+
+- Add pricing
+- Add marketing experiments
+- Add testimonials
+- Add animated gimmicks
+- Add excessive motion
+- Change navigation structure
+
+--------------------------------
+OUTPUT REQUIREMENTS
+--------------------------------
+
+- Implement improved layout structure in landing component.
+- Improve typography hierarchy.
+- Improve spacing and sectional clarity.
+- Ensure mobile responsiveness.
+- Keep code clean and modular.
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After redesign:
+
+1. The page must immediately communicate:
+   - This is a structured system, not a chat tool.
+2. A technical founder should understand:
+   - What happens after they click "Start".
+3. The pipeline must be visually obvious.
+
+STOP.
+WAIT for confirmation.
