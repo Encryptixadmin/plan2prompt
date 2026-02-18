@@ -34,6 +34,7 @@ import { ModuleBlockedState } from "@/components/module-blocked-state";
 import { useProject } from "@/contexts/project-context";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useRequireProject } from "@/components/require-project-guard";
+import { ClarificationPanel } from "@/components/clarification-panel";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -434,6 +435,14 @@ export default function Prompts() {
               artifactId={generatedPrompts.artifactId}
               sourceArtifactId={generatedPrompts.requirementsArtifactId}
             />
+
+            {activeProject && (
+              <ClarificationPanel
+                projectId={activeProject.id}
+                module="prompts"
+                inline={(generatedPrompts as any).clarifications}
+              />
+            )}
 
             <Card>
               <CardHeader>

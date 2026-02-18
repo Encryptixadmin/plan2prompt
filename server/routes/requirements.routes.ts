@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requirementsService } from "../services/requirements.service";
 import { artifactService } from "../services/artifact.service";
+import { clarificationService } from "../services/clarification.service";
+import { clarificationDetectionService } from "../services/clarification-detection.service";
 import type { GenerateRequirementsRequest, RequirementsDocument } from "@shared/types/requirements";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { validateRequirementsGenerationStage } from "../validation/pipeline.validation";
@@ -146,10 +148,27 @@ router.post(
         userId
       );
 
+      let clarifications: any[] = [];
+      if (projectId) {
+        try {
+          const detectionResult = clarificationDetectionService.detectRequirementsGaps(
+            requirements,
+            request.ideaArtifactId,
+            projectId
+          );
+          if (detectionResult.contracts.length > 0) {
+            clarifications = await clarificationService.processDetectionResult(detectionResult);
+          }
+        } catch (err) {
+          console.warn("[Requirements] Clarification detection failed (non-blocking):", err);
+        }
+      }
+
       res.json({
         success: true,
         data: {
           requirements,
+          clarifications,
         },
         metadata: { timestamp: new Date().toISOString() },
       });

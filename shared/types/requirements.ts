@@ -203,4 +203,5 @@ export interface GenerateRequirementsRequest {
 export interface GenerateRequirementsResponse {
   requirements: RequirementsDocument;
   artifactPath: string;
+  clarifications?: any[];
 }

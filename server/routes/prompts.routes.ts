@@ -7,6 +7,8 @@ import { billingService } from "../services/billing.service";
 import { feedbackService } from "../services/feedback.service";
 import { classifierService } from "../services/classifier.service";
 import { feedbackMetricsService } from "../services/feedback-metrics.service";
+import { clarificationService } from "../services/clarification.service";
+import { clarificationDetectionService } from "../services/clarification-detection.service";
 import { validatePromptGenerationStage, validateNotOutdated } from "../validation/pipeline.validation";
 import { anthropicOpusService } from "../services/ai/anthropic-opus.service";
 import { providerValidationService } from "../services/ai/provider-validation.service";
@@ -121,14 +123,29 @@ router.post(
         ide
       );
 
-      // Record generation to billing service (prompts are template-based, estimate ~500 tokens)
       if (req.userId) {
         billingService.recordGeneration(req.userId, 500);
       }
 
+      let clarifications: any[] = [];
+      if (req.projectId) {
+        try {
+          const detectionResult = clarificationDetectionService.detectPromptGaps(
+            prompts,
+            requirementsArtifactId,
+            req.projectId
+          );
+          if (detectionResult.contracts.length > 0) {
+            clarifications = await clarificationService.processDetectionResult(detectionResult);
+          }
+        } catch (err) {
+          console.warn("[Prompts] Clarification detection failed (non-blocking):", err);
+        }
+      }
+
       res.json({
         success: true,
-        data: prompts,
+        data: { ...prompts, clarifications },
       });
     } catch (error) {
       console.error("Error generating prompts:", error);
@@ -234,7 +251,6 @@ router.post("/feedback", async (req: Request, res: Response) => {
     const userId = req.userId || "anonymous";
     const projectId = artifact.metadata.projectId || "unknown";
 
-    // Fire-and-forget: persistence failure must NOT block user recovery response
     void feedbackMetricsService.recordEvent({
       userId,
       projectId,
@@ -253,9 +269,38 @@ router.post("/feedback", async (req: Request, res: Response) => {
       classificationResult.response.classification === "KNOWN_FAILURE" ? classificationResult.response.failurePatternName : undefined
     );
 
+    let executionClarification = null;
+    if (projectId && projectId !== "unknown") {
+      try {
+        const recentEntries = feedbackService.getRecentAuditEntries(50);
+        const sameStepSamePattern = recentEntries.filter(
+          e => e.promptDocumentId === request.promptDocumentId &&
+               e.stepNumber === request.stepNumber &&
+               e.failurePatternName === (classificationResult.response.classification === "KNOWN_FAILURE" ? classificationResult.response.failurePatternName : "unknown")
+        );
+        if (sameStepSamePattern.length >= 3) {
+          const escalation = clarificationDetectionService.detectExecutionEscalation(
+            classificationResult.pattern.id,
+            sameStepSamePattern.length,
+            request.stepNumber,
+            request.promptDocumentId,
+            projectId
+          );
+          if (escalation) {
+            executionClarification = await clarificationService.createOrIncrementContract(escalation);
+          }
+        }
+      } catch (err) {
+        console.warn("[Prompts/Feedback] Execution escalation failed (non-blocking):", err);
+      }
+    }
+
     res.json({
       success: true,
-      data: classificationResult.response,
+      data: {
+        ...classificationResult.response,
+        executionClarification,
+      },
     });
   } catch (error) {
     console.error("Error processing feedback:", error);

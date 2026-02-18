@@ -10,6 +10,7 @@ import promptsRoutes from "./routes/prompts.routes";
 import projectRoutes from "./routes/project.routes";
 import adminRoutes from "./routes/admin.routes";
 import billingRoutes from "./routes/billing.routes";
+import clarificationRoutes from "./routes/clarification.routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -49,6 +50,9 @@ export async function registerRoutes(
 
   // Billing routes (user-facing)
   app.use("/api/billing", billingRoutes);
+
+  // Clarification contract routes
+  app.use("/api/clarifications", clarificationRoutes);
 
   return httpServer;
 }

@@ -58,6 +58,7 @@ import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
 import { useProject } from "@/contexts/project-context";
 import { ArtifactPreview } from "@/components/artifact-preview";
+import { ClarificationPanel } from "@/components/clarification-panel";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useRequireProject } from "@/components/require-project-guard";
 
@@ -714,6 +715,7 @@ export default function RequirementsPage() {
   const [isAccepted, setIsAccepted] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [inlineClarifications, setInlineClarifications] = useState<any[]>([]);
 
   const { activeProject } = useProject();
 
@@ -745,6 +747,11 @@ export default function RequirementsPage() {
       if (data.success) {
         setRequirements(data.data.requirements);
         setIsAccepted(false);
+        if (data.data.clarifications && data.data.clarifications.length > 0) {
+          setInlineClarifications(data.data.clarifications);
+        } else {
+          setInlineClarifications([]);
+        }
       }
     },
     onError: (error: Error) => {
@@ -960,14 +967,31 @@ export default function RequirementsPage() {
             )}
           </div>
         ) : (
-          <RequirementsResults
-            requirements={requirements}
-            onAccept={handleAccept}
-            onRegenerate={handleRegenerate}
-            onGoBack={handleGoBack}
-            isAccepting={acceptMutation.isPending}
-            isAccepted={isAccepted}
-          />
+          <>
+            {inlineClarifications.length > 0 && activeProject && (
+              <div className="mb-4">
+                <ClarificationPanel
+                  projectId={activeProject.id}
+                  module="requirements"
+                  inline={inlineClarifications}
+                />
+              </div>
+            )}
+            {!inlineClarifications.length && activeProject && (
+              <ClarificationPanel
+                projectId={activeProject.id}
+                module="requirements"
+              />
+            )}
+            <RequirementsResults
+              requirements={requirements}
+              onAccept={handleAccept}
+              onRegenerate={handleRegenerate}
+              onGoBack={handleGoBack}
+              isAccepting={acceptMutation.isPending}
+              isAccepted={isAccepted}
+            />
+          </>
         )}
 
       <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
