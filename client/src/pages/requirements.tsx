@@ -49,6 +49,9 @@ import {
   Lock,
   FileCheck,
   AlertCircle,
+  Target,
+  GitBranch,
+  ShieldAlert,
 } from "lucide-react";
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
@@ -77,11 +80,14 @@ interface IdeaPreview {
   strengths: string;
 }
 
-function PriorityBadge({ priority }: { priority: "must-have" | "should-have" | "nice-to-have" | "critical" | "high" | "medium" | "low" }) {
+function PriorityBadge({ priority }: { priority: string }) {
   const variants: Record<string, string> = {
     "must-have": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
     "should-have": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
     "nice-to-have": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    "High": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    "Medium": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "Low": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
     high: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
     medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -150,6 +156,33 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               Once accepted, modifying the underlying idea will require creating a new version.
             </CardDescription>
           </CardHeader>
+        </Card>
+      )}
+
+      {requirements.systemOverview && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              System Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-purpose">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purpose</span>
+                <p className="text-sm">{requirements.systemOverview.purpose}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-core-user">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Core User</span>
+                <p className="text-sm">{requirements.systemOverview.coreUser}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-outcome">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Outcome</span>
+                <p className="text-sm">{requirements.systemOverview.primaryOutcome}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -292,6 +325,48 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             </div>
           </AccordionContent>
         </AccordionItem>
+
+        {requirements.architectureDecisions && requirements.architectureDecisions.length > 0 && (
+          <AccordionItem value="archdecisions" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-teal-100 dark:bg-teal-900/30">
+                  <GitBranch className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div className="text-left">
+                  <span className="font-semibold">Architecture Decisions</span>
+                  <span className="text-sm text-muted-foreground ml-2">
+                    ({requirements.architectureDecisions.length} decisions)
+                  </span>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-4">
+                {requirements.architectureDecisions.map((ad) => (
+                  <div key={ad.id} className="p-4 rounded-lg bg-muted/50 space-y-2" data-testid={`arch-decision-${ad.id}`}>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-mono">{ad.id}</Badge>
+                      <span className="font-medium text-sm">{ad.title}</span>
+                    </div>
+                    <p className="text-sm"><span className="text-muted-foreground font-medium">Decision:</span> {ad.decision}</p>
+                    <p className="text-sm"><span className="text-muted-foreground font-medium">Rationale:</span> {ad.rationale}</p>
+                    {ad.alternatives && ad.alternatives.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Alternatives:</span> {ad.alternatives.join(", ")}
+                      </div>
+                    )}
+                    {ad.tradeoffs && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Tradeoffs:</span> {ad.tradeoffs}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
         <AccordionItem value="datamodels" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
@@ -484,6 +559,65 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             </div>
           </AccordionContent>
         </AccordionItem>
+        {requirements.riskTraceability && requirements.riskTraceability.length > 0 && (
+          <AccordionItem value="risktraceability" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-rose-100 dark:bg-rose-900/30">
+                  <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div className="text-left">
+                  <span className="font-semibold">Risk Traceability</span>
+                  <span className="text-sm text-muted-foreground ml-2">
+                    ({requirements.riskTraceability.length} risks tracked)
+                  </span>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="pt-4 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-medium">Risk ID</th>
+                      <th className="text-left py-2 px-2 font-medium">Description</th>
+                      <th className="text-left py-2 px-2 font-medium">Mitigation</th>
+                      <th className="text-left py-2 px-2 font-medium">Coverage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requirements.riskTraceability.map((rt) => (
+                      <tr key={rt.riskId} className="border-b last:border-0" data-testid={`risk-row-${rt.riskId}`}>
+                        <td className="py-2 px-2 font-mono text-xs">{rt.riskId}</td>
+                        <td className="py-2 px-2">{rt.riskDescription}</td>
+                        <td className="py-2 px-2 font-mono text-xs">
+                          {rt.mitigationInRequirementIds.length > 0
+                            ? rt.mitigationInRequirementIds.join(", ")
+                            : <span className="text-muted-foreground">None</span>
+                          }
+                        </td>
+                        <td className="py-2 px-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              rt.coverageStatus === "fully-mitigated"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                : rt.coverageStatus === "partially-mitigated"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                            }`}
+                          >
+                            {rt.coverageStatus}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
 
       {!isAccepted && (

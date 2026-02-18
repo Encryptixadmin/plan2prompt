@@ -1,0 +1,148 @@
+Proceed to REQUIREMENTS MODULE INTELLIGENCE UPGRADE.
+
+EXECUTION MODE:
+Replace template generation with structured AI-derived output.
+NO UI redesign beyond rendering structured fields.
+NO prompt generation changes yet.
+
+OBJECTIVE:
+Replace template-based requirements generation with
+AI-enforced structured JSON output derived from:
+
+- Validated Idea
+- Structured Idea Analysis (technicalProfile, commercialProfile, risks, assumptions)
+- Workshop refinement output (if present)
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- Requirements must be derived from AI output
+- Structured JSON schema enforced
+- No placeholder generators
+- Deterministic parsing
+- Consensus across providers preserved
+
+--------------------------------
+PART 1 — DEFINE STRICT REQUIREMENTS SCHEMA
+--------------------------------
+
+Replace current RequirementsDocument generation with:
+
+{
+  "systemOverview": {
+    "purpose": string,
+    "coreUser": string,
+    "primaryOutcome": string
+  },
+  "functionalRequirements": [
+    {
+      "id": string,
+      "title": string,
+      "description": string,
+      "acceptanceCriteria": [],
+      "priority": "High|Medium|Low"
+    }
+  ],
+  "nonFunctionalRequirements": {
+    "performance": [],
+    "security": [],
+    "compliance": [],
+    "scalability": [],
+    "usability": []
+  },
+  "dataModel": {
+    "entities": [],
+    "relationships": []
+  },
+  "apiContracts": [],
+  "architectureDecisions": [],
+  "assumptions": [],
+  "explicitOutOfScope": [],
+  "riskTraceability": [
+    {
+      "riskId": string,
+      "mitigationInRequirementIds": []
+    }
+  ]
+}
+
+--------------------------------
+PART 2 — ENFORCE JSON OUTPUT FROM AI
+--------------------------------
+
+Update requirements.service.ts to:
+
+1. Construct a system prompt that:
+   - Instructs AI to output ONLY valid JSON
+   - Follows the schema strictly
+   - No narrative text
+
+2. Pass into AI:
+   - Idea text
+   - Structured idea analysis
+   - Workshop findings
+   - Risk drivers
+   - Assumptions
+
+3. Validate JSON structure after response.
+   - If invalid JSON:
+     - Retry once
+     - If still invalid → exclude provider
+
+--------------------------------
+PART 3 — CONSENSUS LOGIC
+--------------------------------
+
+ConsensusService must:
+
+- Merge structured JSON fields
+- Detect conflicts (e.g. differing architectureDecisions)
+- Use majority or weighted consensus per field
+- Preserve riskTraceability mapping
+
+--------------------------------
+PART 4 — REMOVE TEMPLATE GENERATORS
+--------------------------------
+
+Delete:
+- generateFunctionalRequirements()
+- generateNonFunctionalRequirements()
+- generateDataModel()
+- All static placeholder sections
+
+--------------------------------
+PART 5 — TRACE IDEA RISKS INTO REQUIREMENTS
+--------------------------------
+
+For each primaryRiskDriver from idea analysis:
+
+- Ensure at least one requirement references it in riskTraceability.
+- If no mitigation exists → include in explicitOutOfScope with warning.
+
+--------------------------------
+PART 6 — TESTING
+--------------------------------
+
+Add tests verifying:
+
+- Requirements differ between two very different ideas
+- RiskTraceability exists
+- ExplicitOutOfScope varies per idea
+- JSON parsing rejects malformed provider responses
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Submit two very different ideas.
+2. Generate requirements for both.
+3. Confirm:
+   - Different functionalRequirements
+   - Different architectureDecisions
+   - Different data models
+4. Confirm no template placeholders exist.
+
+STOP.
+WAIT for confirmation.

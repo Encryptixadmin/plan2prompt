@@ -4,28 +4,31 @@
  * Types for converting validated ideas into structured requirements documents.
  */
 
-// Functional requirement
+export interface SystemOverview {
+  purpose: string;
+  coreUser: string;
+  primaryOutcome: string;
+}
+
 export interface FunctionalRequirement {
   id: string;
   category: string;
   title: string;
   description: string;
-  priority: "must-have" | "should-have" | "nice-to-have";
+  priority: "must-have" | "should-have" | "nice-to-have" | "High" | "Medium" | "Low";
   acceptanceCriteria: string[];
   dependencies?: string[];
 }
 
-// Non-functional requirement
 export interface NonFunctionalRequirement {
   id: string;
-  category: "performance" | "security" | "scalability" | "reliability" | "usability" | "maintainability" | "compatibility";
+  category: "performance" | "security" | "scalability" | "reliability" | "usability" | "maintainability" | "compatibility" | "compliance";
   title: string;
   description: string;
   metric?: string;
   target?: string;
 }
 
-// Architecture component
 export interface ArchitectureComponent {
   name: string;
   type: "frontend" | "backend" | "database" | "service" | "external" | "infrastructure";
@@ -35,7 +38,6 @@ export interface ArchitectureComponent {
   interfaces?: string[];
 }
 
-// Architecture overview
 export interface ArchitectureOverview {
   pattern: string;
   description: string;
@@ -44,7 +46,15 @@ export interface ArchitectureOverview {
   deploymentNotes?: string;
 }
 
-// Data model entity
+export interface ArchitectureDecision {
+  id: string;
+  title: string;
+  decision: string;
+  rationale: string;
+  alternatives?: string[];
+  tradeoffs?: string;
+}
+
 export interface DataModelEntity {
   name: string;
   description: string;
@@ -62,7 +72,16 @@ export interface DataModelEntity {
   }[];
 }
 
-// API endpoint contract
+export interface DataModel {
+  entities: DataModelEntity[];
+  relationships: {
+    from: string;
+    to: string;
+    type: "one-to-one" | "one-to-many" | "many-to-many";
+    description?: string;
+  }[];
+}
+
 export interface APIEndpoint {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
@@ -82,7 +101,6 @@ export interface APIEndpoint {
   }[];
 }
 
-// API contracts
 export interface APIContracts {
   baseUrl: string;
   version: string;
@@ -90,7 +108,6 @@ export interface APIContracts {
   endpoints: APIEndpoint[];
 }
 
-// UI/UX principles
 export interface UIUXPrinciples {
   designSystem: string;
   keyPrinciples: {
@@ -106,7 +123,6 @@ export interface UIUXPrinciples {
   responsiveBreakpoints?: string[];
 }
 
-// Security consideration
 export interface SecurityConsideration {
   category: "authentication" | "authorization" | "data-protection" | "input-validation" | "infrastructure" | "compliance";
   title: string;
@@ -115,7 +131,6 @@ export interface SecurityConsideration {
   priority: "critical" | "high" | "medium" | "low";
 }
 
-// Assumption made during requirements
 export interface RequirementAssumption {
   id: string;
   category: "technical" | "user" | "operational" | "business" | "integration";
@@ -124,7 +139,6 @@ export interface RequirementAssumption {
   impact: string;
 }
 
-// Explicit out-of-scope item
 export interface OutOfScopeItem {
   id: string;
   item: string;
@@ -132,7 +146,6 @@ export interface OutOfScopeItem {
   futureConsideration?: boolean;
 }
 
-// Edge case and failure mode
 export interface EdgeCaseFailureMode {
   id: string;
   scenario: string;
@@ -142,7 +155,6 @@ export interface EdgeCaseFailureMode {
   recoveryAction?: string;
 }
 
-// Confidence note for uncertain areas
 export interface ConfidenceNote {
   id: string;
   section: string;
@@ -152,15 +164,24 @@ export interface ConfidenceNote {
   mitigationSuggestion?: string;
 }
 
-// Complete requirements document
+export interface RiskTraceabilityEntry {
+  riskId: string;
+  riskDescription: string;
+  mitigationInRequirementIds: string[];
+  coverageStatus: "fully-mitigated" | "partially-mitigated" | "unmitigated";
+}
+
 export interface RequirementsDocument {
   id: string;
   ideaArtifactId: string;
   ideaTitle: string;
+  systemOverview?: SystemOverview;
   functionalRequirements: FunctionalRequirement[];
   nonFunctionalRequirements: NonFunctionalRequirement[];
   architecture: ArchitectureOverview;
+  architectureDecisions?: ArchitectureDecision[];
   dataModels: DataModelEntity[];
+  dataModel?: DataModel;
   apiContracts: APIContracts;
   uiuxPrinciples: UIUXPrinciples;
   securityConsiderations: SecurityConsideration[];
@@ -168,18 +189,17 @@ export interface RequirementsDocument {
   outOfScope: OutOfScopeItem[];
   edgeCasesAndFailureModes: EdgeCaseFailureMode[];
   confidenceNotes: ConfidenceNote[];
+  riskTraceability?: RiskTraceabilityEntry[];
   summary: string;
   version: string;
   createdAt: string;
   artifactId?: string;
 }
 
-// Requirements module API request
 export interface GenerateRequirementsRequest {
   ideaArtifactId: string;
 }
 
-// Requirements module API response
 export interface GenerateRequirementsResponse {
   requirements: RequirementsDocument;
   artifactPath: string;
