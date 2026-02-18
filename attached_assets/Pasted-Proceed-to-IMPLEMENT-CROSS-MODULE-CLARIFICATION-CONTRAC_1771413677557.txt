@@ -1,0 +1,173 @@
+Proceed to IMPLEMENT CROSS-MODULE CLARIFICATION CONTRACT.
+
+EXECUTION MODE:
+Architectural enhancement.
+NO chat features.
+NO autonomous rewriting.
+NO UI redesign beyond rendering clarification panels.
+
+OBJECTIVE:
+Implement a structured Clarification Contract system
+allowing modules to raise upstream clarification requests
+in a deterministic and controlled way.
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- Feedback flows upward only.
+- No module modifies upstream artefacts automatically.
+- Clarifications are explicit, typed, and versioned.
+- Escalation requires user confirmation.
+
+--------------------------------
+PART 1 — CREATE CLARIFICATION SCHEMA
+--------------------------------
+
+Create shared/types/clarification.ts
+
+Define ClarificationContract interface exactly as:
+
+{
+  id: string
+  timestamp: Date
+  originatingModule: "requirements" | "prompts" | "execution"
+  currentArtifactId: string
+  currentArtifactVersion: number
+  upstreamArtifactId: string
+  upstreamArtifactVersion: number
+  severity: "advisory" | "blocker"
+  category:
+    | "missing_information"
+    | "contradiction"
+    | "architecture_gap"
+    | "regulatory_gap"
+    | "data_model_gap"
+    | "scope_conflict"
+    | "execution_failure"
+  title: string
+  description: string
+  affectedEntities?: {
+    requirementIds?: string[]
+    promptStepIds?: string[]
+    ideaRiskIds?: string[]
+    assumptionIds?: string[]
+  }
+  requiredClarifications: [
+    {
+      field: string
+      question: string
+      expectedAnswerType:
+        | "short_text"
+        | "long_text"
+        | "select"
+        | "multi_select"
+        | "number"
+        | "boolean"
+      options?: string[]
+    }
+  ]
+  resolutionStatus: "pending" | "resolved" | "dismissed"
+}
+
+--------------------------------
+PART 2 — DATABASE TABLE
+--------------------------------
+
+Create new table:
+clarification_contracts
+
+Persist:
+- All fields above
+- Link to projectId
+
+--------------------------------
+PART 3 — REQUIREMENTS MODULE ESCALATION
+--------------------------------
+
+Inside requirements generation:
+
+Detect:
+- Missing critical fields
+- Undefined actors
+- No architecture decision
+- Regulatory gaps
+
+If detected:
+- Return ClarificationContract instead of requirements document
+- Do NOT proceed with generation if severity = blocker
+
+--------------------------------
+PART 4 — PROMPTS MODULE ESCALATION
+--------------------------------
+
+Inside prompt generation:
+
+Detect:
+- Missing database choice
+- Undefined auth model
+- Missing API definitions
+- Unmapped requirement IDs
+
+If detected:
+- Return ClarificationContract
+- Mark prompt generation as blocked
+
+--------------------------------
+PART 5 — EXECUTION ESCALATION
+--------------------------------
+
+In feedback classification:
+
+If repeated failures (>=3 identical hashes) map to same requirement:
+- Generate advisory ClarificationContract targeting requirements module
+
+--------------------------------
+PART 6 — UI HANDLING
+--------------------------------
+
+If ClarificationContract returned:
+
+- Display structured clarification panel
+- Render requiredClarifications fields
+- On submission:
+    - Create new upstream artefact version
+    - Mark downstream artefacts outdated
+    - Regenerate explicitly
+
+--------------------------------
+PART 7 — PREVENT LOOPING
+--------------------------------
+
+Add loop prevention rule:
+
+If identical ClarificationContract appears 3 times unresolved:
+- Escalate severity to blocker
+- Require manual resolution
+
+--------------------------------
+DO NOT
+--------------------------------
+- Allow modules to modify upstream artefacts automatically
+- Create sideways escalation
+- Add conversational UI
+- Merge clarification into chat
+- Auto-resolve without user action
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Trigger a requirements blocker scenario.
+2. Confirm:
+   - ClarificationContract created in DB
+   - UI blocks progression
+3. Resolve clarification.
+4. Confirm:
+   - Upstream artefact version increments
+   - Downstream marked outdated
+   - Regeneration requires explicit user action
+
+STOP.
+WAIT for confirmation.
