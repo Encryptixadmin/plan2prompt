@@ -155,3 +155,52 @@ export const insertPromptFeedbackEventSchema = createInsertSchema(promptFeedback
 
 export type InsertPromptFeedbackEvent = z.infer<typeof insertPromptFeedbackEventSchema>;
 export type PromptFeedbackEvent = typeof promptFeedbackEvents.$inferSelect;
+
+// ============================================
+// CLARIFICATION CONTRACTS (Cross-module escalation)
+// ============================================
+export const clarificationOriginModules = ["requirements", "prompts", "execution"] as const;
+export type ClarificationOriginModule = typeof clarificationOriginModules[number];
+
+export const clarificationCategories = [
+  "missing_information", "contradiction", "architecture_gap",
+  "regulatory_gap", "data_model_gap", "scope_conflict", "execution_failure",
+] as const;
+export type ClarificationCategory = typeof clarificationCategories[number];
+
+export const clarificationSeverities = ["advisory", "blocker"] as const;
+export type ClarificationSeverity = typeof clarificationSeverities[number];
+
+export const clarificationStatuses = ["pending", "resolved", "dismissed"] as const;
+export type ClarificationResolutionStatus = typeof clarificationStatuses[number];
+
+export const clarificationContracts = pgTable("clarification_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  originatingModule: text("originating_module").notNull().$type<ClarificationOriginModule>(),
+  currentArtifactId: varchar("current_artifact_id").notNull(),
+  currentArtifactVersion: integer("current_artifact_version").notNull().default(1),
+  upstreamArtifactId: varchar("upstream_artifact_id").notNull(),
+  upstreamArtifactVersion: integer("upstream_artifact_version").notNull().default(1),
+  severity: text("severity").notNull().$type<ClarificationSeverity>(),
+  category: text("category").notNull().$type<ClarificationCategory>(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  affectedEntities: text("affected_entities"),
+  requiredClarifications: text("required_clarifications").notNull(),
+  resolutionStatus: text("resolution_status").notNull().$type<ClarificationResolutionStatus>().default("pending"),
+  contractHash: text("contract_hash").notNull(),
+  occurrenceCount: integer("occurrence_count").notNull().default(1),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionData: text("resolution_data"),
+});
+
+export const insertClarificationContractSchema = createInsertSchema(clarificationContracts).omit({
+  id: true,
+  timestamp: true,
+  resolvedAt: true,
+});
+
+export type InsertClarificationContract = z.infer<typeof insertClarificationContractSchema>;
+export type ClarificationContractRecord = typeof clarificationContracts.$inferSelect;
