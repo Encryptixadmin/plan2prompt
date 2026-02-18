@@ -109,6 +109,36 @@ function calculateImprovements(
     improvements.push(`Technical feasibility improved (+${diff} points)`);
   }
 
+  if (prev.technicalProfile && next.technicalProfile) {
+    if (prev.technicalProfile.estimatedMvpEffortWeeks > next.technicalProfile.estimatedMvpEffortWeeks) {
+      improvements.push(`MVP effort reduced from ${prev.technicalProfile.estimatedMvpEffortWeeks} to ${next.technicalProfile.estimatedMvpEffortWeeks} weeks`);
+    }
+    if (prev.technicalProfile.complianceExposure !== next.technicalProfile.complianceExposure) {
+      const complianceOrder: Record<string, number> = { "None": 0, "Low": 1, "Moderate": 2, "High": 3 };
+      if ((complianceOrder[next.technicalProfile.complianceExposure] ?? 2) < (complianceOrder[prev.technicalProfile.complianceExposure] ?? 2)) {
+        improvements.push(`Compliance exposure reduced from ${prev.technicalProfile.complianceExposure} to ${next.technicalProfile.complianceExposure}`);
+      }
+    }
+  }
+
+  if (prev.commercialProfile && next.commercialProfile) {
+    const diffOrder: Record<string, number> = { "Weak": 0, "Moderate": 1, "Strong": 2 };
+    if ((diffOrder[next.commercialProfile.differentiationStrength] ?? 1) > (diffOrder[prev.commercialProfile.differentiationStrength] ?? 1)) {
+      improvements.push(`Differentiation strength improved to ${next.commercialProfile.differentiationStrength}`);
+    }
+    const clarityOrder: Record<string, number> = { "Unclear": 0, "Partially Defined": 1, "Defined": 2 };
+    if ((clarityOrder[next.commercialProfile.marketClarity] ?? 1) > (clarityOrder[prev.commercialProfile.marketClarity] ?? 1)) {
+      improvements.push(`Market clarity improved to ${next.commercialProfile.marketClarity}`);
+    }
+  }
+
+  if (prev.viabilityAssessment && next.viabilityAssessment) {
+    const viabilityOrder: Record<string, number> = { "Critical Risk": 0, "Weak": 1, "Moderate": 2, "Strong": 3 };
+    if ((viabilityOrder[next.viabilityAssessment.overallViability] ?? 2) > (viabilityOrder[prev.viabilityAssessment.overallViability] ?? 2)) {
+      improvements.push(`Viability upgraded from ${prev.viabilityAssessment.overallViability} to ${next.viabilityAssessment.overallViability}`);
+    }
+  }
+
   prev.risks.forEach((prevRisk, prevIndex) => {
     const prevRiskId = `risk_${prevRisk.category}_${prevIndex}`;
     

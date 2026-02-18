@@ -13,6 +13,20 @@ import type {
   AssumptionDependency,
   FailureModeNarrative,
   IdeaPurpose,
+  TechnicalProfile,
+  CommercialProfile,
+  ExecutionProfile,
+  ViabilityAssessment,
+  ComplexityLevel,
+  DataComplexity,
+  ComplianceExposure,
+  ClarityLevel,
+  RevenueModelClarity,
+  CompetitionDensity,
+  DifferentiationStrength,
+  TeamComplexity,
+  LikelihoodLevel,
+  ViabilityBand,
 } from "@shared/types/ideas";
 import { consensusService } from "./ai";
 import { artifactService } from "./artifact.service";
@@ -130,7 +144,34 @@ export class IdeasService {
   "scopeWarnings": [{"area": "technical"|"ux"|"operations"|"compliance"|"integration"|"data", "warning": "string", "hiddenComplexity": "string", "underestimationRisk": "low"|"medium"|"high"}],
   "assumptions": [{"assumption": "string", "status": "validated"|"unvalidated"|"risky", "validationMethod": "string", "riskIfWrong": "string"}],
   "failureNarrative": "string",
-  "summary": "string"
+  "summary": "string",
+  "technicalProfile": {
+    "architectureComplexity": "Low"|"Moderate"|"High"|"Very High",
+    "integrationDifficulty": "Low"|"Moderate"|"High"|"Very High",
+    "dataComplexity": "Simple"|"Structured"|"Complex"|"Highly Regulated",
+    "complianceExposure": "None"|"Low"|"Moderate"|"High",
+    "estimatedMvpEffortWeeks": number,
+    "keyTechnicalRisks": ["string"]
+  },
+  "commercialProfile": {
+    "marketClarity": "Defined"|"Partially Defined"|"Unclear",
+    "revenueModelClarity": "Clear"|"Emerging"|"Unclear",
+    "competitionDensity": "Low"|"Moderate"|"High",
+    "differentiationStrength": "Weak"|"Moderate"|"Strong",
+    "goToMarketComplexity": "Low"|"Moderate"|"High"|"Very High",
+    "keyCommercialRisks": ["string"]
+  },
+  "executionProfile": {
+    "teamComplexity": "Solo"|"Small Team"|"Cross-Functional"|"Enterprise",
+    "hiddenWorkLikelihood": "Low"|"Moderate"|"High",
+    "scalabilityChallenges": ["string"],
+    "operationalRisks": ["string"]
+  },
+  "viabilityAssessment": {
+    "overallViability": "Strong"|"Moderate"|"Weak"|"Critical Risk",
+    "confidenceScore": 0-100,
+    "rationale": "string"
+  }
 }\n`;
 
     if (input.context?.workshopRefinement) {
@@ -295,6 +336,11 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
     const scopeWarnings = this.validateScopeWarnings(parsed.scopeWarnings || []);
     const assumptionDependencies = this.validateAssumptions(parsed.assumptions || []);
 
+    const technicalProfile = this.validateTechnicalProfile(parsed.technicalProfile);
+    const commercialProfile = this.validateCommercialProfile(parsed.commercialProfile);
+    const executionProfile = this.validateExecutionProfile(parsed.executionProfile);
+    const viabilityAssessment = this.validateViabilityAssessment(parsed.viabilityAssessment);
+
     const confidenceAssessment = this.buildConfidenceAssessment(
       consensus, feasibility, strengths, weaknesses, assumptionDependencies
     );
@@ -303,19 +349,13 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
       parsed.failureNarrative || "", primaryRiskDrivers, input
     );
 
-    const highRiskCount = primaryRiskDrivers.filter(r => !r.isControllable).length;
-    const unvalidatedAssumptions = assumptionDependencies.filter(a => a.status === "unvalidated" || a.status === "risky").length;
-
-    const overallScore = Math.round(
-      (feasibility.score * 0.3) +
-      (confidenceAssessment.score * 0.3) -
-      (highRiskCount * 12) -
-      (unvalidatedAssumptions * 5) -
-      (scopeWarnings.filter(w => w.underestimationRisk === "high").length * 8)
+    const overallScore = this.computeWeightedScore(
+      viabilityAssessment, technicalProfile, commercialProfile, executionProfile, feasibility
     );
 
     const { recommendation, rationale } = this.determineRecommendation(
-      overallScore, primaryRiskDrivers, assumptionDependencies, scopeWarnings
+      overallScore, primaryRiskDrivers, assumptionDependencies, scopeWarnings,
+      technicalProfile, commercialProfile, executionProfile
     );
 
     const summary = parsed.summary ||
@@ -335,6 +375,10 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
       consensusConfidence: consensus.confidence,
       providerAgreement: consensus.agreementScore,
       createdAt: new Date().toISOString(),
+      technicalProfile,
+      commercialProfile,
+      executionProfile,
+      viabilityAssessment,
       confidenceAssessment,
       primaryRiskDrivers,
       scopeWarnings,
@@ -524,6 +568,107 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
     })).filter(a => a.assumption.length > 0);
   }
 
+  private validateTechnicalProfile(raw: any): TechnicalProfile {
+    const validComplexity: ComplexityLevel[] = ["Low", "Moderate", "High", "Very High"];
+    const validData: DataComplexity[] = ["Simple", "Structured", "Complex", "Highly Regulated"];
+    const validCompliance: ComplianceExposure[] = ["None", "Low", "Moderate", "High"];
+
+    if (!raw || typeof raw !== "object") {
+      return {
+        architectureComplexity: "Moderate",
+        integrationDifficulty: "Moderate",
+        dataComplexity: "Structured",
+        complianceExposure: "None",
+        estimatedMvpEffortWeeks: 12,
+        keyTechnicalRisks: [],
+      };
+    }
+
+    return {
+      architectureComplexity: validComplexity.includes(raw.architectureComplexity) ? raw.architectureComplexity : "Moderate",
+      integrationDifficulty: validComplexity.includes(raw.integrationDifficulty) ? raw.integrationDifficulty : "Moderate",
+      dataComplexity: validData.includes(raw.dataComplexity) ? raw.dataComplexity : "Structured",
+      complianceExposure: validCompliance.includes(raw.complianceExposure) ? raw.complianceExposure : "None",
+      estimatedMvpEffortWeeks: Math.max(1, Math.min(104, Number(raw.estimatedMvpEffortWeeks) || 12)),
+      keyTechnicalRisks: Array.isArray(raw.keyTechnicalRisks)
+        ? raw.keyTechnicalRisks.filter((r: any) => typeof r === "string" && r.length > 0).slice(0, 6)
+        : [],
+    };
+  }
+
+  private validateCommercialProfile(raw: any): CommercialProfile {
+    const validClarity: ClarityLevel[] = ["Defined", "Partially Defined", "Unclear"];
+    const validRevenue: RevenueModelClarity[] = ["Clear", "Emerging", "Unclear"];
+    const validCompetition: CompetitionDensity[] = ["Low", "Moderate", "High"];
+    const validDiff: DifferentiationStrength[] = ["Weak", "Moderate", "Strong"];
+    const validComplexity: ComplexityLevel[] = ["Low", "Moderate", "High", "Very High"];
+
+    if (!raw || typeof raw !== "object") {
+      return {
+        marketClarity: "Partially Defined",
+        revenueModelClarity: "Emerging",
+        competitionDensity: "Moderate",
+        differentiationStrength: "Moderate",
+        goToMarketComplexity: "Moderate",
+        keyCommercialRisks: [],
+      };
+    }
+
+    return {
+      marketClarity: validClarity.includes(raw.marketClarity) ? raw.marketClarity : "Partially Defined",
+      revenueModelClarity: validRevenue.includes(raw.revenueModelClarity) ? raw.revenueModelClarity : "Emerging",
+      competitionDensity: validCompetition.includes(raw.competitionDensity) ? raw.competitionDensity : "Moderate",
+      differentiationStrength: validDiff.includes(raw.differentiationStrength) ? raw.differentiationStrength : "Moderate",
+      goToMarketComplexity: validComplexity.includes(raw.goToMarketComplexity) ? raw.goToMarketComplexity : "Moderate",
+      keyCommercialRisks: Array.isArray(raw.keyCommercialRisks)
+        ? raw.keyCommercialRisks.filter((r: any) => typeof r === "string" && r.length > 0).slice(0, 6)
+        : [],
+    };
+  }
+
+  private validateExecutionProfile(raw: any): ExecutionProfile {
+    const validTeam: TeamComplexity[] = ["Solo", "Small Team", "Cross-Functional", "Enterprise"];
+    const validLikelihood: LikelihoodLevel[] = ["Low", "Moderate", "High"];
+
+    if (!raw || typeof raw !== "object") {
+      return {
+        teamComplexity: "Solo",
+        hiddenWorkLikelihood: "Moderate",
+        scalabilityChallenges: [],
+        operationalRisks: [],
+      };
+    }
+
+    return {
+      teamComplexity: validTeam.includes(raw.teamComplexity) ? raw.teamComplexity : "Solo",
+      hiddenWorkLikelihood: validLikelihood.includes(raw.hiddenWorkLikelihood) ? raw.hiddenWorkLikelihood : "Moderate",
+      scalabilityChallenges: Array.isArray(raw.scalabilityChallenges)
+        ? raw.scalabilityChallenges.filter((r: any) => typeof r === "string" && r.length > 0).slice(0, 6)
+        : [],
+      operationalRisks: Array.isArray(raw.operationalRisks)
+        ? raw.operationalRisks.filter((r: any) => typeof r === "string" && r.length > 0).slice(0, 6)
+        : [],
+    };
+  }
+
+  private validateViabilityAssessment(raw: any): ViabilityAssessment {
+    const validBands: ViabilityBand[] = ["Strong", "Moderate", "Weak", "Critical Risk"];
+
+    if (!raw || typeof raw !== "object") {
+      return {
+        overallViability: "Moderate",
+        confidenceScore: 50,
+        rationale: "Insufficient data for detailed viability assessment.",
+      };
+    }
+
+    return {
+      overallViability: validBands.includes(raw.overallViability) ? raw.overallViability : "Moderate",
+      confidenceScore: Math.max(0, Math.min(100, Number(raw.confidenceScore) || 50)),
+      rationale: String(raw.rationale || "No rationale provided."),
+    };
+  }
+
   private buildConfidenceAssessment(
     consensus: AIConsensusResult,
     feasibility: IdeaFeasibility,
@@ -612,15 +757,91 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
     };
   }
 
+  private computeWeightedScore(
+    viability: ViabilityAssessment,
+    technical: TechnicalProfile,
+    commercial: CommercialProfile,
+    execution: ExecutionProfile,
+    feasibility: IdeaFeasibility
+  ): number {
+    const viabilityScore = viability.confidenceScore;
+
+    const complexityScores: Record<ComplexityLevel, number> = { "Low": 90, "Moderate": 65, "High": 40, "Very High": 20 };
+    const dataScores: Record<DataComplexity, number> = { "Simple": 90, "Structured": 70, "Complex": 45, "Highly Regulated": 20 };
+    const techScore = Math.round(
+      (complexityScores[technical.architectureComplexity] * 0.3) +
+      (complexityScores[technical.integrationDifficulty] * 0.25) +
+      (dataScores[technical.dataComplexity] * 0.25) +
+      (feasibility.technical.score * 0.2)
+    );
+
+    const clarityScores: Record<ClarityLevel, number> = { "Defined": 90, "Partially Defined": 55, "Unclear": 20 };
+    const revenueScores: Record<RevenueModelClarity, number> = { "Clear": 90, "Emerging": 55, "Unclear": 20 };
+    const diffScores: Record<DifferentiationStrength, number> = { "Strong": 90, "Moderate": 55, "Weak": 20 };
+    const commercialScore = Math.round(
+      (clarityScores[commercial.marketClarity] * 0.3) +
+      (revenueScores[commercial.revenueModelClarity] * 0.25) +
+      (diffScores[commercial.differentiationStrength] * 0.25) +
+      (feasibility.market.score * 0.2)
+    );
+
+    const teamScores: Record<TeamComplexity, number> = { "Solo": 80, "Small Team": 65, "Cross-Functional": 45, "Enterprise": 25 };
+    const hiddenWorkScores: Record<LikelihoodLevel, number> = { "Low": 90, "Moderate": 55, "High": 20 };
+    const execScore = Math.round(
+      (teamScores[execution.teamComplexity] * 0.4) +
+      (hiddenWorkScores[execution.hiddenWorkLikelihood] * 0.3) +
+      (feasibility.timeline.score * 0.3)
+    );
+
+    const weighted = Math.round(
+      (viabilityScore * 0.40) +
+      (techScore * 0.25) +
+      (commercialScore * 0.20) +
+      (execScore * 0.15)
+    );
+
+    return Math.max(0, Math.min(100, weighted));
+  }
+
   private determineRecommendation(
     overallScore: number,
     riskDrivers: RiskDriver[],
     assumptions: AssumptionDependency[],
-    scopeWarnings: ScopeWarning[]
+    scopeWarnings: ScopeWarning[],
+    technical?: TechnicalProfile,
+    commercial?: CommercialProfile,
+    execution?: ExecutionProfile
   ): { recommendation: "proceed" | "revise" | "stop"; rationale: string } {
     const uncontrollableRisks = riskDrivers.filter(r => !r.isControllable).length;
     const riskyAssumptions = assumptions.filter(a => a.status === "risky").length;
     const highScopeRisk = scopeWarnings.filter(w => w.underestimationRisk === "high").length;
+
+    if (technical && execution) {
+      if (technical.complianceExposure === "High" && execution.teamComplexity === "Solo") {
+        return {
+          recommendation: "stop",
+          rationale: `High compliance exposure combined with solo execution is a critical risk combination. ` +
+            `Regulated domains require dedicated legal/compliance expertise that a solo builder cannot sustain.`,
+        };
+      }
+      if (technical.estimatedMvpEffortWeeks > 24 && execution.teamComplexity === "Solo") {
+        return {
+          recommendation: "revise",
+          rationale: `Estimated MVP effort of ${technical.estimatedMvpEffortWeeks} weeks exceeds the 24-week threshold for a solo builder. ` +
+            `Reduce scope aggressively to a core feature set achievable in under 12 weeks, or expand the team.`,
+        };
+      }
+    }
+
+    if (commercial) {
+      if (commercial.differentiationStrength === "Weak" && commercial.competitionDensity === "High") {
+        return {
+          recommendation: "revise",
+          rationale: `Weak differentiation in a highly competitive market signals a positioning problem. ` +
+            `Identify a specific niche or unique angle before investing in development.`,
+        };
+      }
+    }
 
     if (overallScore < 30) {
       return {
@@ -717,6 +938,52 @@ The builder should leave this re-analysis with a clearer, more grounded picture 
                 `**Hidden complexity:** ${w.hiddenComplexity}`)
               .join("\n\n")
           : "No specific scope warnings identified.",
+      },
+      {
+        heading: "Technical Profile",
+        level: 2 as const,
+        content: `| Dimension | Assessment |\n|-----------|------------|\n` +
+          `| Architecture Complexity | ${analysis.technicalProfile.architectureComplexity} |\n` +
+          `| Integration Difficulty | ${analysis.technicalProfile.integrationDifficulty} |\n` +
+          `| Data Complexity | ${analysis.technicalProfile.dataComplexity} |\n` +
+          `| Compliance Exposure | ${analysis.technicalProfile.complianceExposure} |\n` +
+          `| Estimated MVP Effort | ${analysis.technicalProfile.estimatedMvpEffortWeeks} weeks |\n\n` +
+          (analysis.technicalProfile.keyTechnicalRisks.length > 0
+            ? `### Key Technical Risks\n${analysis.technicalProfile.keyTechnicalRisks.map(r => `- ${r}`).join("\n")}`
+            : "No specific technical risks identified."),
+      },
+      {
+        heading: "Commercial Profile",
+        level: 2 as const,
+        content: `| Dimension | Assessment |\n|-----------|------------|\n` +
+          `| Market Clarity | ${analysis.commercialProfile.marketClarity} |\n` +
+          `| Revenue Model Clarity | ${analysis.commercialProfile.revenueModelClarity} |\n` +
+          `| Competition Density | ${analysis.commercialProfile.competitionDensity} |\n` +
+          `| Differentiation Strength | ${analysis.commercialProfile.differentiationStrength} |\n` +
+          `| Go-to-Market Complexity | ${analysis.commercialProfile.goToMarketComplexity} |\n\n` +
+          (analysis.commercialProfile.keyCommercialRisks.length > 0
+            ? `### Key Commercial Risks\n${analysis.commercialProfile.keyCommercialRisks.map(r => `- ${r}`).join("\n")}`
+            : "No specific commercial risks identified."),
+      },
+      {
+        heading: "Execution Profile",
+        level: 2 as const,
+        content: `| Dimension | Assessment |\n|-----------|------------|\n` +
+          `| Team Complexity | ${analysis.executionProfile.teamComplexity} |\n` +
+          `| Hidden Work Likelihood | ${analysis.executionProfile.hiddenWorkLikelihood} |\n\n` +
+          (analysis.executionProfile.scalabilityChallenges.length > 0
+            ? `### Scalability Challenges\n${analysis.executionProfile.scalabilityChallenges.map(c => `- ${c}`).join("\n")}\n\n`
+            : "") +
+          (analysis.executionProfile.operationalRisks.length > 0
+            ? `### Operational Risks\n${analysis.executionProfile.operationalRisks.map(r => `- ${r}`).join("\n")}`
+            : ""),
+      },
+      {
+        heading: "Viability Assessment",
+        level: 2 as const,
+        content: `**Overall Viability:** ${analysis.viabilityAssessment.overallViability}\n\n` +
+          `**Confidence Score:** ${analysis.viabilityAssessment.confidenceScore}/100\n\n` +
+          `**Rationale:** ${analysis.viabilityAssessment.rationale}`,
       },
       {
         heading: "Strengths",

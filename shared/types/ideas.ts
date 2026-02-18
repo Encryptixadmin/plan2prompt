@@ -118,6 +118,48 @@ export interface IdeaNextStep {
   effort: "low" | "medium" | "high";
 }
 
+export type ComplexityLevel = "Low" | "Moderate" | "High" | "Very High";
+export type DataComplexity = "Simple" | "Structured" | "Complex" | "Highly Regulated";
+export type ComplianceExposure = "None" | "Low" | "Moderate" | "High";
+export type ClarityLevel = "Defined" | "Partially Defined" | "Unclear";
+export type RevenueModelClarity = "Clear" | "Emerging" | "Unclear";
+export type CompetitionDensity = "Low" | "Moderate" | "High";
+export type DifferentiationStrength = "Weak" | "Moderate" | "Strong";
+export type TeamComplexity = "Solo" | "Small Team" | "Cross-Functional" | "Enterprise";
+export type LikelihoodLevel = "Low" | "Moderate" | "High";
+export type ViabilityBand = "Strong" | "Moderate" | "Weak" | "Critical Risk";
+
+export interface TechnicalProfile {
+  architectureComplexity: ComplexityLevel;
+  integrationDifficulty: ComplexityLevel;
+  dataComplexity: DataComplexity;
+  complianceExposure: ComplianceExposure;
+  estimatedMvpEffortWeeks: number;
+  keyTechnicalRisks: string[];
+}
+
+export interface CommercialProfile {
+  marketClarity: ClarityLevel;
+  revenueModelClarity: RevenueModelClarity;
+  competitionDensity: CompetitionDensity;
+  differentiationStrength: DifferentiationStrength;
+  goToMarketComplexity: ComplexityLevel;
+  keyCommercialRisks: string[];
+}
+
+export interface ExecutionProfile {
+  teamComplexity: TeamComplexity;
+  hiddenWorkLikelihood: LikelihoodLevel;
+  scalabilityChallenges: string[];
+  operationalRisks: string[];
+}
+
+export interface ViabilityAssessment {
+  overallViability: ViabilityBand;
+  confidenceScore: number; // 0-100
+  rationale: string;
+}
+
 // Complete idea analysis result
 export interface IdeaAnalysis {
   id: string;
@@ -134,7 +176,13 @@ export interface IdeaAnalysis {
   createdAt: string;
   artifactId?: string;
   
-  // Signal Sharpening Fields (Step 6)
+  // Structured profiles (Intelligence Upgrade) - optional for backward compatibility
+  technicalProfile?: TechnicalProfile;
+  commercialProfile?: CommercialProfile;
+  executionProfile?: ExecutionProfile;
+  viabilityAssessment?: ViabilityAssessment;
+
+  // Signal Sharpening Fields
   confidenceAssessment: ConfidenceAssessment;
   primaryRiskDrivers: RiskDriver[];
   scopeWarnings: ScopeWarning[];
@@ -145,7 +193,7 @@ export interface IdeaAnalysis {
   recommendation: "proceed" | "revise" | "stop";
   recommendationRationale: string;
   
-  // Project context (Step 7 - adversarial)
+  // Project context
   projectId?: string;
   authorId?: string;
 }

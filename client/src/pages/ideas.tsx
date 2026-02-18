@@ -57,7 +57,7 @@ import {
   Clock,
   ArrowLeft,
 } from "lucide-react";
-import type { IdeaAnalysis, AnalyzeIdeaResponse } from "@shared/types/ideas";
+import type { IdeaAnalysis, AnalyzeIdeaResponse, TechnicalProfile, CommercialProfile, ExecutionProfile, ViabilityAssessment } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
 import { ArtifactPreview } from "@/components/artifact-preview";
 import { useRequireProject } from "@/components/require-project-guard";
@@ -92,6 +92,53 @@ function SeverityBadge({ severity }: { severity: "low" | "medium" | "high" }) {
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${variants[severity]}`}>
       {severity}
+    </span>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value: string }) {
+  const colorMap: Record<string, string> = {
+    "Low": "text-green-600 dark:text-green-400",
+    "None": "text-green-600 dark:text-green-400",
+    "Simple": "text-green-600 dark:text-green-400",
+    "Defined": "text-green-600 dark:text-green-400",
+    "Clear": "text-green-600 dark:text-green-400",
+    "Strong": "text-green-600 dark:text-green-400",
+    "Solo": "text-blue-600 dark:text-blue-400",
+    "Small Team": "text-blue-600 dark:text-blue-400",
+    "Moderate": "text-yellow-600 dark:text-yellow-400",
+    "Structured": "text-yellow-600 dark:text-yellow-400",
+    "Partially Defined": "text-yellow-600 dark:text-yellow-400",
+    "Emerging": "text-yellow-600 dark:text-yellow-400",
+    "High": "text-red-600 dark:text-red-400",
+    "Very High": "text-red-600 dark:text-red-400",
+    "Complex": "text-red-600 dark:text-red-400",
+    "Highly Regulated": "text-red-600 dark:text-red-400",
+    "Unclear": "text-red-600 dark:text-red-400",
+    "Weak": "text-red-600 dark:text-red-400",
+    "Cross-Functional": "text-yellow-600 dark:text-yellow-400",
+    "Enterprise": "text-red-600 dark:text-red-400",
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-medium ${colorMap[value] || "text-foreground"}`}>{value}</span>
+    </div>
+  );
+}
+
+function ViabilityBadge({ band }: { band: string }) {
+  const variants: Record<string, string> = {
+    "Strong": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    "Moderate": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "Weak": "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    "Critical Risk": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${variants[band] || variants["Moderate"]}`}>
+      {band}
     </span>
   );
 }
@@ -189,6 +236,121 @@ function AnalysisResults({
           </div>
         </CardContent>
       </Card>
+
+      {analysis.technicalProfile && analysis.commercialProfile && analysis.executionProfile && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-testid="profile-panels">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Technical Profile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileRow label="Architecture" value={analysis.technicalProfile.architectureComplexity} />
+              <ProfileRow label="Integration" value={analysis.technicalProfile.integrationDifficulty} />
+              <ProfileRow label="Data" value={analysis.technicalProfile.dataComplexity} />
+              <ProfileRow label="Compliance" value={analysis.technicalProfile.complianceExposure} />
+              <Separator />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm text-muted-foreground">MVP Effort</span>
+                <Badge variant="outline" data-testid="text-effort-weeks">
+                  {analysis.technicalProfile.estimatedMvpEffortWeeks} weeks
+                </Badge>
+              </div>
+              {analysis.technicalProfile.keyTechnicalRisks.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Key Risks</p>
+                  <ul className="space-y-1">
+                    {analysis.technicalProfile.keyTechnicalRisks.map((r, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Commercial Profile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileRow label="Market" value={analysis.commercialProfile.marketClarity} />
+              <ProfileRow label="Revenue Model" value={analysis.commercialProfile.revenueModelClarity} />
+              <ProfileRow label="Competition" value={analysis.commercialProfile.competitionDensity} />
+              <ProfileRow label="Differentiation" value={analysis.commercialProfile.differentiationStrength} />
+              <ProfileRow label="GTM Complexity" value={analysis.commercialProfile.goToMarketComplexity} />
+              {analysis.commercialProfile.keyCommercialRisks.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Key Risks</p>
+                  <ul className="space-y-1">
+                    {analysis.commercialProfile.keyCommercialRisks.map((r, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Execution Profile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileRow label="Team" value={analysis.executionProfile.teamComplexity} />
+              <ProfileRow label="Hidden Work" value={analysis.executionProfile.hiddenWorkLikelihood} />
+              {analysis.executionProfile.scalabilityChallenges.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Scalability Challenges</p>
+                  <ul className="space-y-1">
+                    {analysis.executionProfile.scalabilityChallenges.map((c, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {analysis.executionProfile.operationalRisks.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Operational Risks</p>
+                  <ul className="space-y-1">
+                    {analysis.executionProfile.operationalRisks.map((r, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {analysis.viabilityAssessment && (
+        <Card data-testid="card-viability">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <CardTitle className="text-lg">Viability Assessment</CardTitle>
+              <div className="flex items-center gap-2">
+                <ViabilityBadge band={analysis.viabilityAssessment.overallViability} />
+                <Badge variant="outline">{analysis.viabilityAssessment.confidenceScore}/100</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{analysis.viabilityAssessment.rationale}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
