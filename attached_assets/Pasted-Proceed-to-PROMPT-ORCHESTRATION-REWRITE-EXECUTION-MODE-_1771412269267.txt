@@ -1,0 +1,121 @@
+Proceed to PROMPT ORCHESTRATION REWRITE.
+
+EXECUTION MODE:
+Replace template-based prompts with requirements-driven prompts.
+No IDE integration changes yet.
+No Opus changes yet.
+
+OBJECTIVE:
+Generate build prompts dynamically from
+the structured RequirementsDocument.
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- Prompts must derive from requirements
+- No hardcoded step lists
+- Step count varies by project
+- Dependency graph enforced
+- Deterministic mapping rules
+
+--------------------------------
+PART 1 — DEFINE PROMPT GENERATION RULES
+--------------------------------
+
+For each RequirementsDocument:
+
+1. For each High-priority functionalRequirement:
+   → Generate at least one prompt step.
+
+2. Group Medium-priority requirements logically.
+
+3. NonFunctionalRequirements map to:
+   - Dedicated steps OR
+   - Embedded constraints in relevant steps.
+
+4. architectureDecisions map to:
+   - Early setup/configuration steps.
+
+5. explicitOutOfScope items must:
+   - Appear as ScopeGuardrails in relevant steps.
+
+--------------------------------
+PART 2 — BUILD PROMPT STRUCTURE
+--------------------------------
+
+Each generated prompt step must include:
+
+{
+  "stepNumber": number,
+  "title": string,
+  "objective": string,
+  "requirementsCovered": [requirementIds],
+  "dependencies": [stepNumbers],
+  "executionInstructions": string,
+  "verificationCriteria": [],
+  "stopConditions": [],
+  "failureRecovery": [],
+  "scopeGuardrails": []
+}
+
+--------------------------------
+PART 3 — DEPENDENCY GRAPH
+--------------------------------
+
+Construct step ordering based on:
+
+- architectureDecisions first
+- dataModel before API
+- API before UI
+- security before deployment
+- performance tuning last
+
+Automatically generate dependencies array.
+
+--------------------------------
+PART 4 — REMOVE getBasePrompts()
+--------------------------------
+
+Delete:
+- getBasePrompts()
+- All static 10-step templates
+
+Replace with:
+generatePromptsFromRequirements(requirementsDocument)
+
+--------------------------------
+PART 5 — IDE CONTEXT INJECTION
+--------------------------------
+
+When generating prompts:
+
+- Inject IDE-specific instructions only at formatting layer.
+- Core logic must remain IDE-agnostic.
+
+--------------------------------
+PART 6 — TESTING
+--------------------------------
+
+Add tests verifying:
+
+- Two different requirement sets produce different prompt sequences.
+- Step counts vary appropriately.
+- Dependencies are valid (no forward references).
+- explicitOutOfScope items appear in scopeGuardrails.
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Generate requirements from two ideas.
+2. Generate prompts.
+3. Confirm:
+   - Prompts differ meaningfully.
+   - No static template steps remain.
+   - Each prompt references requirement IDs.
+   - ScopeGuardrails reflect explicitOutOfScope.
+
+STOP.
+WAIT for confirmation.

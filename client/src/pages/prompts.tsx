@@ -572,11 +572,21 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                 <div>
                   <CardTitle className="text-lg">{prompt.title}</CardTitle>
                   {prompt.dependencies && prompt.dependencies.length > 0 && (
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground">Requires:</span>
                       {prompt.dependencies.map((dep) => (
                         <Badge key={dep} variant="outline" className="text-xs">
                           Step {dep}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {prompt.requirementsCovered && prompt.requirementsCovered.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Covers:</span>
+                      {prompt.requirementsCovered.map((reqId) => (
+                        <Badge key={reqId} variant="secondary" className="text-xs" data-testid={`badge-req-${reqId}`}>
+                          {reqId}
                         </Badge>
                       ))}
                     </div>

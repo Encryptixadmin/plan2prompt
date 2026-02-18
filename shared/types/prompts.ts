@@ -46,6 +46,7 @@ export interface BuildPrompt {
   prompt: string;
   expectedOutcome: string;
   waitInstruction: string;
+  requirementsCovered?: string[];
   dependencies?: number[];
   estimatedTime?: string;
   tags?: string[];
@@ -53,6 +54,7 @@ export interface BuildPrompt {
   verificationCheckpoint?: VerificationCheckpoint;
   failureRecovery?: FailureRecoveryBranch[];
   scopeGuardrails?: string[];
+  stopConditions?: string[];
   ideConstraints?: string[];
 }
 
