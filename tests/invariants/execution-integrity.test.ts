@@ -109,30 +109,33 @@ function computeSuccessHash(stepNumber: number, timestamp: number): string {
 }
 
 function assignIntegrityMetadata(title: string, prompt: string): { isIdempotent: boolean; integrityLevel: IntegrityLevel } {
-  const combined = `${title.toLowerCase()} ${prompt.toLowerCase()}`;
+  return determineIdempotency({ title, prompt });
+}
 
-  if (
-    combined.includes("migration") ||
-    combined.includes("schema") ||
-    combined.includes("seed") ||
-    combined.includes("database setup") ||
-    combined.includes("data model")
-  ) {
+const CRITICAL_KEYWORDS = [
+  "drop", "delete", "migration", "alter table", "seed",
+  "install", "npm install", "yarn add", "schema", "database setup", "data model",
+];
+
+const CAUTION_KEYWORDS = [
+  "add route", "create endpoint", "append", "modify",
+];
+
+function determineIdempotency(step: { title: string; prompt: string }): {
+  isIdempotent: boolean;
+  integrityLevel: IntegrityLevel;
+} {
+  const combined = `${step.title.toLowerCase()} ${step.prompt.toLowerCase()}`;
+
+  if (CRITICAL_KEYWORDS.some(kw => combined.includes(kw))) {
     return { isIdempotent: false, integrityLevel: "critical" };
   }
 
-  if (
-    combined.includes("scaffold") ||
-    combined.includes("project setup") ||
-    combined.includes("architecture") ||
-    combined.includes("initialize") ||
-    combined.includes("final integration") ||
-    combined.includes("polish")
-  ) {
-    return { isIdempotent: true, integrityLevel: "safe" };
+  if (CAUTION_KEYWORDS.some(kw => combined.includes(kw))) {
+    return { isIdempotent: false, integrityLevel: "caution" };
   }
 
-  return { isIdempotent: false, integrityLevel: "caution" };
+  return { isIdempotent: true, integrityLevel: "safe" };
 }
 
 describe("Execution Integrity Controls", () => {
@@ -179,22 +182,22 @@ describe("Execution Integrity Controls", () => {
       expect(result.integrityLevel).toBe("safe");
     });
 
-    it("assigns caution + non-idempotent for API steps", () => {
+    it("assigns safe + idempotent for generic API steps without caution keywords", () => {
       const result = assignIntegrityMetadata("API Endpoints", "Implement REST endpoints for users");
-      expect(result.isIdempotent).toBe(false);
-      expect(result.integrityLevel).toBe("caution");
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
     });
 
-    it("assigns caution + non-idempotent for UI steps", () => {
+    it("assigns safe + idempotent for UI-only steps", () => {
       const result = assignIntegrityMetadata("User Interface", "Build the dashboard UI");
-      expect(result.isIdempotent).toBe(false);
-      expect(result.integrityLevel).toBe("caution");
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
     });
 
-    it("assigns caution for security steps", () => {
+    it("assigns safe for security steps without caution keywords", () => {
       const result = assignIntegrityMetadata("Security Hardening", "Implement authentication and authorization");
-      expect(result.isIdempotent).toBe(false);
-      expect(result.integrityLevel).toBe("caution");
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
     });
   });
 
@@ -401,6 +404,98 @@ describe("Execution Integrity Controls", () => {
       const step = createMockIntegrityStep();
       step.duplicateFailureDetected = "true";
       expect(step.duplicateFailureDetected).toBe("true");
+    });
+  });
+
+  describe("Automatic Idempotency Detection", () => {
+    it("classifies DROP instruction as critical + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Clean Database", prompt: "DROP TABLE users CASCADE" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("classifies DELETE instruction as critical + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Remove Records", prompt: "DELETE FROM sessions WHERE expired = true" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("classifies ALTER TABLE instruction as critical + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Modify Schema", prompt: "ALTER TABLE users ADD COLUMN role varchar" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("classifies npm install instruction as critical + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Add Dependencies", prompt: "Run npm install express bcrypt jsonwebtoken" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("classifies yarn add instruction as critical + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Add Packages", prompt: "Run yarn add prisma @prisma/client" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("classifies 'add route' instruction as caution + non-idempotent", () => {
+      const result = determineIdempotency({ title: "User Routes", prompt: "Add route for POST /api/users" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("caution");
+    });
+
+    it("classifies 'create endpoint' instruction as caution + non-idempotent", () => {
+      const result = determineIdempotency({ title: "API Setup", prompt: "Create endpoint GET /api/products" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("caution");
+    });
+
+    it("classifies 'append' instruction as caution + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Config Update", prompt: "Append the new middleware to the Express app" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("caution");
+    });
+
+    it("classifies 'modify' instruction as caution + non-idempotent", () => {
+      const result = determineIdempotency({ title: "Update Logic", prompt: "Modify the validation logic to check email format" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("caution");
+    });
+
+    it("classifies UI-only step as safe + idempotent", () => {
+      const result = determineIdempotency({ title: "Dashboard Page", prompt: "Build the dashboard page with charts and stats display" });
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
+    });
+
+    it("classifies styling step as safe + idempotent", () => {
+      const result = determineIdempotency({ title: "Theme & Styling", prompt: "Apply consistent theme colors and responsive layout" });
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
+    });
+
+    it("classifies testing step as safe + idempotent", () => {
+      const result = determineIdempotency({ title: "Write Tests", prompt: "Write unit tests for the auth service" });
+      expect(result.isIdempotent).toBe(true);
+      expect(result.integrityLevel).toBe("safe");
+    });
+
+    it("critical takes priority over caution when both keywords present", () => {
+      const result = determineIdempotency({ title: "Setup Routes", prompt: "Run migration then add route for users API" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("case-insensitive keyword matching", () => {
+      const result = determineIdempotency({ title: "DB Work", prompt: "Run MIGRATION to create tables" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
+    });
+
+    it("matches keyword in title even if prompt is generic", () => {
+      const result = determineIdempotency({ title: "Install Dependencies", prompt: "Set up the project packages" });
+      expect(result.isIdempotent).toBe(false);
+      expect(result.integrityLevel).toBe("critical");
     });
   });
 

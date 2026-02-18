@@ -6,6 +6,7 @@ import type {
   PromptPrerequisite,
   VerificationCheckpoint,
   FailureRecoveryBranch,
+  IntegrityLevel,
 } from "@shared/types/prompts";
 import type {
   RequirementsDocument,
@@ -20,6 +21,44 @@ import type {
 import { artifactService } from "./artifact.service";
 import type { Artifact } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
+
+const CRITICAL_KEYWORDS = [
+  "drop",
+  "delete",
+  "migration",
+  "alter table",
+  "seed",
+  "install",
+  "npm install",
+  "yarn add",
+  "schema",
+  "database setup",
+  "data model",
+];
+
+const CAUTION_KEYWORDS = [
+  "add route",
+  "create endpoint",
+  "append",
+  "modify",
+];
+
+export function determineIdempotency(step: Pick<BuildPrompt, "title" | "prompt">): {
+  isIdempotent: boolean;
+  integrityLevel: IntegrityLevel;
+} {
+  const combined = `${step.title.toLowerCase()} ${step.prompt.toLowerCase()}`;
+
+  if (CRITICAL_KEYWORDS.some(kw => combined.includes(kw))) {
+    return { isIdempotent: false, integrityLevel: "critical" };
+  }
+
+  if (CAUTION_KEYWORDS.some(kw => combined.includes(kw))) {
+    return { isIdempotent: false, integrityLevel: "caution" };
+  }
+
+  return { isIdempotent: true, integrityLevel: "safe" };
+}
 
 export class PromptsService {
   private ideNames: Record<IDEType, string> = {
@@ -181,32 +220,8 @@ export class PromptsService {
   }
 
   private assignIntegrityMetadata(step: BuildPrompt): BuildPrompt {
-    const titleLower = step.title.toLowerCase();
-    const promptLower = step.prompt.toLowerCase();
-    const combined = `${titleLower} ${promptLower}`;
-
-    if (
-      combined.includes("migration") ||
-      combined.includes("schema") ||
-      combined.includes("seed") ||
-      combined.includes("database setup") ||
-      combined.includes("data model")
-    ) {
-      return { ...step, isIdempotent: false, integrityLevel: "critical" as const };
-    }
-
-    if (
-      combined.includes("scaffold") ||
-      combined.includes("project setup") ||
-      combined.includes("architecture") ||
-      combined.includes("initialize") ||
-      combined.includes("final integration") ||
-      combined.includes("polish")
-    ) {
-      return { ...step, isIdempotent: true, integrityLevel: "safe" as const };
-    }
-
-    return { ...step, isIdempotent: false, integrityLevel: "caution" as const };
+    const result = determineIdempotency(step);
+    return { ...step, ...result };
   }
 
   private isHighPriority(fr: FunctionalRequirement): boolean {
