@@ -1,0 +1,87 @@
+Proceed to IMPLEMENT PROMPT → REQUIREMENT TRACEABILITY.
+
+EXECUTION MODE:
+Structural integrity upgrade.
+No UI redesign beyond displaying references.
+No feature expansion.
+
+OBJECTIVE:
+Ensure every prompt step is explicitly linked to:
+- One or more requirement IDs
+- Which themselves link to idea risk drivers
+
+This enables deterministic escalation and feedback routing.
+
+--------------------------------
+PART 1 — REQUIREMENT SCHEMA UPDATE
+--------------------------------
+
+Extend RequirementsDocument schema to include:
+
+Requirement {
+  id: string
+  title: string
+  description: string
+  originatingRiskIds: string[]
+  originatingAssumptionIds: string[]
+}
+
+Ensure:
+- When generating requirements, riskTraceability is preserved
+- Each requirement maps back to at least one idea risk driver
+
+--------------------------------
+PART 2 — PROMPT STEP SCHEMA UPDATE
+--------------------------------
+
+Extend PromptStep schema:
+
+PromptStep {
+  id: string
+  title: string
+  requirementIds: string[]
+  dependencies: string[]
+  executionInstructions: string
+  verificationCriteria: string[]
+  stopConditions: string[]
+  failureRecovery: string[]
+}
+
+--------------------------------
+PART 3 — PROMPT GENERATION RULE
+--------------------------------
+
+When generating prompts:
+
+- Each functionalRequirement must generate at least one PromptStep
+- requirementIds must be populated explicitly
+- explicitOutOfScope items must appear in scopeGuardrails
+
+Delete any static getBasePrompts() references.
+
+--------------------------------
+PART 4 — TRACEABILITY TESTS
+--------------------------------
+
+Add tests verifying:
+
+- Each PromptStep has ≥1 requirementId
+- Each requirementId maps to an existing Requirement
+- Each Requirement references at least one idea risk
+- No orphan prompt steps exist
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Generate requirements.
+2. Generate prompts.
+3. Confirm:
+   - Prompt steps reference requirement IDs.
+   - Requirement IDs map to risk drivers.
+   - No static template prompts remain.
+
+STOP.
+WAIT for confirmation.

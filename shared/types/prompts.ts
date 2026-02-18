@@ -46,8 +46,8 @@ export interface BuildPrompt {
   prompt: string;
   expectedOutcome: string;
   waitInstruction: string;
-  requirementsCovered?: string[];
-  dependencies?: number[];
+  requirementsCovered: string[];
+  dependencies: number[];
   estimatedTime?: string;
   tags?: string[];
   prerequisites?: PromptPrerequisite[];

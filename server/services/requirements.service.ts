@@ -346,6 +346,8 @@ IMPORTANT:
     const confidenceNotes = this.validateConfidenceNotes(parsed.confidenceNotes || []);
     const riskTraceability = this.validateRiskTraceability(parsed.riskTraceability || [], functionalRequirements, ideaArtifact);
 
+    this.populateOriginatingRiskIds(functionalRequirements, riskTraceability, assumptions);
+
     const summary = typeof parsed.summary === "string" && parsed.summary.length > 10
       ? parsed.summary
       : this.generateSummary(ideaTitle, confidence, functionalRequirements.length, dataModels.length, apiContracts.endpoints.length);
@@ -447,6 +449,8 @@ IMPORTANT:
       priority: (validPriorities.includes(fr.priority) ? fr.priority : "Medium") as FunctionalRequirement["priority"],
       acceptanceCriteria: Array.isArray(fr.acceptanceCriteria) ? fr.acceptanceCriteria.map(String) : [],
       dependencies: Array.isArray(fr.dependencies) ? fr.dependencies.map(String) : undefined,
+      originatingRiskIds: Array.isArray(fr.originatingRiskIds) ? fr.originatingRiskIds.map(String) : [],
+      originatingAssumptionIds: Array.isArray(fr.originatingAssumptionIds) ? fr.originatingAssumptionIds.map(String) : [],
     })).filter(fr => fr.description.length > 0);
   }
 
@@ -765,6 +769,35 @@ IMPORTANT:
       mitigationInRequirementIds: [],
       coverageStatus: "unmitigated" as const,
     }));
+  }
+
+  private populateOriginatingRiskIds(
+    functionalRequirements: FunctionalRequirement[],
+    riskTraceability: RiskTraceabilityEntry[],
+    assumptions: RequirementAssumption[]
+  ): void {
+    const frRiskMap = new Map<string, string[]>();
+    for (const rt of riskTraceability) {
+      for (const reqId of rt.mitigationInRequirementIds) {
+        if (!frRiskMap.has(reqId)) frRiskMap.set(reqId, []);
+        frRiskMap.get(reqId)!.push(rt.riskId);
+      }
+    }
+
+    const frAssumptionMap = new Map<string, string[]>();
+    for (const assumption of assumptions) {
+      for (const fr of functionalRequirements) {
+        if (fr.description.toLowerCase().includes(assumption.statement.toLowerCase().split(" ").slice(0, 3).join(" "))) {
+          if (!frAssumptionMap.has(fr.id)) frAssumptionMap.set(fr.id, []);
+          frAssumptionMap.get(fr.id)!.push(assumption.id);
+        }
+      }
+    }
+
+    for (const fr of functionalRequirements) {
+      fr.originatingRiskIds = frRiskMap.get(fr.id) || [];
+      fr.originatingAssumptionIds = frAssumptionMap.get(fr.id) || [];
+    }
   }
 
   private extractIdeaRisks(artifact: Artifact): string[] {

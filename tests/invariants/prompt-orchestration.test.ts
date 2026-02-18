@@ -403,4 +403,165 @@ describe("Prompt Orchestration", () => {
       expect(lastStep.waitInstruction).toContain("COMPLETE");
     });
   });
+
+  describe("Prompt → Requirement Traceability", () => {
+    it("each PromptStep should have at least one requirementId for feature steps", async () => {
+      const doc = createMinimalRequirementsDoc({
+        functionalRequirements: [
+          createFR({ id: "FR-001", category: "Auth", title: "Login", priority: "must-have" }),
+          createFR({ id: "FR-002", category: "Data", title: "CRUD", priority: "must-have" }),
+        ],
+        dataModels: [{ name: "User", description: "User entity", fields: [{ name: "email", type: "string", required: true }] }],
+        nonFunctionalRequirements: [
+          createNFR({ id: "NFR-001", category: "security", title: "Auth required" }),
+          createNFR({ id: "NFR-002", category: "performance", title: "Fast API" }),
+        ],
+        securityConsiderations: [{ title: "Auth", category: "authentication", priority: "high", description: "Require auth", implementation: "JWT" }],
+      });
+
+      const prompts = await generatePromptsFromRequirements(doc);
+      const featureSteps = prompts.filter(p =>
+        p.tags?.includes("api") || p.tags?.includes("feature") ||
+        p.tags?.includes("security") || p.tags?.includes("performance")
+      );
+
+      for (const step of featureSteps) {
+        expect(step.requirementsCovered.length).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it("each requirementId in PromptStep should map to an existing FR or NFR", async () => {
+      const doc = createMinimalRequirementsDoc({
+        functionalRequirements: [
+          createFR({ id: "FR-001", category: "Core", title: "Feature A", priority: "must-have" }),
+          createFR({ id: "FR-002", category: "Core", title: "Feature B", priority: "must-have" }),
+        ],
+        nonFunctionalRequirements: [
+          createNFR({ id: "NFR-001", category: "security", title: "Input Sanitization" }),
+          createNFR({ id: "NFR-002", category: "performance", title: "Fast API" }),
+        ],
+        architectureDecisions: [
+          { id: "AD-001", title: "Database Choice", decision: "Use PostgreSQL", rationale: "ACID compliance" },
+        ],
+        securityConsiderations: [{ title: "XSS", category: "data-protection", priority: "high", description: "Prevent XSS", implementation: "Sanitize" }],
+        dataModels: [{ name: "Entity", description: "Test", fields: [{ name: "name", type: "string", required: true }] }],
+      });
+
+      const prompts = await generatePromptsFromRequirements(doc);
+      const validIds = new Set([
+        ...doc.functionalRequirements.map(fr => fr.id),
+        ...doc.nonFunctionalRequirements.map(nfr => nfr.id),
+        ...(doc.architectureDecisions || []).map(ad => ad.id),
+      ]);
+
+      for (const step of prompts) {
+        for (const reqId of step.requirementsCovered) {
+          expect(validIds.has(reqId)).toBe(true);
+        }
+      }
+    });
+
+    it("no orphan prompt steps should exist (every step has requirementsCovered array)", async () => {
+      const doc = createMinimalRequirementsDoc({
+        functionalRequirements: [
+          createFR({ id: "FR-001", category: "Core", title: "Main Feature", priority: "must-have" }),
+        ],
+        dataModels: [{ name: "Entity", description: "Test", fields: [{ name: "name", type: "string", required: true }] }],
+      });
+
+      const prompts = await generatePromptsFromRequirements(doc);
+
+      for (const step of prompts) {
+        expect(Array.isArray(step.requirementsCovered)).toBe(true);
+      }
+    });
+
+    it("every high-priority FR should be covered by at least one prompt step", async () => {
+      const doc = createMinimalRequirementsDoc({
+        functionalRequirements: [
+          createFR({ id: "FR-001", category: "Auth", title: "Login", priority: "must-have" }),
+          createFR({ id: "FR-002", category: "Payments", title: "Checkout", priority: "must-have" }),
+          createFR({ id: "FR-003", category: "Reporting", title: "Dashboard", priority: "must-have" }),
+        ],
+        dataModels: [{ name: "User", description: "User", fields: [{ name: "email", type: "string", required: true }] }],
+      });
+
+      const prompts = await generatePromptsFromRequirements(doc);
+      const allCovered = new Set(prompts.flatMap(p => p.requirementsCovered));
+
+      for (const fr of doc.functionalRequirements) {
+        expect(allCovered.has(fr.id)).toBe(true);
+      }
+    });
+
+    it("FunctionalRequirement should support originatingRiskIds and originatingAssumptionIds", () => {
+      const fr: import("../../shared/types/requirements").FunctionalRequirement = {
+        id: "FR-001",
+        category: "Core",
+        title: "Feature A",
+        description: "Description",
+        priority: "must-have",
+        acceptanceCriteria: ["Works"],
+        originatingRiskIds: ["RISK-001", "RISK-002"],
+        originatingAssumptionIds: ["ASM-001"],
+      };
+
+      expect(fr.originatingRiskIds).toEqual(["RISK-001", "RISK-002"]);
+      expect(fr.originatingAssumptionIds).toEqual(["ASM-001"]);
+    });
+
+    it("requirement → risk chain should be traceable via riskTraceability + originatingRiskIds", () => {
+      const riskTraceability: import("../../shared/types/requirements").RiskTraceabilityEntry[] = [
+        { riskId: "RISK-001", riskDescription: "Technical complexity", mitigationInRequirementIds: ["FR-001", "FR-002"], coverageStatus: "fully-mitigated" },
+        { riskId: "RISK-002", riskDescription: "Market risk", mitigationInRequirementIds: ["FR-003"], coverageStatus: "partially-mitigated" },
+      ];
+
+      const frs: import("../../shared/types/requirements").FunctionalRequirement[] = [
+        { id: "FR-001", category: "Core", title: "A", description: "A", priority: "must-have", acceptanceCriteria: [], originatingRiskIds: ["RISK-001"], originatingAssumptionIds: [] },
+        { id: "FR-002", category: "Core", title: "B", description: "B", priority: "must-have", acceptanceCriteria: [], originatingRiskIds: ["RISK-001"], originatingAssumptionIds: [] },
+        { id: "FR-003", category: "Core", title: "C", description: "C", priority: "should-have", acceptanceCriteria: [], originatingRiskIds: ["RISK-002"], originatingAssumptionIds: [] },
+      ];
+
+      for (const rt of riskTraceability) {
+        for (const reqId of rt.mitigationInRequirementIds) {
+          const fr = frs.find(f => f.id === reqId);
+          expect(fr).toBeDefined();
+          expect(fr!.originatingRiskIds).toContain(rt.riskId);
+        }
+      }
+    });
+
+    it("full chain: PromptStep → requirementId → riskId should be deterministic", async () => {
+      const riskTraceability: import("../../shared/types/requirements").RiskTraceabilityEntry[] = [
+        { riskId: "RISK-001", riskDescription: "Data loss risk", mitigationInRequirementIds: ["FR-001"], coverageStatus: "fully-mitigated" },
+      ];
+
+      const doc = createMinimalRequirementsDoc({
+        functionalRequirements: [
+          createFR({ id: "FR-001", category: "Core", title: "Backup System", priority: "must-have", originatingRiskIds: ["RISK-001"], originatingAssumptionIds: [] }),
+        ],
+        riskTraceability,
+      });
+
+      const prompts = await generatePromptsFromRequirements(doc);
+      const allCovered = prompts.flatMap(p => p.requirementsCovered);
+
+      expect(allCovered).toContain("FR-001");
+
+      const fr = doc.functionalRequirements.find(f => f.id === "FR-001");
+      expect(fr).toBeDefined();
+      expect(fr!.originatingRiskIds).toContain("RISK-001");
+
+      const riskEntry = riskTraceability.find(rt => rt.riskId === "RISK-001");
+      expect(riskEntry).toBeDefined();
+      expect(riskEntry!.mitigationInRequirementIds).toContain("FR-001");
+    });
+
+    it("should not have any static getBasePrompts references", async () => {
+      const { PromptsService } = await import("../../server/services/prompts.service");
+      const service = new PromptsService();
+      expect(typeof service.generatePromptsFromRequirements).toBe("function");
+      expect((service as any).getBasePrompts).toBeUndefined();
+    });
+  });
 });

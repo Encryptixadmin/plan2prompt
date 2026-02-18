@@ -258,6 +258,15 @@ export class PromptsService {
   private generateDataModelStep(stepNum: number, doc: RequirementsDocument, archStep: number, guardrails: string[]): BuildPrompt {
     const entities = doc.dataModels.length > 0 ? doc.dataModels : (doc.dataModel?.entities || []);
     const reqsCovered: string[] = [];
+    const dataRelatedFRs = doc.functionalRequirements.filter(fr => {
+      const desc = (fr.description + " " + fr.title).toLowerCase();
+      return desc.includes("data") || desc.includes("store") || desc.includes("database") ||
+        desc.includes("model") || desc.includes("entity") || desc.includes("record") ||
+        desc.includes("create") || desc.includes("save") || desc.includes("persist");
+    });
+    for (const fr of dataRelatedFRs) {
+      if (!reqsCovered.includes(fr.id)) reqsCovered.push(fr.id);
+    }
 
     let prompt = `Set up the database schema for "${doc.ideaTitle}".\n\n`;
     prompt += `Create the following data models using an ORM:\n\n`;
@@ -393,8 +402,19 @@ export class PromptsService {
     }
 
     if (steps.length === 0) {
-      const reqsCovered: string[] = [];
+      const reqsCovered: string[] = highFRs.map(fr => fr.id);
       let prompt = `Implement the core backend API for "${doc.ideaTitle}".\n\n`;
+
+      if (highFRs.length > 0) {
+        prompt += `## Requirements:\n`;
+        for (const fr of highFRs) {
+          prompt += `- **${fr.id}: ${fr.title}** - ${fr.description}\n`;
+          if (fr.acceptanceCriteria.length > 0) {
+            prompt += `  Acceptance Criteria: ${fr.acceptanceCriteria.join("; ")}\n`;
+          }
+        }
+        prompt += `\n`;
+      }
 
       if (endpoints.length > 0) {
         prompt += `## API Endpoints:\n`;
@@ -524,6 +544,7 @@ export class PromptsService {
     }
 
     if (Object.keys(featureGroups).length === 0) {
+      const allFrIds = [...highFRs, ...medFRs].map(fr => fr.id);
       steps.push({
         step: stepNum,
         title: "Core Feature UI",
@@ -531,7 +552,7 @@ export class PromptsService {
         prompt: `Implement the core feature UI for "${doc.ideaTitle}".\n\nConnect to backend API. Handle loading, error, and empty states.`,
         expectedOutcome: "Core features accessible through the UI",
         waitInstruction: "STOP here. Test the feature flow through the UI.",
-        requirementsCovered: [],
+        requirementsCovered: allFrIds,
         dependencies: [lastApiStep, steps[steps.length - 1].step],
         estimatedTime: "20-30 minutes",
         tags: ["frontend", "feature"],
@@ -933,6 +954,7 @@ export class PromptsService {
       expectedOutcome: "Step completes successfully",
       waitInstruction: "STOP and verify before proceeding",
       requirementsCovered: [],
+      dependencies: [],
       failureRecovery: [
         { symptom: "npm install fails with dependency conflicts", likelyCause: "Incompatible package versions or corrupt cache", recoveryAction: "Delete node_modules and package-lock.json, then run npm install again.", shouldRetry: true },
         { symptom: "TypeScript compilation errors", likelyCause: "Missing or misconfigured tsconfig.json", recoveryAction: "Ensure tsconfig.json exists with correct compiler options.", shouldRetry: true },

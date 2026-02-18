@@ -18,6 +18,8 @@ export interface FunctionalRequirement {
   priority: "must-have" | "should-have" | "nice-to-have" | "High" | "Medium" | "Low";
   acceptanceCriteria: string[];
   dependencies?: string[];
+  originatingRiskIds?: string[];
+  originatingAssumptionIds?: string[];
 }
 
 export interface NonFunctionalRequirement {
