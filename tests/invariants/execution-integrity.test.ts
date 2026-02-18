@@ -79,18 +79,51 @@ function detectDuplicateFailure(
   return step.lastFailureHash === newFailureHash && step.attempts >= 1;
 }
 
-function shouldCreateClarification(
+interface IntegrityContextInput {
+  integrityLevel: "safe" | "caution" | "critical";
+  isIdempotent: boolean;
+  reexecutionCount: number;
+  duplicateFailureDetected: boolean;
+  stepNumber: number;
+}
+
+function buildIntegrityContext(
+  stepNumber: number,
+  integrityLevel: "safe" | "caution" | "critical",
+  isIdempotent: boolean,
+  reexecutionCount: number,
+  duplicateFailureDetected: boolean
+): IntegrityContextInput {
+  return { stepNumber, integrityLevel, isIdempotent, reexecutionCount, duplicateFailureDetected };
+}
+
+function computeIntegritySeverity(
   step: MockIntegrityStep,
-  isDuplicateFailure: boolean
+  isDuplicateFailure: boolean,
+  integrityLevel?: "safe" | "caution" | "critical",
+  reexecutionCount?: number
 ): { create: boolean; severity: "advisory" | "blocker" } {
   if (!isDuplicateFailure) {
     return { create: false, severity: "advisory" };
   }
   const newAttempts = step.attempts + 1;
-  return {
-    create: true,
-    severity: newAttempts >= 6 ? "blocker" : "advisory",
-  };
+  let severity: "advisory" | "blocker" = newAttempts >= 6 ? "blocker" : "advisory";
+
+  if (integrityLevel === "critical" && isDuplicateFailure) {
+    severity = "blocker";
+  }
+  if ((reexecutionCount ?? 0) >= 2 && severity === "advisory") {
+    severity = "blocker";
+  }
+
+  return { create: true, severity };
+}
+
+function shouldCreateClarification(
+  step: MockIntegrityStep,
+  isDuplicateFailure: boolean
+): { create: boolean; severity: "advisory" | "blocker" } {
+  return computeIntegritySeverity(step, isDuplicateFailure);
 }
 
 function shouldEscalate(attempts: number): boolean {
@@ -549,6 +582,88 @@ describe("Execution Integrity Controls", () => {
       expect(shouldCreateBlockerAtEscalation(step.escalationLevel)).toBe(true);
       const clar2 = shouldCreateClarification(step, true);
       expect(clar2.severity).toBe("blocker");
+    });
+  });
+
+  describe("Integrity-Aware Clarification Contracts", () => {
+    it("critical + duplicate failure → blocker severity", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "critical", 0);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("blocker");
+    });
+
+    it("critical + duplicate failure → blocker even with low attempt count", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 1 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "critical", 0);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("blocker");
+    });
+
+    it("caution + duplicate failure with low attempts → advisory", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "caution", 0);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("advisory");
+    });
+
+    it("reexecutionCount >= 2 escalates advisory to blocker", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "caution", 2);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("blocker");
+    });
+
+    it("reexecutionCount >= 2 with safe level still escalates to blocker", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "safe", 3);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("blocker");
+    });
+
+    it("safe step without duplicate failure never creates clarification", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      const result = computeIntegritySeverity(step, false, "safe", 0);
+      expect(result.create).toBe(false);
+    });
+
+    it("safe step with duplicate but low reexecution → advisory", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 2 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "safe", 0);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("advisory");
+    });
+
+    it("integrityContext is correctly populated", () => {
+      const ctx = buildIntegrityContext(3, "critical", false, 1, true);
+      expect(ctx.stepNumber).toBe(3);
+      expect(ctx.integrityLevel).toBe("critical");
+      expect(ctx.isIdempotent).toBe(false);
+      expect(ctx.reexecutionCount).toBe(1);
+      expect(ctx.duplicateFailureDetected).toBe(true);
+    });
+
+    it("integrityContext for safe idempotent step", () => {
+      const ctx = buildIntegrityContext(1, "safe", true, 0, false);
+      expect(ctx.stepNumber).toBe(1);
+      expect(ctx.integrityLevel).toBe("safe");
+      expect(ctx.isIdempotent).toBe(true);
+      expect(ctx.reexecutionCount).toBe(0);
+      expect(ctx.duplicateFailureDetected).toBe(false);
+    });
+
+    it("critical already blocker at 6+ attempts remains blocker", () => {
+      const step = createMockIntegrityStep({ status: "failed", attempts: 5 });
+      step.lastFailureHash = "abc123";
+      const result = computeIntegritySeverity(step, true, "critical", 0);
+      expect(result.create).toBe(true);
+      expect(result.severity).toBe("blocker");
     });
   });
 });

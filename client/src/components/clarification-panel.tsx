@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle, X, ChevronDown, ChevronUp, Info } from "lucide-react";
-import type { ClarificationContract, ClarificationQuestion } from "@shared/types/clarification";
+import { AlertTriangle, CheckCircle, X, ChevronDown, ChevronUp, Info, ShieldAlert } from "lucide-react";
+import type { ClarificationContract, ClarificationQuestion, IntegrityContext } from "@shared/types/clarification";
 
 interface ClarificationPanelProps {
   projectId: string;
@@ -134,6 +134,15 @@ function ClarificationCard({
   const isBlocker = contract.severity === "blocker";
   const isResolved = contract.resolutionStatus !== "pending";
 
+  let integrityCtx: IntegrityContext | null = null;
+  if (contract.integrityContext) {
+    try {
+      integrityCtx = typeof contract.integrityContext === "string"
+        ? JSON.parse(contract.integrityContext)
+        : contract.integrityContext as IntegrityContext;
+    } catch {}
+  }
+
   const handleSubmit = () => {
     onResolve(contract.id, answers);
   };
@@ -174,6 +183,12 @@ function ClarificationCard({
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">{contract.description}</p>
+            {integrityCtx && integrityCtx.integrityLevel === "critical" && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-destructive" data-testid={`integrity-warning-${contract.id}`}>
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                <span>This step involves irreversible changes. Refinement required before proceeding.</span>
+              </div>
+            )}
           </div>
         </div>
         {!isResolved && (

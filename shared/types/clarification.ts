@@ -35,6 +35,14 @@ export interface ClarificationAffectedEntities {
   assumptionIds?: string[];
 }
 
+export interface IntegrityContext {
+  stepNumber: number;
+  integrityLevel: "safe" | "caution" | "critical";
+  isIdempotent: boolean;
+  reexecutionCount: number;
+  duplicateFailureDetected: boolean;
+}
+
 export interface ClarificationContract {
   id: string;
   projectId: string;
@@ -55,6 +63,7 @@ export interface ClarificationContract {
   occurrenceCount: number;
   resolvedAt?: string;
   resolutionData?: Record<string, unknown>;
+  integrityContext?: IntegrityContext;
 }
 
 export interface CreateClarificationRequest {

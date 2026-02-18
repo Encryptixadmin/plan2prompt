@@ -285,6 +285,22 @@ router.patch(
           duplicateFailure = true;
           await storage.setDuplicateFailureDetected(currentStep.id);
 
+          const stepIntegrityCtx = JSON.stringify({
+            stepNumber,
+            integrityLevel: integrityLevel || "caution",
+            isIdempotent: isIdempotent ?? false,
+            reexecutionCount: updatedStep.reexecutionCount || 0,
+            duplicateFailureDetected: true,
+          });
+
+          let duplicateSeverity: "advisory" | "blocker" = updatedStep.attempts >= 6 ? "blocker" : "advisory";
+          if (integrityLevel === "critical" && duplicateFailure) {
+            duplicateSeverity = "blocker";
+          }
+          if ((updatedStep.reexecutionCount || 0) >= 2 && duplicateSeverity === "advisory") {
+            duplicateSeverity = "blocker";
+          }
+
           try {
             const contractHash = createHash("sha256")
               .update(`execution-step-${stepNumber}-${failureHash}-${sessionId}`)
@@ -295,14 +311,22 @@ router.patch(
               projectId: session.projectId,
               contractHash,
               originatingModule: "execution",
-              targetModule: "prompts",
+              currentArtifactId: session.promptArtifactId,
+              currentArtifactVersion: session.promptArtifactVersion,
+              upstreamArtifactId: session.promptArtifactId,
+              upstreamArtifactVersion: session.promptArtifactVersion,
               category: "execution_failure",
-              severity: updatedStep.attempts >= 6 ? "blocker" : "advisory",
+              severity: duplicateSeverity,
               title: `Duplicate failure on Step ${stepNumber}`,
               description: `Step ${stepNumber} has failed ${updatedStep.attempts} times with the same error signature (hash: ${failureHash}). The failure output suggests the prompt may need revision.`,
-              suggestedAction: `Review and revise the prompt for Step ${stepNumber}, or adjust requirements that feed into this step.`,
-              status: "pending",
+              requiredClarifications: JSON.stringify([{
+                field: "suggested_action",
+                question: `Review and revise the prompt for Step ${stepNumber}, or adjust requirements that feed into this step.`,
+                expectedAnswerType: "long_text",
+              }]),
+              resolutionStatus: "pending",
               occurrenceCount: updatedStep.attempts,
+              integrityContext: stepIntegrityCtx,
             });
             clarificationCreated = true;
           } catch (e) {
@@ -314,6 +338,14 @@ router.patch(
           escalated = true;
 
           if (updatedStep.escalationLevel >= 2) {
+            const escalationIntegrityCtx = JSON.stringify({
+              stepNumber,
+              integrityLevel: integrityLevel || "caution",
+              isIdempotent: isIdempotent ?? false,
+              reexecutionCount: updatedStep.reexecutionCount || 0,
+              duplicateFailureDetected: updatedStep.duplicateFailureDetected === "true",
+            });
+
             try {
               const blockerHash = createHash("sha256")
                 .update(`escalation-blocker-step-${stepNumber}-${sessionId}`)
@@ -324,14 +356,22 @@ router.patch(
                 projectId: session.projectId,
                 contractHash: blockerHash,
                 originatingModule: "execution",
-                targetModule: "prompts",
+                currentArtifactId: session.promptArtifactId,
+                currentArtifactVersion: session.promptArtifactVersion,
+                upstreamArtifactId: session.promptArtifactId,
+                upstreamArtifactVersion: session.promptArtifactVersion,
                 category: "execution_failure",
                 severity: "blocker",
                 title: `Escalation Level ${updatedStep.escalationLevel}: Step ${stepNumber} blocked`,
                 description: `Step ${stepNumber} has reached escalation level ${updatedStep.escalationLevel} after ${updatedStep.attempts} cumulative failures. Forward progression is unsafe without upstream review.`,
-                suggestedAction: `Reassess the requirements and prompts feeding Step ${stepNumber}. Consider regenerating prompts from revised requirements.`,
-                status: "pending",
+                requiredClarifications: JSON.stringify([{
+                  field: "upstream_review",
+                  question: `Reassess the requirements and prompts feeding Step ${stepNumber}. Consider regenerating prompts from revised requirements.`,
+                  expectedAnswerType: "long_text",
+                }]),
+                resolutionStatus: "pending",
                 occurrenceCount: updatedStep.escalationLevel,
+                integrityContext: escalationIntegrityCtx,
               });
             } catch (e) {
             }

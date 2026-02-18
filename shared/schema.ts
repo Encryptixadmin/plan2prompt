@@ -194,6 +194,7 @@ export const clarificationContracts = pgTable("clarification_contracts", {
   occurrenceCount: integer("occurrence_count").notNull().default(1),
   resolvedAt: timestamp("resolved_at"),
   resolutionData: text("resolution_data"),
+  integrityContext: text("integrity_context"),
 });
 
 export const insertClarificationContractSchema = createInsertSchema(clarificationContracts).omit({

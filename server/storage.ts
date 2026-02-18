@@ -243,6 +243,7 @@ export class DatabaseStorage implements IStorage {
         contractHash: contract.contractHash,
         occurrenceCount: contract.occurrenceCount ?? 1,
         resolutionData: contract.resolutionData ?? null,
+        integrityContext: contract.integrityContext ?? null,
       })
       .returning();
     return record;
