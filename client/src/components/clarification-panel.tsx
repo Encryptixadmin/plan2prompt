@@ -59,6 +59,32 @@ function QuestionField({
           </SelectContent>
         </Select>
       );
+    case "multi_select": {
+      const selected = value ? value.split(",").filter(Boolean) : [];
+      return (
+        <div className="space-y-1" data-testid={`multi-select-${question.field}`}>
+          {(question.options || []).map((opt) => {
+            const isChecked = selected.includes(opt);
+            return (
+              <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => {
+                    const next = isChecked
+                      ? selected.filter((s) => s !== opt)
+                      : [...selected, opt];
+                    onChange(next.join(","));
+                  }}
+                  className="rounded border-input"
+                />
+                {opt}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
     case "long_text":
       return (
         <Textarea
