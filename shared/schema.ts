@@ -204,3 +204,53 @@ export const insertClarificationContractSchema = createInsertSchema(clarificatio
 
 export type InsertClarificationContract = z.infer<typeof insertClarificationContractSchema>;
 export type ClarificationContractRecord = typeof clarificationContracts.$inferSelect;
+
+// ============================================
+// EXECUTION SESSIONS (Prompt execution state tracking)
+// ============================================
+export const executionSessionStatuses = ["active", "blocked", "completed"] as const;
+export type ExecutionSessionStatus = typeof executionSessionStatuses[number];
+
+export const executionSessions = pgTable("execution_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  promptArtifactId: varchar("prompt_artifact_id").notNull(),
+  promptArtifactVersion: integer("prompt_artifact_version").notNull().default(1),
+  status: text("status").notNull().$type<ExecutionSessionStatus>().default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertExecutionSessionSchema = createInsertSchema(executionSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExecutionSession = z.infer<typeof insertExecutionSessionSchema>;
+export type ExecutionSession = typeof executionSessions.$inferSelect;
+
+// ============================================
+// EXECUTION STEPS (Per-step execution state)
+// ============================================
+export const executionStepStatuses = ["not_started", "in_progress", "completed", "failed"] as const;
+export type ExecutionStepStatus = typeof executionStepStatuses[number];
+
+export const executionSteps = pgTable("execution_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => executionSessions.id),
+  stepNumber: integer("step_number").notNull(),
+  status: text("status").notNull().$type<ExecutionStepStatus>().default("not_started"),
+  attempts: integer("attempts").notNull().default(0),
+  lastFailureHash: text("last_failure_hash"),
+  escalationLevel: integer("escalation_level").notNull().default(0),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertExecutionStepSchema = createInsertSchema(executionSteps).omit({
+  id: true,
+  completedAt: true,
+});
+
+export type InsertExecutionStep = z.infer<typeof insertExecutionStepSchema>;
+export type ExecutionStep = typeof executionSteps.$inferSelect;

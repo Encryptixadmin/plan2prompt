@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   ArrowLeft,
   Sparkles,
@@ -14,10 +13,8 @@ import {
   Copy,
   Check,
   Clock,
-  FileText,
   Loader2,
   CheckCircle2,
-  AlertCircle,
   Lock,
   Download,
   StopCircle,
@@ -26,15 +23,20 @@ import {
   ListOrdered,
   Hand,
   AlertTriangle,
+  PlayCircle,
+  XCircle,
+  RotateCcw,
+  ShieldAlert,
+  Circle,
 } from "lucide-react";
 import { StepFeedbackForm } from "@/components/step-feedback-form";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
 import { useProject } from "@/contexts/project-context";
-import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useRequireProject } from "@/components/require-project-guard";
 import { ClarificationPanel } from "@/components/clarification-panel";
+import type { ExecutionStep, ExecutionSession } from "@shared/schema";
 
 const ideOptions: typeof IDE_OPTIONS = [
   {
@@ -100,6 +102,9 @@ export default function Prompts() {
   const [generatedPrompts, setGeneratedPrompts] = useState<PromptDocument | null>(null);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [executionSession, setExecutionSession] = useState<ExecutionSession | null>(null);
+  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
   const { toast } = useToast();
 
   const { activeProject } = useProject();
@@ -127,7 +132,7 @@ export default function Prompts() {
         throw new Error(data.error || "Failed to generate prompts");
       }
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
         title: "Something went wrong",
         description: "Could not generate prompts. Please try again in a moment.",
@@ -135,6 +140,102 @@ export default function Prompts() {
       });
     },
   });
+
+  const initSessionMutation = useMutation({
+    mutationFn: async (data: { promptArtifactId: string; totalSteps: number }) => {
+      const response = await apiRequest("POST", "/api/execution/sessions", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setExecutionSession(data.data.session);
+        setExecutionSteps(data.data.steps);
+        if (data.data.resumed) {
+          toast({
+            title: "Session Resumed",
+            description: "Your previous execution progress has been restored.",
+          });
+        }
+      }
+    },
+  });
+
+  const updateStepMutation = useMutation({
+    mutationFn: async (data: { sessionId: string; stepNumber: number; status: string; failureOutput?: string }) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/execution/sessions/${data.sessionId}/steps/${data.stepNumber}`,
+        { status: data.status, failureOutput: data.failureOutput }
+      );
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setExecutionSteps(data.data.steps);
+        if (data.data.escalated) {
+          toast({
+            title: "Escalation Triggered",
+            description: "This step has failed multiple times. Consider reviewing requirements.",
+            variant: "destructive",
+          });
+        }
+      }
+    },
+    onError: (error: any) => {
+      const msg = error?.message || "Could not update step status.";
+      if (msg.includes("STEP_SEQUENCE_VIOLATION")) {
+        toast({
+          title: "Step Locked",
+          description: "Complete the previous step first before proceeding.",
+          variant: "destructive",
+        });
+      } else if (msg.includes("SESSION_BLOCKED")) {
+        setSessionBlocked(true);
+        toast({
+          title: "Session Blocked",
+          description: "The upstream prompt artifact has changed. Start a new session.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: msg,
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (generatedPrompts?.artifactId && !executionSession) {
+      initSessionMutation.mutate({
+        promptArtifactId: generatedPrompts.artifactId,
+        totalSteps: generatedPrompts.totalSteps,
+      });
+    }
+  }, [generatedPrompts?.artifactId]);
+
+  const getStepExecution = useCallback((stepNumber: number): ExecutionStep | undefined => {
+    return executionSteps.find(s => s.stepNumber === stepNumber);
+  }, [executionSteps]);
+
+  const isStepEnabled = useCallback((stepNumber: number): boolean => {
+    if (sessionBlocked) return false;
+    if (!executionSession || executionSession.status !== "active") return false;
+    if (stepNumber === 1) return true;
+    const prevStep = executionSteps.find(s => s.stepNumber === stepNumber - 1);
+    return prevStep?.status === "completed";
+  }, [executionSteps, executionSession, sessionBlocked]);
+
+  const handleStepAction = useCallback((stepNumber: number, status: "in_progress" | "completed" | "failed", failureOutput?: string) => {
+    if (!executionSession) return;
+    updateStepMutation.mutate({
+      sessionId: executionSession.id,
+      stepNumber,
+      status,
+      failureOutput,
+    });
+  }, [executionSession, updateStepMutation]);
 
   const handleRequirementsSelect = (reqId: string) => {
     setSelectedRequirements(reqId);
@@ -161,6 +262,9 @@ export default function Prompts() {
     if (flowStep === "view-prompts") {
       setFlowStep("select-ide");
       setGeneratedPrompts(null);
+      setExecutionSession(null);
+      setExecutionSteps([]);
+      setSessionBlocked(false);
     } else if (flowStep === "select-ide") {
       setFlowStep("select-requirements");
       setSelectedIDE("");
@@ -173,6 +277,9 @@ export default function Prompts() {
     setSelectedRequirementsTitle("");
     setSelectedIDE("");
     setGeneratedPrompts(null);
+    setExecutionSession(null);
+    setExecutionSteps([]);
+    setSessionBlocked(false);
   };
 
   const copyPrompt = async (step: number, prompt: string) => {
@@ -184,7 +291,7 @@ export default function Prompts() {
         description: `Step ${step} copied to clipboard`,
       });
       setTimeout(() => setCopiedStep(null), 2000);
-    } catch (error) {
+    } catch {
       toast({
         title: "Copy Failed",
         description: "Could not copy to clipboard. Try selecting and copying manually.",
@@ -208,7 +315,7 @@ export default function Prompts() {
         description: `${generatedPrompts.totalSteps} prompts copied to clipboard`,
       });
       setTimeout(() => setCopiedAll(false), 2000);
-    } catch (error) {
+    } catch {
       toast({
         title: "Copy Failed",
         description: "Could not copy to clipboard. Try selecting and copying manually.",
@@ -262,6 +369,8 @@ export default function Prompts() {
     });
   };
 
+  const completedCount = executionSteps.filter(s => s.status === "completed").length;
+  const totalStepsCount = executionSteps.length;
   const selectedIDEInfo = ideOptions.find((ide) => ide.id === selectedIDE);
 
   return (
@@ -444,6 +553,23 @@ export default function Prompts() {
               />
             )}
 
+            {sessionBlocked && (
+              <Card className="border-2 border-red-300 dark:border-red-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-red-700 dark:text-red-400">Session Blocked</h4>
+                      <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
+                        The upstream prompt artifact has been updated. Your current session is no longer valid.
+                        Start over to generate a new session from the latest prompts.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
@@ -461,6 +587,16 @@ export default function Prompts() {
                       <Clock className="h-3 w-3" />
                       {generatedPrompts.estimatedTotalTime}
                     </Badge>
+                    {totalStepsCount > 0 && (
+                      <Badge
+                        variant={completedCount === totalStepsCount ? "default" : "secondary"}
+                        className="gap-1"
+                        data-testid="badge-execution-progress"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        {completedCount} / {totalStepsCount}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -472,11 +608,20 @@ export default function Prompts() {
                       <h4 className="font-medium text-amber-700 dark:text-amber-400">Manual Execution Required</h4>
                       <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mt-1">
                         These prompts do not auto-execute. Copy each prompt and paste it into your IDE's AI assistant. 
-                        Follow the STOP/WAIT instructions between steps.
+                        Follow the STOP/WAIT instructions between steps. Mark each step complete before proceeding.
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {totalStepsCount > 0 && (
+                  <div className="w-full bg-muted rounded-full h-2" data-testid="progress-bar">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${(completedCount / totalStepsCount) * 100}%` }}
+                    />
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -522,6 +667,10 @@ export default function Prompts() {
                     promptDocumentId={generatedPrompts.artifactId}
                     ide={generatedPrompts.ide}
                     ideName={generatedPrompts.ideName}
+                    executionStep={getStepExecution(prompt.step)}
+                    stepEnabled={isStepEnabled(prompt.step)}
+                    onStepAction={handleStepAction}
+                    isUpdating={updateStepMutation.isPending}
                   />
                 ))}
               </div>
@@ -557,29 +706,63 @@ interface PromptCardProps {
   promptDocumentId?: string;
   ide?: IDEType;
   ideName?: string;
+  executionStep?: ExecutionStep;
+  stepEnabled: boolean;
+  onStepAction: (stepNumber: number, status: "in_progress" | "completed" | "failed", failureOutput?: string) => void;
+  isUpdating: boolean;
 }
 
-function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, ideName }: PromptCardProps) {
+function StepStatusIndicator({ status }: { status?: string }) {
+  switch (status) {
+    case "completed":
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    case "in_progress":
+      return <PlayCircle className="h-4 w-4 text-blue-500" />;
+    case "failed":
+      return <XCircle className="h-4 w-4 text-red-500" />;
+    default:
+      return <Circle className="h-4 w-4 text-muted-foreground" />;
+  }
+}
+
+function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, ideName, executionStep, stepEnabled, onStepAction, isUpdating }: PromptCardProps) {
   const [showFeedback, setShowFeedback] = useState(false);
+  const stepStatus = executionStep?.status || "not_started";
+  const isCompleted = stepStatus === "completed";
+  const isFailed = stepStatus === "failed";
+  const isDisabled = !stepEnabled && !isCompleted;
+
+  const stepCircleClass = isCompleted
+    ? "border-green-500 bg-green-500 text-white"
+    : isFailed
+    ? "border-red-500 bg-red-500 text-white"
+    : stepStatus === "in_progress"
+    ? "border-blue-500 bg-blue-500 text-white"
+    : isDisabled
+    ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+    : "border-primary bg-primary text-primary-foreground";
 
   return (
-    <div className="relative">
+    <div className="relative" data-testid={`step-card-${prompt.step}`}>
       <div className="flex items-start gap-4">
         <div className="flex flex-col items-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground text-sm font-bold">
-            {prompt.step}
+          <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold ${stepCircleClass}`}>
+            {isCompleted ? <Check className="h-5 w-5" /> : prompt.step}
           </div>
           {!isLast && (
-            <div className="w-0.5 h-full min-h-[100px] bg-border mt-2" />
+            <div className={`w-0.5 h-full min-h-[100px] mt-2 ${isCompleted ? "bg-green-300 dark:bg-green-700" : "bg-border"}`} />
           )}
         </div>
 
-        <div className="flex-1 space-y-4">
+        <div className={`flex-1 space-y-4 ${isDisabled ? "opacity-50 pointer-events-none" : ""}`}>
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                    <StepStatusIndicator status={stepStatus} />
+                  </div>
                   {prompt.dependencies && prompt.dependencies.length > 0 && (
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground">Requires:</span>
@@ -598,6 +781,22 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                           {reqId}
                         </Badge>
                       ))}
+                    </div>
+                  )}
+                  {executionStep && (executionStep.attempts > 0 || executionStep.escalationLevel > 0) && (
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {executionStep.attempts > 0 && (
+                        <Badge variant="destructive" className="text-xs gap-1" data-testid={`badge-attempts-${prompt.step}`}>
+                          <RotateCcw className="h-3 w-3" />
+                          {executionStep.attempts} {executionStep.attempts === 1 ? "attempt" : "attempts"}
+                        </Badge>
+                      )}
+                      {executionStep.escalationLevel > 0 && (
+                        <Badge variant="destructive" className="text-xs gap-1" data-testid={`badge-escalation-${prompt.step}`}>
+                          <ShieldAlert className="h-3 w-3" />
+                          Escalation Level {executionStep.escalationLevel}
+                        </Badge>
+                      )}
                     </div>
                   )}
                 </div>
@@ -673,18 +872,66 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                 </p>
               </div>
 
-              {promptDocumentId && ide && ideName && !showFeedback && (
+              {!isDisabled && !isCompleted && (
+                <div className="pt-2 border-t flex items-center gap-2 flex-wrap">
+                  {stepStatus === "not_started" && (
+                    <Button
+                      size="sm"
+                      onClick={() => onStepAction(prompt.step, "in_progress")}
+                      disabled={isUpdating}
+                      className="gap-1"
+                      data-testid={`button-start-step-${prompt.step}`}
+                    >
+                      <PlayCircle className="h-4 w-4" />
+                      Start Step
+                    </Button>
+                  )}
+                  {(stepStatus === "in_progress" || stepStatus === "failed") && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => onStepAction(prompt.step, "completed")}
+                        disabled={isUpdating}
+                        className="gap-1"
+                        data-testid={`button-complete-step-${prompt.step}`}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Mark Complete
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onStepAction(prompt.step, "failed", "Step failed during execution")}
+                        disabled={isUpdating}
+                        className="gap-1"
+                        data-testid={`button-fail-step-${prompt.step}`}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Report Failure
+                      </Button>
+                    </>
+                  )}
+                  {promptDocumentId && ide && ideName && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFeedback(true)}
+                      className="gap-1"
+                      data-testid={`button-resolve-step-${prompt.step}`}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      Resolve Issue
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {isCompleted && (
                 <div className="pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFeedback(true)}
-                    className="gap-2"
-                    data-testid={`button-resolve-step-${prompt.step}`}
-                  >
-                    <AlertTriangle className="h-4 w-4" />
-                    Resolve Step Issue
-                  </Button>
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm font-medium">Step completed</span>
+                  </div>
                 </div>
               )}
             </CardContent>

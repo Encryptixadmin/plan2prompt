@@ -3,6 +3,8 @@ import {
   projects,
   projectMembers,
   clarificationContracts,
+  executionSessions,
+  executionSteps,
   type User, 
   type UpsertUser,
   type Project,
@@ -13,9 +15,15 @@ import {
   type ClarificationContractRecord,
   type InsertClarificationContract,
   type ClarificationResolutionStatus,
+  type ExecutionSession,
+  type InsertExecutionSession,
+  type ExecutionSessionStatus,
+  type ExecutionStep,
+  type InsertExecutionStep,
+  type ExecutionStepStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -47,6 +55,19 @@ export interface IStorage {
   updateClarificationStatus(id: string, status: ClarificationResolutionStatus, resolutionData?: string): Promise<ClarificationContractRecord | undefined>;
   incrementClarificationOccurrence(id: string): Promise<ClarificationContractRecord | undefined>;
   escalateClarificationToBlocker(id: string): Promise<ClarificationContractRecord | undefined>;
+
+  createExecutionSession(session: InsertExecutionSession): Promise<ExecutionSession>;
+  getExecutionSession(id: string): Promise<ExecutionSession | undefined>;
+  getActiveSessionForArtifact(projectId: string, promptArtifactId: string): Promise<ExecutionSession | undefined>;
+  updateExecutionSessionStatus(id: string, status: ExecutionSessionStatus): Promise<ExecutionSession | undefined>;
+  listExecutionSessionsByProject(projectId: string): Promise<ExecutionSession[]>;
+
+  createExecutionStep(step: InsertExecutionStep): Promise<ExecutionStep>;
+  getExecutionStep(sessionId: string, stepNumber: number): Promise<ExecutionStep | undefined>;
+  listExecutionSteps(sessionId: string): Promise<ExecutionStep[]>;
+  updateExecutionStepStatus(id: string, status: ExecutionStepStatus): Promise<ExecutionStep | undefined>;
+  incrementStepAttempts(id: string, failureHash: string): Promise<ExecutionStep | undefined>;
+  incrementStepEscalation(id: string): Promise<ExecutionStep | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -316,6 +337,120 @@ export class DatabaseStorage implements IStorage {
       .update(clarificationContracts)
       .set({ severity: "blocker" })
       .where(eq(clarificationContracts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async createExecutionSession(session: InsertExecutionSession): Promise<ExecutionSession> {
+    const [record] = await db
+      .insert(executionSessions)
+      .values(session)
+      .returning();
+    return record;
+  }
+
+  async getExecutionSession(id: string): Promise<ExecutionSession | undefined> {
+    const [record] = await db.select().from(executionSessions).where(eq(executionSessions.id, id));
+    return record;
+  }
+
+  async getActiveSessionForArtifact(projectId: string, promptArtifactId: string): Promise<ExecutionSession | undefined> {
+    const [record] = await db
+      .select()
+      .from(executionSessions)
+      .where(
+        and(
+          eq(executionSessions.projectId, projectId),
+          eq(executionSessions.promptArtifactId, promptArtifactId),
+          eq(executionSessions.status, "active")
+        )
+      )
+      .orderBy(desc(executionSessions.createdAt))
+      .limit(1);
+    return record;
+  }
+
+  async updateExecutionSessionStatus(id: string, status: ExecutionSessionStatus): Promise<ExecutionSession | undefined> {
+    const [updated] = await db
+      .update(executionSessions)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(executionSessions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async listExecutionSessionsByProject(projectId: string): Promise<ExecutionSession[]> {
+    return db
+      .select()
+      .from(executionSessions)
+      .where(eq(executionSessions.projectId, projectId))
+      .orderBy(desc(executionSessions.createdAt));
+  }
+
+  async createExecutionStep(step: InsertExecutionStep): Promise<ExecutionStep> {
+    const [record] = await db
+      .insert(executionSteps)
+      .values(step)
+      .returning();
+    return record;
+  }
+
+  async getExecutionStep(sessionId: string, stepNumber: number): Promise<ExecutionStep | undefined> {
+    const [record] = await db
+      .select()
+      .from(executionSteps)
+      .where(
+        and(
+          eq(executionSteps.sessionId, sessionId),
+          eq(executionSteps.stepNumber, stepNumber)
+        )
+      );
+    return record;
+  }
+
+  async listExecutionSteps(sessionId: string): Promise<ExecutionStep[]> {
+    return db
+      .select()
+      .from(executionSteps)
+      .where(eq(executionSteps.sessionId, sessionId))
+      .orderBy(asc(executionSteps.stepNumber));
+  }
+
+  async updateExecutionStepStatus(id: string, status: ExecutionStepStatus): Promise<ExecutionStep | undefined> {
+    const updateData: Record<string, unknown> = { status };
+    if (status === "completed") {
+      updateData.completedAt = new Date();
+    }
+    const [updated] = await db
+      .update(executionSteps)
+      .set(updateData)
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async incrementStepAttempts(id: string, failureHash: string): Promise<ExecutionStep | undefined> {
+    const existing = await db.select().from(executionSteps).where(eq(executionSteps.id, id));
+    if (!existing[0]) return undefined;
+    const [updated] = await db
+      .update(executionSteps)
+      .set({
+        attempts: existing[0].attempts + 1,
+        lastFailureHash: failureHash,
+        status: "failed" as const,
+      })
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async incrementStepEscalation(id: string): Promise<ExecutionStep | undefined> {
+    const existing = await db.select().from(executionSteps).where(eq(executionSteps.id, id));
+    if (!existing[0]) return undefined;
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ escalationLevel: existing[0].escalationLevel + 1 })
+      .where(eq(executionSteps.id, id))
       .returning();
     return updated;
   }

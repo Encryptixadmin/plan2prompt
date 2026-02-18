@@ -1,0 +1,94 @@
+Proceed to IMPLEMENT EXECUTION STATE TRACKING.
+
+EXECUTION MODE:
+Deterministic orchestration.
+No agent autonomy.
+No auto-rewrites.
+
+OBJECTIVE:
+Persist execution state per project so prompt execution becomes structured and resumable.
+
+--------------------------------
+PART 1 — DATABASE TABLE
+--------------------------------
+
+Create execution_sessions table:
+
+ExecutionSession {
+  id: string (uuid)
+  projectId: string
+  promptArtifactId: string
+  status: "active" | "blocked" | "completed"
+  createdAt: Date
+  updatedAt: Date
+}
+
+Create execution_steps table:
+
+ExecutionStep {
+  id: string
+  sessionId: string
+  stepId: string
+  status: "not_started" | "in_progress" | "completed" | "failed"
+  attempts: number
+  lastFailureHash?: string
+  escalationLevel?: number
+  completedAt?: Date
+}
+
+--------------------------------
+PART 2 — ENFORCEMENT RULES
+--------------------------------
+
+Rules:
+
+- Cannot execute step N+1 unless step N = completed
+- If step fails 3 times with same failure hash → escalationLevel++
+- If upstream artefact version changes → mark session blocked
+- Users may resume active sessions
+
+--------------------------------
+PART 3 — FEEDBACK LOOP INTEGRATION
+--------------------------------
+
+When feedback classified:
+
+- Update execution_steps.status accordingly
+- If classification = retry_step → keep same step active
+- If classification = stop_execution → mark session blocked
+
+--------------------------------
+PART 4 — FRONTEND BEHAVIOUR
+--------------------------------
+
+Prompts page must:
+
+- Show execution state per step
+- Disable future steps until dependencies complete
+- Show retry counter
+- Allow resume after refresh
+
+--------------------------------
+PART 5 — TESTING
+--------------------------------
+
+Add tests verifying:
+
+- Cannot skip steps
+- Repeated failures increment escalationLevel
+- Upstream change invalidates session
+- Session resumes correctly
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Execute step 1 → complete.
+2. Attempt step 3 → blocked.
+3. Fail step twice → escalationLevel increments.
+4. Refresh page → session persists.
+
+STOP.
+WAIT for confirmation.
