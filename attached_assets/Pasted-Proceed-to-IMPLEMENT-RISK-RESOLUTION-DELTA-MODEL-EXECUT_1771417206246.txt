@@ -1,0 +1,103 @@
+Proceed to IMPLEMENT RISK RESOLUTION DELTA MODEL.
+
+EXECUTION MODE:
+Risk transparency upgrade.
+No scoring relaxation.
+No UI redesign beyond delta display.
+
+OBJECTIVE:
+Track risk severity and assumption state changes across refinement cycles.
+
+--------------------------------
+PART 1 — RISK STATE ENUMS
+--------------------------------
+
+Update risk model:
+
+RiskSeverity = "High" | "Medium" | "Low"
+
+AssumptionStatus =
+  "unvalidated"
+  | "partially_validated"
+  | "validated"
+
+--------------------------------
+PART 2 — RISK DELTA STRUCTURE
+--------------------------------
+
+Create:
+
+RiskDelta {
+  riskId: string
+  severityBefore: RiskSeverity
+  severityAfter: RiskSeverity
+  assumptionChanges: [
+    {
+      assumptionId: string
+      before: AssumptionStatus
+      after: AssumptionStatus
+    }
+  ]
+  improvementScore: number
+}
+
+--------------------------------
+PART 3 — WORKSHOP INTEGRATION
+--------------------------------
+
+After workshop:
+
+- Evaluate assumption status changes
+- Adjust risk severity deterministically:
+    unvalidated → partially_validated = reduce one level
+    partially_validated → validated = reduce one level
+- Never reduce below Low
+
+--------------------------------
+PART 4 — BEFORE/AFTER PRESENTATION
+--------------------------------
+
+Update Ideas UI:
+
+- Show severity delta visually
+- Show assumption transitions
+- If severity unchanged but assumption improved → display partial improvement
+- Never display “No improvement” if any delta exists
+
+--------------------------------
+PART 5 — SCORING UPDATE
+--------------------------------
+
+Score calculation must use:
+
+- Updated risk severities
+- Updated assumption statuses
+- Explicit delta weighting
+
+--------------------------------
+PART 6 — TESTING
+--------------------------------
+
+Add tests verifying:
+
+- Assumption status transitions correctly
+- Risk severity changes correctly
+- Delta object produced
+- Score changes when severity changes
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Submit idea.
+2. Trigger workshop.
+3. Improve one assumption.
+4. Confirm:
+   - Severity decreases one level.
+   - Delta displayed.
+   - Score adjusts accordingly.
+
+STOP.
+WAIT for confirmation.

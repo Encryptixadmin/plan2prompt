@@ -6,6 +6,23 @@
 
 export type IdeaPurpose = "commercial" | "developer_tool" | "internal" | "open_source" | "learning";
 
+export type RiskSeverity = "high" | "medium" | "low";
+export type AssumptionStatus = "unvalidated" | "partially_validated" | "validated";
+
+export interface AssumptionChange {
+  assumptionId: string;
+  before: AssumptionStatus;
+  after: AssumptionStatus;
+}
+
+export interface RiskDelta {
+  riskId: string;
+  severityBefore: RiskSeverity;
+  severityAfter: RiskSeverity;
+  assumptionChanges: AssumptionChange[];
+  improvementScore: number;
+}
+
 // User input for idea submission
 export interface IdeaInput {
   title: string;
@@ -40,9 +57,10 @@ export interface IdeaWeakness {
 
 // Risk flag
 export interface IdeaRisk {
+  id?: string;
   category: "market" | "technical" | "financial" | "legal" | "competitive" | "execution";
   description: string;
-  severity: "low" | "medium" | "high";
+  severity: RiskSeverity;
   recommendation?: string;
 }
 
@@ -74,11 +92,12 @@ export interface ScopeWarning {
 
 // Assumption dependency
 export interface AssumptionDependency {
+  id?: string;
   assumption: string;
-  status: "validated" | "unvalidated" | "risky";
-  evidence?: string; // For validated assumptions
-  validationMethod?: string; // How to validate unvalidated ones
-  riskIfWrong?: string; // Consequence if assumption is false
+  status: "validated" | "unvalidated" | "risky" | "partially_validated";
+  evidence?: string;
+  validationMethod?: string;
+  riskIfWrong?: string;
 }
 
 // Failure mode narrative
@@ -189,6 +208,9 @@ export interface IdeaAnalysis {
   assumptionDependencies: AssumptionDependency[];
   failureModeNarrative: FailureModeNarrative;
   
+  // Risk resolution delta (populated after workshop refinement)
+  riskDeltas?: RiskDelta[];
+
   // Decision clarity
   recommendation: "proceed" | "revise" | "stop";
   recommendationRationale: string;

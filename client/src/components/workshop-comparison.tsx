@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
-import type { IdeaAnalysis } from "@shared/types/ideas";
+import type { IdeaAnalysis, RiskDelta } from "@shared/types/ideas";
 
 interface WorkshopComparisonProps {
   previousAnalysis: IdeaAnalysis;
@@ -285,6 +285,103 @@ function getStatusLabel(status: string): string {
   return labels[status] || status;
 }
 
+function getSeverityBadgeClass(severity: string): string {
+  switch (severity) {
+    case "high":
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    case "medium":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "low":
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function getAssumptionStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    unvalidated: "Unvalidated",
+    partially_validated: "Partially Validated",
+    validated: "Validated",
+    risky: "Partially Validated",
+  };
+  return labels[status] || status;
+}
+
+function getAssumptionStatusClass(status: string): string {
+  switch (status) {
+    case "validated":
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    case "partially_validated":
+    case "risky":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+    default:
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+  }
+}
+
+function RiskDeltaDisplay({ deltas }: { deltas: RiskDelta[] }) {
+  if (!deltas || deltas.length === 0) return null;
+
+  const hasAnyImprovement = deltas.some(
+    d => d.severityBefore !== d.severityAfter || d.assumptionChanges.length > 0
+  );
+
+  if (!hasAnyImprovement) return null;
+
+  return (
+    <div className="space-y-3" data-testid="risk-delta-display">
+      <p className="text-xs font-medium text-muted-foreground">Risk Resolution Deltas:</p>
+      <div className="space-y-2">
+        {deltas.map((delta, i) => (
+          <div key={i} className="rounded-lg border p-3 space-y-2" data-testid={`risk-delta-${delta.riskId}`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-muted-foreground">{delta.riskId}</span>
+              {delta.severityBefore !== delta.severityAfter ? (
+                <span className="flex items-center gap-1">
+                  <Badge className={`text-xs px-1.5 py-0 ${getSeverityBadgeClass(delta.severityBefore)}`}>
+                    {delta.severityBefore}
+                  </Badge>
+                  <ArrowRight className="h-3 w-3" />
+                  <Badge className={`text-xs px-1.5 py-0 ${getSeverityBadgeClass(delta.severityAfter)}`}>
+                    {delta.severityAfter}
+                  </Badge>
+                </span>
+              ) : (
+                <Badge className={`text-xs px-1.5 py-0 ${getSeverityBadgeClass(delta.severityAfter)}`}>
+                  {delta.severityAfter} (unchanged)
+                </Badge>
+              )}
+              {delta.improvementScore > 0 && (
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 gap-1" data-testid={`improvement-score-${delta.riskId}`}>
+                  <TrendingUp className="h-3 w-3" />
+                  +{delta.improvementScore}
+                </Badge>
+              )}
+            </div>
+            {delta.assumptionChanges.length > 0 && (
+              <div className="pl-2 space-y-1">
+                {delta.assumptionChanges.map((ac, j) => (
+                  <div key={j} className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+                    <span className="truncate max-w-[140px]">{ac.assumptionId}</span>
+                    <Badge className={`text-xs px-1 py-0 ${getAssumptionStatusClass(ac.before)}`}>
+                      {getAssumptionStatusLabel(ac.before)}
+                    </Badge>
+                    <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                    <Badge className={`text-xs px-1 py-0 ${getAssumptionStatusClass(ac.after)}`}>
+                      {getAssumptionStatusLabel(ac.after)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WorkshopComparison({
   previousAnalysis,
   newAnalysis,
@@ -452,7 +549,11 @@ export function WorkshopComparison({
               </div>
             )}
 
-            {improvements.length === 0 && resolvedRisks.length === 0 && resolvedAssumptions.length === 0 && assumptionTransitions.length === 0 && riskSeverityChanges.length === 0 && (
+            {newAnalysis.riskDeltas && newAnalysis.riskDeltas.length > 0 && (
+              <RiskDeltaDisplay deltas={newAnalysis.riskDeltas} />
+            )}
+
+            {improvements.length === 0 && resolvedRisks.length === 0 && resolvedAssumptions.length === 0 && assumptionTransitions.length === 0 && riskSeverityChanges.length === 0 && (!newAnalysis.riskDeltas || newAnalysis.riskDeltas.length === 0) && (
               <p className="text-sm text-muted-foreground">No improvements detected.</p>
             )}
           </div>

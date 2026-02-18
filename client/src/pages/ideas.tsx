@@ -872,6 +872,7 @@ export default function IdeasPage() {
             workshopRefinement: workshopFindings,
           },
         },
+        previousAnalysis: analysis,
       });
       
       const data = await response.json() as { success: boolean; data: AnalyzeIdeaResponse };

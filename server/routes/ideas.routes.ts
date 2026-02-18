@@ -5,6 +5,7 @@ import { artifactService } from "../services/artifact.service";
 import type { AnalyzeIdeaRequest, IdeaAnalysis } from "@shared/types/ideas";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { adminService } from "../services/admin.service";
+import { computeRiskDeltas, applyDeltasToAnalysis, computeDeltaScoreAdjustment } from "../services/risk-delta.service";
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.post(
   requirePermission("canGenerate"),
   async (req, res) => {
     try {
-      const request: AnalyzeIdeaRequest = req.body;
+      const request = req.body as AnalyzeIdeaRequest & { previousAnalysis?: IdeaAnalysis };
 
       if (!request.idea?.title || !request.idea?.description) {
         return res.status(400).json({
@@ -116,7 +117,18 @@ router.post(
 
       const projectId = req.headers["x-project-id"] as string | undefined;
       const userId = req.userId;
-      const analysis = await ideasService.analyzeIdea(request.idea, projectId, userId);
+      let analysis = await ideasService.analyzeIdea(request.idea, projectId, userId);
+
+      if (request.idea.context?.workshopRefinement && request.previousAnalysis) {
+        const deltas = computeRiskDeltas(request.previousAnalysis, analysis);
+        if (deltas.length > 0) {
+          analysis = applyDeltasToAnalysis(analysis, deltas);
+          const scoreBonus = computeDeltaScoreAdjustment(deltas);
+          if (scoreBonus > 0) {
+            analysis.overallScore = Math.min(100, analysis.overallScore + scoreBonus);
+          }
+        }
+      }
 
       res.json({
         success: true,
