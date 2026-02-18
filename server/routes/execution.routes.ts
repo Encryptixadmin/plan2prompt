@@ -60,6 +60,7 @@ router.post(
           status: "not_started",
           attempts: 0,
           escalationLevel: 0,
+          reexecutionCount: 0,
         });
         steps.push(step);
       }
@@ -158,6 +159,9 @@ router.get(
 const updateStepSchema = z.object({
   status: z.enum(["in_progress", "completed", "failed"]),
   failureOutput: z.string().optional(),
+  integrityOverride: z.boolean().optional(),
+  isIdempotent: z.boolean().optional(),
+  integrityLevel: z.enum(["safe", "caution", "critical"]).optional(),
 });
 
 router.patch(
@@ -173,7 +177,7 @@ router.patch(
         });
       }
 
-      const { status, failureOutput } = validation.data;
+      const { status, failureOutput, integrityOverride, isIdempotent, integrityLevel } = validation.data;
       const stepNumber = parseInt(req.params.stepNumber, 10);
       const sessionId = req.params.sessionId;
 
@@ -231,8 +235,42 @@ router.patch(
         }
       }
 
+      if (status === "in_progress" && currentStep.status === "completed") {
+        if (isIdempotent === false && integrityLevel === "critical" && !integrityOverride) {
+          return res.status(409).json({
+            success: false,
+            error: {
+              code: "INTEGRITY_RERUN_BLOCKED",
+              message: "This step is non-idempotent and critical. Re-execution requires explicit confirmation.",
+              integrityLevel: "critical",
+              isIdempotent: false,
+            },
+          });
+        }
+
+        if (isIdempotent === false && !integrityOverride) {
+          return res.status(409).json({
+            success: false,
+            error: {
+              code: "INTEGRITY_RERUN_BLOCKED",
+              message: "This step is non-idempotent. Re-execution may cause side effects. Confirm to proceed.",
+              integrityLevel: integrityLevel || "caution",
+              isIdempotent: false,
+            },
+          });
+        }
+
+        if (integrityOverride) {
+          await storage.setIntegrityOverride(currentStep.id);
+        }
+
+        await storage.incrementReexecutionCount(currentStep.id);
+      }
+
       let updatedStep = currentStep;
       let escalated = false;
+      let duplicateFailure = false;
+      let clarificationCreated = false;
 
       if (status === "failed") {
         const failureHash = createHash("sha256")
@@ -240,17 +278,73 @@ router.patch(
           .digest("hex")
           .substring(0, 16);
 
+        const previousHash = currentStep.lastFailureHash;
         updatedStep = (await storage.incrementStepAttempts(currentStep.id, failureHash))!;
 
-        if (updatedStep.lastFailureHash === failureHash && updatedStep.attempts >= 3) {
-          const mod = updatedStep.attempts % 3;
-          if (mod === 0) {
-            updatedStep = (await storage.incrementStepEscalation(currentStep.id))!;
-            escalated = true;
+        if (previousHash === failureHash && updatedStep.attempts >= 2) {
+          duplicateFailure = true;
+          await storage.setDuplicateFailureDetected(currentStep.id);
+
+          try {
+            const contractHash = createHash("sha256")
+              .update(`execution-step-${stepNumber}-${failureHash}-${sessionId}`)
+              .digest("hex")
+              .substring(0, 16);
+
+            await storage.createClarificationContract({
+              projectId: session.projectId,
+              contractHash,
+              originatingModule: "execution",
+              targetModule: "prompts",
+              category: "execution_failure",
+              severity: updatedStep.attempts >= 6 ? "blocker" : "advisory",
+              title: `Duplicate failure on Step ${stepNumber}`,
+              description: `Step ${stepNumber} has failed ${updatedStep.attempts} times with the same error signature (hash: ${failureHash}). The failure output suggests the prompt may need revision.`,
+              suggestedAction: `Review and revise the prompt for Step ${stepNumber}, or adjust requirements that feed into this step.`,
+              status: "pending",
+              occurrenceCount: updatedStep.attempts,
+            });
+            clarificationCreated = true;
+          } catch (e) {
+          }
+        }
+
+        if (updatedStep.attempts >= 3 && updatedStep.attempts % 3 === 0) {
+          updatedStep = (await storage.incrementStepEscalation(currentStep.id))!;
+          escalated = true;
+
+          if (updatedStep.escalationLevel >= 2) {
+            try {
+              const blockerHash = createHash("sha256")
+                .update(`escalation-blocker-step-${stepNumber}-${sessionId}`)
+                .digest("hex")
+                .substring(0, 16);
+
+              await storage.createClarificationContract({
+                projectId: session.projectId,
+                contractHash: blockerHash,
+                originatingModule: "execution",
+                targetModule: "prompts",
+                category: "execution_failure",
+                severity: "blocker",
+                title: `Escalation Level ${updatedStep.escalationLevel}: Step ${stepNumber} blocked`,
+                description: `Step ${stepNumber} has reached escalation level ${updatedStep.escalationLevel} after ${updatedStep.attempts} cumulative failures. Forward progression is unsafe without upstream review.`,
+                suggestedAction: `Reassess the requirements and prompts feeding Step ${stepNumber}. Consider regenerating prompts from revised requirements.`,
+                status: "pending",
+                occurrenceCount: updatedStep.escalationLevel,
+              });
+            } catch (e) {
+            }
           }
         }
       } else if (status === "completed") {
+        const completionHash = createHash("sha256")
+          .update(`step-${stepNumber}-completed-${Date.now()}`)
+          .digest("hex")
+          .substring(0, 16);
+
         updatedStep = (await storage.updateExecutionStepStatus(currentStep.id, "completed"))!;
+        await storage.setSuccessHash(currentStep.id, completionHash);
 
         const allCompleted = steps.every(s =>
           s.stepNumber === stepNumber ? true : s.status === "completed"
@@ -270,6 +364,8 @@ router.patch(
           step: updatedStep,
           steps: updatedSteps,
           escalated,
+          duplicateFailure,
+          clarificationCreated,
         },
       });
     } catch (error) {
@@ -277,6 +373,47 @@ router.patch(
       res.status(500).json({
         success: false,
         error: { code: "INTERNAL_ERROR", message: "Failed to update step" },
+      });
+    }
+  }
+);
+
+router.post(
+  "/sessions/:sessionId/steps/:stepNumber/integrity-override",
+  requireProjectContext,
+  async (req: Request, res: Response) => {
+    try {
+      const stepNumber = parseInt(req.params.stepNumber, 10);
+      const sessionId = req.params.sessionId;
+
+      const session = await storage.getExecutionSession(sessionId);
+      if (!session || session.projectId !== req.projectId) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Session not found" },
+        });
+      }
+
+      const steps = await storage.listExecutionSteps(sessionId);
+      const step = steps.find(s => s.stepNumber === stepNumber);
+      if (!step) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "STEP_NOT_FOUND", message: `Step ${stepNumber} not found` },
+        });
+      }
+
+      const updated = await storage.setIntegrityOverride(step.id);
+
+      res.json({
+        success: true,
+        data: { step: updated },
+      });
+    } catch (error) {
+      console.error("Error setting integrity override:", error);
+      res.status(500).json({
+        success: false,
+        error: { code: "INTERNAL_ERROR", message: "Failed to set integrity override" },
       });
     }
   }

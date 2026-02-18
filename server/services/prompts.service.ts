@@ -177,7 +177,36 @@ export class PromptsService {
     const finalStep = this.generateFinalStep(stepNum, doc, steps[steps.length - 1].step, outOfScopeGuardrails);
     steps.push(finalStep);
 
-    return steps;
+    return steps.map(s => this.assignIntegrityMetadata(s));
+  }
+
+  private assignIntegrityMetadata(step: BuildPrompt): BuildPrompt {
+    const titleLower = step.title.toLowerCase();
+    const promptLower = step.prompt.toLowerCase();
+    const combined = `${titleLower} ${promptLower}`;
+
+    if (
+      combined.includes("migration") ||
+      combined.includes("schema") ||
+      combined.includes("seed") ||
+      combined.includes("database setup") ||
+      combined.includes("data model")
+    ) {
+      return { ...step, isIdempotent: false, integrityLevel: "critical" as const };
+    }
+
+    if (
+      combined.includes("scaffold") ||
+      combined.includes("project setup") ||
+      combined.includes("architecture") ||
+      combined.includes("initialize") ||
+      combined.includes("final integration") ||
+      combined.includes("polish")
+    ) {
+      return { ...step, isIdempotent: true, integrityLevel: "safe" as const };
+    }
+
+    return { ...step, isIdempotent: false, integrityLevel: "caution" as const };
   }
 
   private isHighPriority(fr: FunctionalRequirement): boolean {

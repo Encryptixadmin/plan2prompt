@@ -68,6 +68,10 @@ export interface IStorage {
   updateExecutionStepStatus(id: string, status: ExecutionStepStatus): Promise<ExecutionStep | undefined>;
   incrementStepAttempts(id: string, failureHash: string): Promise<ExecutionStep | undefined>;
   incrementStepEscalation(id: string): Promise<ExecutionStep | undefined>;
+  incrementReexecutionCount(id: string): Promise<ExecutionStep | undefined>;
+  setSuccessHash(id: string, hash: string): Promise<ExecutionStep | undefined>;
+  setIntegrityOverride(id: string): Promise<ExecutionStep | undefined>;
+  setDuplicateFailureDetected(id: string): Promise<ExecutionStep | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -450,6 +454,44 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(executionSteps)
       .set({ escalationLevel: existing[0].escalationLevel + 1 })
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async incrementReexecutionCount(id: string): Promise<ExecutionStep | undefined> {
+    const existing = await db.select().from(executionSteps).where(eq(executionSteps.id, id));
+    if (!existing[0]) return undefined;
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ reexecutionCount: existing[0].reexecutionCount + 1 })
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async setSuccessHash(id: string, hash: string): Promise<ExecutionStep | undefined> {
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ successHash: hash })
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async setIntegrityOverride(id: string): Promise<ExecutionStep | undefined> {
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ integrityOverrideConfirmed: "true" })
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async setDuplicateFailureDetected(id: string): Promise<ExecutionStep | undefined> {
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ duplicateFailureDetected: "true" })
       .where(eq(executionSteps.id, id))
       .returning();
     return updated;

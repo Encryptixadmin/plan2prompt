@@ -38,6 +38,9 @@ export interface VerificationCheckpoint {
   whenToStop: string;
 }
 
+// Integrity level for execution safety
+export type IntegrityLevel = "safe" | "caution" | "critical";
+
 // Single build prompt
 export interface BuildPrompt {
   step: number;
@@ -56,6 +59,8 @@ export interface BuildPrompt {
   scopeGuardrails?: string[];
   stopConditions?: string[];
   ideConstraints?: string[];
+  isIdempotent?: boolean;
+  integrityLevel?: IntegrityLevel;
 }
 
 // Complete prompt document

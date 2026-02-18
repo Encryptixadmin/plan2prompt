@@ -161,11 +161,25 @@ export default function Prompts() {
   });
 
   const updateStepMutation = useMutation({
-    mutationFn: async (data: { sessionId: string; stepNumber: number; status: string; failureOutput?: string }) => {
+    mutationFn: async (data: {
+      sessionId: string;
+      stepNumber: number;
+      status: string;
+      failureOutput?: string;
+      integrityOverride?: boolean;
+      isIdempotent?: boolean;
+      integrityLevel?: string;
+    }) => {
       const response = await apiRequest(
         "PATCH",
         `/api/execution/sessions/${data.sessionId}/steps/${data.stepNumber}`,
-        { status: data.status, failureOutput: data.failureOutput }
+        {
+          status: data.status,
+          failureOutput: data.failureOutput,
+          integrityOverride: data.integrityOverride,
+          isIdempotent: data.isIdempotent,
+          integrityLevel: data.integrityLevel,
+        }
       );
       return response.json();
     },
@@ -176,6 +190,13 @@ export default function Prompts() {
           toast({
             title: "Escalation Triggered",
             description: "This step has failed multiple times. Consider reviewing requirements.",
+            variant: "destructive",
+          });
+        }
+        if (data.data.duplicateFailure) {
+          toast({
+            title: "Duplicate Failure Detected",
+            description: "The same error occurred again. A clarification request has been created for review.",
             variant: "destructive",
           });
         }
@@ -194,6 +215,12 @@ export default function Prompts() {
         toast({
           title: "Session Blocked",
           description: "The upstream prompt artifact has changed. Start a new session.",
+          variant: "destructive",
+        });
+      } else if (msg.includes("INTEGRITY_RERUN_BLOCKED")) {
+        toast({
+          title: "Re-run Blocked",
+          description: "This step requires confirmation before re-execution. Use the re-run button.",
           variant: "destructive",
         });
       } else {
@@ -227,13 +254,23 @@ export default function Prompts() {
     return prevStep?.status === "completed";
   }, [executionSteps, executionSession, sessionBlocked]);
 
-  const handleStepAction = useCallback((stepNumber: number, status: "in_progress" | "completed" | "failed", failureOutput?: string) => {
+  const handleStepAction = useCallback((
+    stepNumber: number,
+    status: "in_progress" | "completed" | "failed",
+    failureOutput?: string,
+    integrityOverride?: boolean,
+    isIdempotent?: boolean,
+    integrityLevel?: string,
+  ) => {
     if (!executionSession) return;
     updateStepMutation.mutate({
       sessionId: executionSession.id,
       stepNumber,
       status,
       failureOutput,
+      integrityOverride,
+      isIdempotent,
+      integrityLevel,
     });
   }, [executionSession, updateStepMutation]);
 
@@ -708,7 +745,14 @@ interface PromptCardProps {
   ideName?: string;
   executionStep?: ExecutionStep;
   stepEnabled: boolean;
-  onStepAction: (stepNumber: number, status: "in_progress" | "completed" | "failed", failureOutput?: string) => void;
+  onStepAction: (
+    stepNumber: number,
+    status: "in_progress" | "completed" | "failed",
+    failureOutput?: string,
+    integrityOverride?: boolean,
+    isIdempotent?: boolean,
+    integrityLevel?: string,
+  ) => void;
   isUpdating: boolean;
 }
 
@@ -727,10 +771,14 @@ function StepStatusIndicator({ status }: { status?: string }) {
 
 function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, ideName, executionStep, stepEnabled, onStepAction, isUpdating }: PromptCardProps) {
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showRerunConfirm, setShowRerunConfirm] = useState(false);
   const stepStatus = executionStep?.status || "not_started";
   const isCompleted = stepStatus === "completed";
   const isFailed = stepStatus === "failed";
   const isDisabled = !stepEnabled && !isCompleted;
+  const isDuplicateFailure = executionStep?.duplicateFailureDetected === "true";
+  const hasIntegrityOverride = executionStep?.integrityOverrideConfirmed === "true";
+  const reexecutionCount = executionStep?.reexecutionCount || 0;
 
   const stepCircleClass = isCompleted
     ? "border-green-500 bg-green-500 text-white"
@@ -783,7 +831,7 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                       ))}
                     </div>
                   )}
-                  {executionStep && (executionStep.attempts > 0 || executionStep.escalationLevel > 0) && (
+                  {executionStep && (executionStep.attempts > 0 || executionStep.escalationLevel > 0 || isDuplicateFailure || reexecutionCount > 0) && (
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       {executionStep.attempts > 0 && (
                         <Badge variant="destructive" className="text-xs gap-1" data-testid={`badge-attempts-${prompt.step}`}>
@@ -797,6 +845,31 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                           Escalation Level {executionStep.escalationLevel}
                         </Badge>
                       )}
+                      {isDuplicateFailure && (
+                        <Badge variant="destructive" className="text-xs gap-1" data-testid={`badge-duplicate-failure-${prompt.step}`}>
+                          <AlertTriangle className="h-3 w-3" />
+                          Duplicate Failure
+                        </Badge>
+                      )}
+                      {reexecutionCount > 0 && (
+                        <Badge variant="secondary" className="text-xs gap-1" data-testid={`badge-reexecutions-${prompt.step}`}>
+                          <RotateCcw className="h-3 w-3" />
+                          {reexecutionCount} re-run{reexecutionCount !== 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  {prompt.integrityLevel && (
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge
+                        variant={prompt.integrityLevel === "critical" ? "destructive" : prompt.integrityLevel === "caution" ? "outline" : "secondary"}
+                        className="text-xs gap-1"
+                        data-testid={`badge-integrity-${prompt.step}`}
+                      >
+                        <ShieldAlert className="h-3 w-3" />
+                        {prompt.integrityLevel === "critical" ? "Critical" : prompt.integrityLevel === "caution" ? "Caution" : "Safe"}
+                        {prompt.isIdempotent === false ? " (non-idempotent)" : " (idempotent)"}
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -927,11 +1000,75 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
               )}
 
               {isCompleted && (
-                <div className="pt-2 border-t">
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="text-sm font-medium">Step completed</span>
+                <div className="pt-2 border-t space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="text-sm font-medium">Step completed</span>
+                      {executionStep?.successHash && (
+                        <span className="text-xs text-muted-foreground font-mono" data-testid={`text-success-hash-${prompt.step}`}>
+                          {executionStep.successHash}
+                        </span>
+                      )}
+                    </div>
+                    {!showRerunConfirm && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (prompt.isIdempotent === true) {
+                            onStepAction(prompt.step, "in_progress", undefined, false, true, prompt.integrityLevel);
+                          } else {
+                            setShowRerunConfirm(true);
+                          }
+                        }}
+                        disabled={isUpdating}
+                        className="gap-1"
+                        data-testid={`button-rerun-step-${prompt.step}`}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Re-run
+                      </Button>
+                    )}
                   </div>
+                  {showRerunConfirm && (
+                    <div className="rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20 p-3" data-testid={`rerun-confirm-${prompt.step}`}>
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                            {prompt.integrityLevel === "critical"
+                              ? "This is a critical, non-idempotent step. Re-running may cause data corruption or duplicate operations."
+                              : "This step is non-idempotent. Re-running may produce side effects."}
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                onStepAction(prompt.step, "in_progress", undefined, true, prompt.isIdempotent, prompt.integrityLevel);
+                                setShowRerunConfirm(false);
+                              }}
+                              disabled={isUpdating}
+                              className="gap-1"
+                              data-testid={`button-confirm-rerun-${prompt.step}`}
+                            >
+                              <ShieldAlert className="h-3 w-3" />
+                              Confirm Re-run
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowRerunConfirm(false)}
+                              data-testid={`button-cancel-rerun-${prompt.step}`}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

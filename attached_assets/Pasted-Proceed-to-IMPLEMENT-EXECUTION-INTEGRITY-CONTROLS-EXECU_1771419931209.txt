@@ -1,0 +1,173 @@
+Proceed to IMPLEMENT EXECUTION INTEGRITY CONTROLS.
+
+EXECUTION MODE:
+Deterministic safety enhancement.
+No UI redesign beyond integrity messaging.
+No autonomous execution.
+No architectural rewrites.
+
+OBJECTIVE:
+Add integrity controls to prevent:
+- Duplicate prompt execution without intent
+- Repeated identical failure loops
+- Silent re-runs of non-idempotent steps
+- Execution drift from declared state
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- The platform never assumes IDE state.
+- Execution integrity is enforced at the orchestration layer.
+- Users must explicitly confirm re-runs.
+- Escalation must be deterministic.
+
+--------------------------------
+PART 1 — PROMPT STEP EXTENSIONS
+--------------------------------
+
+Extend PromptStep schema with:
+
+{
+  isIdempotent: boolean,
+  integrityLevel: "safe" | "caution" | "critical"
+}
+
+Rules:
+
+- "safe" → can re-run freely
+- "caution" → re-run requires confirmation
+- "critical" → re-run blocked unless override explicitly confirmed
+
+Default mapping:
+
+- Scaffold/setup steps → safe
+- Schema/migration steps → critical
+- Middleware/feature logic → caution
+- Data seeding → critical
+
+--------------------------------
+PART 2 — EXECUTION STEP LOCKING
+--------------------------------
+
+In ExecutionSession logic:
+
+If step.status === "completed":
+
+- If isIdempotent === true:
+    Allow re-run but increment reexecutionCount.
+- If isIdempotent === false:
+    Require explicit user confirmation:
+        "This step may not be safe to re-run. Continue?"
+    If not confirmed → block.
+
+Store:
+
+ExecutionStep {
+  reexecutionCount: number
+}
+
+--------------------------------
+PART 3 — DUPLICATE FAILURE DETECTION
+--------------------------------
+
+When feedback is submitted:
+
+If:
+  - Same stepId
+  - Same failure hash
+  - Occurs ≥ 3 times
+
+Then:
+
+- Escalate escalationLevel++
+- Automatically generate ClarificationContract
+- Block further retries until clarification resolved
+
+--------------------------------
+PART 4 — SUCCESS HASH MEMORY
+--------------------------------
+
+When step is marked completed:
+
+- Store successHash (hash of IDE output)
+- On re-run:
+    If new successHash matches stored:
+        Display advisory:
+        "This step appears already completed."
+
+--------------------------------
+PART 5 — BLOCK FORWARD PROGRESSION
+--------------------------------
+
+Prevent:
+
+- Step N+1 execution if step N not completed
+- Skipping forward manually via UI or API
+
+Validate at backend as well as frontend.
+
+--------------------------------
+PART 6 — ESCALATION SAFETY
+--------------------------------
+
+If escalationLevel >= 2:
+
+- Convert advisory ClarificationContract to blocker
+- Require upstream refinement before retry
+
+--------------------------------
+PART 7 — LOGGING
+--------------------------------
+
+Persist:
+
+- reexecutionCount
+- escalationLevel
+- duplicateFailureDetected
+- integrityOverrideConfirmed (boolean)
+
+--------------------------------
+PART 8 — FRONTEND BEHAVIOUR
+--------------------------------
+
+Update Prompts UI to:
+
+- Display step status clearly:
+    Not Started / In Progress / Completed / Failed
+- Display re-run confirmation dialog for caution/critical steps
+- Display escalation notice when duplicate failures detected
+
+Do NOT:
+- Auto-retry
+- Auto-fix
+- Modify upstream artefacts silently
+
+--------------------------------
+PART 9 — TESTS
+--------------------------------
+
+Add invariant tests verifying:
+
+1. Completed critical step cannot re-run without override.
+2. Duplicate failure (same hash x3) triggers escalation.
+3. Step skipping blocked.
+4. ReexecutionCount increments correctly.
+5. EscalationLevel increases deterministically.
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Complete a step.
+2. Attempt re-run:
+    - Safe step → allowed.
+    - Critical step → confirmation required.
+3. Submit same failure 3 times.
+    - Escalation triggered.
+4. Attempt step skipping.
+    - Blocked.
+
+STOP.
+WAIT for confirmation.

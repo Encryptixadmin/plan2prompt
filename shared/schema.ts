@@ -245,6 +245,10 @@ export const executionSteps = pgTable("execution_steps", {
   lastFailureHash: text("last_failure_hash"),
   escalationLevel: integer("escalation_level").notNull().default(0),
   completedAt: timestamp("completed_at"),
+  reexecutionCount: integer("reexecution_count").notNull().default(0),
+  successHash: text("success_hash"),
+  integrityOverrideConfirmed: text("integrity_override_confirmed").default("false").$type<"true" | "false">(),
+  duplicateFailureDetected: text("duplicate_failure_detected").default("false").$type<"true" | "false">(),
 });
 
 export const insertExecutionStepSchema = createInsertSchema(executionSteps).omit({
