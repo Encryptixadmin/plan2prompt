@@ -1,0 +1,194 @@
+Proceed to IDEAS MODULE INTELLIGENCE UPGRADE.
+
+EXECUTION MODE:
+Architectural upgrade.
+Replace template-based structured generation with AI-derived structured output.
+NO UI redesign beyond rendering additional structured fields.
+
+OBJECTIVE:
+Transform the Ideas module from:
+- Template-generated strengths/risks
+- Formula-only scoring
+
+Into:
+- AI-native structured decision intelligence
+- Consensus-validated viability modelling
+- Technical difficulty profiling
+- Commercial positioning analysis
+- Effort estimation
+
+--------------------------------
+CORE PRINCIPLES
+--------------------------------
+- Structured AI output via schema enforcement
+- Multi-provider consensus remains authoritative
+- No template-generated placeholder content
+- Deterministic scoring logic layered on top of AI data
+- No chat-style responses
+
+--------------------------------
+PART 1 — STRUCTURED OUTPUT SCHEMA (REQUIRED)
+--------------------------------
+
+Replace current template generators in ideas.service.ts with
+AI-enforced structured JSON output.
+
+Define a strict schema for idea analysis:
+
+{
+  "technicalProfile": {
+    "architectureComplexity": "Low|Moderate|High|Very High",
+    "integrationDifficulty": "Low|Moderate|High|Very High",
+    "dataComplexity": "Simple|Structured|Complex|Highly Regulated",
+    "complianceExposure": "None|Low|Moderate|High",
+    "estimatedMvpEffortWeeks": number,
+    "keyTechnicalRisks": []
+  },
+  "commercialProfile": {
+    "marketClarity": "Defined|Partially Defined|Unclear",
+    "revenueModelClarity": "Clear|Emerging|Unclear",
+    "competitionDensity": "Low|Moderate|High",
+    "differentiationStrength": "Weak|Moderate|Strong",
+    "goToMarketComplexity": "Low|Moderate|High",
+    "keyCommercialRisks": []
+  },
+  "executionProfile": {
+    "teamComplexity": "Solo|Small Team|Cross-Functional|Enterprise",
+    "hiddenWorkLikelihood": "Low|Moderate|High",
+    "scalabilityChallenges": [],
+    "operationalRisks": []
+  },
+  "viabilityAssessment": {
+    "overallViability": "Strong|Moderate|Weak|Critical Risk",
+    "confidenceScore": number,
+    "rationale": string
+  },
+  "assumptions": [],
+  "primaryRiskDrivers": [],
+  "scopeWarnings": []
+}
+
+--------------------------------
+PART 2 — CONSENSUS INTEGRATION (REQUIRED)
+--------------------------------
+
+Each AI provider must:
+- Produce structured JSON matching schema
+- Not produce free text
+
+ConsensusService must:
+- Aggregate structured JSON responses
+- Detect disagreements per field
+- Compute:
+  - agreement per section
+  - variance across effort estimates
+- Select majority or weighted consensus values
+
+If structured JSON is malformed:
+- Reject response
+- Retry provider once
+- If still malformed → exclude provider
+
+--------------------------------
+PART 3 — REMOVE TEMPLATE LOGIC
+--------------------------------
+
+Delete or disable:
+- generateStrengths()
+- generateWeaknesses()
+- generateFeasibility()
+- template risk builders
+
+Replace scoring logic with:
+
+- Weighted scoring based on structured AI output:
+    viability weight 40%
+    technical complexity weight 25%
+    commercial clarity weight 20%
+    execution risk weight 15%
+
+Score calculation must be deterministic and derived from structured fields.
+
+--------------------------------
+PART 4 — RECOMMENDATION ENGINE (UPGRADE)
+--------------------------------
+
+Update recommendation logic to incorporate:
+
+- Viability classification
+- Effort band thresholds
+- Compliance exposure
+- Commercial clarity
+
+Rules example:
+- If complianceExposure = High AND teamComplexity = Solo → STOP
+- If estimatedMvpEffortWeeks > 24 for solo founder → Revise
+- If differentiationStrength = Weak AND competitionDensity = High → Revise
+
+All rules must be explicit and documented.
+
+--------------------------------
+PART 5 — WORKSHOP INTEGRATION (IMPORTANT)
+--------------------------------
+
+Ensure workshop answers can:
+- Modify assumptions array
+- Reduce complianceExposure
+- Improve marketClarity
+- Adjust effort estimates
+
+Re-analysis must:
+- Compare structured fields before vs after
+- Show field-level delta
+
+--------------------------------
+PART 6 — FRONTEND DISPLAY UPGRADE
+--------------------------------
+
+Update Ideas page to render:
+
+- Technical Profile panel
+- Commercial Profile panel
+- Execution Profile panel
+- Effort estimate prominently
+- Clear explanation of viability band
+
+DO NOT:
+- Add conversational UI
+- Add charts
+- Add marketing language
+
+--------------------------------
+PART 7 — INVARIANT TESTS
+--------------------------------
+
+Add tests verifying:
+
+- Structured JSON parsing succeeds
+- Malformed provider output rejected
+- Scoring changes when structured fields change
+- Recommendation rules trigger correctly
+
+--------------------------------
+DO NOT
+--------------------------------
+- Use placeholder template values
+- Allow free-text-only AI output
+- Remove STOP enforcement
+- Modify pipeline sequencing
+- Add chat functionality
+
+--------------------------------
+REVIEW CHECKPOINT
+--------------------------------
+
+After implementation:
+
+1. Submit a test idea.
+2. Confirm output contains structured fields.
+3. Confirm effort estimate varies by idea.
+4. Confirm recommendation changes logically with input.
+5. Confirm workshop refinement modifies structured fields.
+
+STOP.
+WAIT for confirmation.

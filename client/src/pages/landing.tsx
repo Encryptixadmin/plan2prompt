@@ -13,7 +13,7 @@ export default function Landing() {
           <div className="flex justify-between items-center h-14">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
-              <span className="font-semibold">IdeaForge</span>
+              <span className="font-semibold">Plan2Prompt</span>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -152,7 +152,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              IdeaForge
+              Plan2Prompt
             </span>
           </div>
           <p className="text-xs text-muted-foreground">

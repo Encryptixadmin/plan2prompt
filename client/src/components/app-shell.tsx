@@ -50,7 +50,7 @@ function AppSidebar() {
             <Lightbulb className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight" data-testid="text-app-name">IdeaForge</span>
+            <span className="text-sm font-semibold tracking-tight" data-testid="text-app-name">Plan2Prompt</span>
             <span className="text-[11px] text-sidebar-foreground/60 leading-none">Build Pipeline</span>
           </div>
         </div>

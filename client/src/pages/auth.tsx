@@ -81,7 +81,7 @@ export default function AuthPage() {
             <a href="/" className="flex items-center gap-2 text-foreground" data-testid="link-home">
               <ArrowLeft className="h-4 w-4" />
               <Lightbulb className="h-5 w-5 text-primary" />
-              <span className="font-semibold">IdeaForge</span>
+              <span className="font-semibold">Plan2Prompt</span>
             </a>
             <Button
               variant="ghost"
@@ -103,8 +103,8 @@ export default function AuthPage() {
             </CardTitle>
             <CardDescription data-testid="text-auth-description">
               {mode === "login"
-                ? "Sign in to your IdeaForge account"
-                : "Get started with IdeaForge"}
+                ? "Sign in to your Plan2Prompt account"
+                : "Get started with Plan2Prompt"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
