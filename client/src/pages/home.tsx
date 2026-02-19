@@ -30,6 +30,8 @@ export default function Home() {
   const ideaCount = ideasData?.data?.length || 0;
   const reqCount = requirementsData?.data?.length || 0;
 
+  const hasValidatedIdea = ideaCount > 0;
+
   const pipelineSteps = [
     {
       title: "Ideas",
@@ -40,6 +42,7 @@ export default function Home() {
       countLabel: "validated",
       accentClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       testId: "link-ideas-module",
+      disabled: false,
     },
     {
       title: "Requirements",
@@ -50,6 +53,7 @@ export default function Home() {
       countLabel: "generated",
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
       testId: "link-requirements-module",
+      disabled: !hasValidatedIdea,
     },
     {
       title: "Prompts",
@@ -60,6 +64,7 @@ export default function Home() {
       countLabel: "generated",
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       testId: "link-prompts-module",
+      disabled: !hasValidatedIdea,
     },
   ];
 
@@ -142,12 +147,19 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <Link href={step.href}>
-                    <Button variant="outline" className="w-full" data-testid={step.testId}>
-                      {step.count > 0 ? `View ${step.title}` : `Start ${step.title}`}
+                  {step.disabled ? (
+                    <Button variant="outline" className="w-full" disabled data-testid={step.testId}>
+                      {`Start ${step.title}`}
                       <ArrowRight className="ml-2 h-3.5 w-3.5" />
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href={step.href}>
+                      <Button variant="outline" className="w-full" data-testid={step.testId}>
+                        {step.count > 0 ? `View ${step.title}` : `Start ${step.title}`}
+                        <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             ))}
