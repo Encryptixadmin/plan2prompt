@@ -54,12 +54,12 @@ function PipelineStage({
         <div className={`h-[2px] flex-1 ${number === total ? "bg-transparent" : "bg-border"}`} />
       </div>
       <Card className="w-full h-full">
-        <CardContent className="p-4 flex flex-col items-center text-center space-y-2.5">
-          <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
+        <CardContent className="p-4 flex flex-col items-center text-center h-full">
+          <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center mb-2.5">
             <Icon className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="font-semibold text-sm">{title}</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+          <h3 className="font-semibold text-sm mb-1.5">{title}</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-2.5 flex-1">{description}</p>
           <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2.5 py-1 rounded-md">{capability}</span>
         </CardContent>
       </Card>
