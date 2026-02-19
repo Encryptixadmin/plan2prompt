@@ -132,7 +132,7 @@ export default function Landing() {
             <div className="max-w-2xl space-y-6">
               <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/8 px-3 py-1.5 rounded-md">
                 <Layers className="h-3 w-3" />
-                Structured Build Orchestration
+                Structured Build Planning
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
                 From Idea to Production Build
@@ -140,9 +140,9 @@ export default function Landing() {
                 <span className="text-primary">With Control at Every Step</span>
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
-                A deterministic pipeline that validates your concept through multi-model AI consensus,
-                derives structured requirements, generates traceable build instructions, and enforces
-                execution integrity throughout.
+                Multiple AI models independently review your idea, shape it into clear requirements,
+                and produce step-by-step build instructions you can follow in your favourite IDE.
+                Nothing gets skipped. Every step is accounted for.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Button size="lg" asChild data-testid="button-get-started-hero">
@@ -158,15 +158,15 @@ export default function Landing() {
               <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-2">
                 <span className="flex items-center gap-1.5">
                   <Brain className="h-3.5 w-3.5" />
-                  AI Consensus Analysis
+                  Multi-AI Review
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Target className="h-3.5 w-3.5" />
-                  Requirements Intelligence
+                  Clear Requirements
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5" />
-                  Execution Discipline
+                  Safe Execution
                 </span>
               </div>
             </div>
@@ -178,50 +178,50 @@ export default function Landing() {
             <div className="mb-14 space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight">How It Works</h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                A six-stage deterministic pipeline. Each stage enforces completion before the next begins.
+                Six stages, in order. Each one must finish before the next can start.
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 lg:gap-4">
               <PipelineStage
                 number={1}
-                title="Idea Analysis"
-                description="Submit your concept for multi-provider evaluation."
-                capability="Consensus Scoring"
+                title="Idea Review"
+                description="Describe your app. Multiple AI models score it independently."
+                capability="Multi-AI Scoring"
                 icon={Lightbulb}
               />
               <PipelineStage
                 number={2}
                 title="Requirements"
-                description="Derive architecture, data models, and contracts."
-                capability="Risk Traceability"
+                description="Turn a validated idea into a full technical spec."
+                capability="Risk Tracking"
                 icon={FileText}
               />
               <PipelineStage
                 number={3}
-                title="Build Prompts"
-                description="Generate sequential, IDE-specific instructions."
-                capability="Requirement Mapping"
+                title="Build Steps"
+                description="Get ordered instructions, tailored for your IDE."
+                capability="Linked to Requirements"
                 icon={Zap}
               />
               <PipelineStage
                 number={4}
                 title="Execution"
-                description="Track per-step state with integrity controls."
-                capability="Idempotency Detection"
+                description="Work through each step with progress tracking and safety checks."
+                capability="Flags Risky Actions"
                 icon={Terminal}
               />
               <PipelineStage
                 number={5}
                 title="Feedback"
-                description="Classify failures and detect duplicate errors."
-                capability="Failure Hashing"
+                description="When something fails, the system identifies what went wrong."
+                capability="Detects Repeat Errors"
                 icon={RefreshCw}
               />
               <PipelineStage
                 number={6}
                 title="Refinement"
-                description="Escalate blockers to upstream clarification."
-                capability="Controlled Escalation"
+                description="Unresolved problems are routed back to the right stage."
+                capability="Upstream Resolution"
                 icon={GitBranch}
                 isLast
               />
@@ -232,45 +232,45 @@ export default function Landing() {
         <section className="py-20 px-4 sm:px-6 lg:px-8 border-b" data-testid="section-intelligence">
           <div className="max-w-6xl mx-auto">
             <div className="mb-12 space-y-2">
-              <h2 className="text-2xl font-semibold tracking-tight">Intelligence Capabilities</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">What Makes It Different</h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                Every stage is powered by structured analysis, not open-ended generation.
+                Every stage uses structured analysis, not open-ended AI generation. The system reasons about your project methodically.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <CapabilityCard
-                title="Multi-Model Consensus"
-                description="Multiple AI providers independently evaluate your idea. Scores are weighted across viability, technical complexity, commercial clarity, and execution risk."
+                title="Independent AI Review"
+                description="Multiple AI models evaluate your idea separately, then results are combined. You get a balanced assessment, not a single opinion."
                 icon={Brain}
                 testId="card-consensus"
               />
               <CapabilityCard
-                title="Viability Modelling"
-                description="Technical, commercial, and execution profiles scored with purpose-aware criteria. Five project types receive tailored validation."
+                title="Viability Assessment"
+                description="Your idea is scored across technical feasibility, market potential, and execution effort. Different project types get tailored criteria."
                 icon={BarChart3}
                 testId="card-viability"
               />
               <CapabilityCard
-                title="Requirements Derivation"
-                description="AI-driven structured requirements with system overview, architecture decisions, functional and non-functional specs derived from validated analysis."
+                title="Automatic Requirements"
+                description="Once your idea is validated, the system generates a complete technical specification including architecture, features, and data design."
                 icon={FileText}
                 testId="card-requirements"
               />
               <CapabilityCard
-                title="Prompt Traceability"
-                description="Every generated build prompt links to specific requirements. Every requirement traces back to idea risk drivers. Full chain is deterministic and auditable."
+                title="Full Traceability"
+                description="Every build instruction links back to a specific requirement. Every requirement links back to the original idea. You can always see why a step exists."
                 icon={Search}
                 testId="card-traceability"
               />
               <CapabilityCard
-                title="Integrity Controls"
-                description="Steps are classified by idempotency level. Critical operations are flagged. Duplicate failures trigger automatic escalation to clarification contracts."
+                title="Safety Checks"
+                description="Each step is automatically classified as safe, cautious, or critical. Dangerous operations like database changes are flagged before you run them."
                 icon={ShieldCheck}
                 testId="card-integrity"
               />
               <CapabilityCard
-                title="Deterministic Escalation"
-                description="Failure classification, hash-based duplicate detection, and severity escalation operate without AI involvement. Rules are fixed and auditable."
+                title="Automatic Error Handling"
+                description="When a step fails, the system recognises repeated errors and escalates them. No AI guesswork involved — the rules are fixed and predictable."
                 icon={AlertTriangle}
                 testId="card-escalation"
               />
@@ -282,32 +282,32 @@ export default function Landing() {
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16">
               <div className="space-y-4">
-                <h2 className="text-2xl font-semibold tracking-tight">Execution Discipline</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Built-In Guardrails</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                  The platform enforces sequential execution, validates every transition, and prevents
-                  unsafe operations from proceeding without explicit confirmation.
+                  The platform keeps your build on track. Steps run in order, risky actions are flagged,
+                  and problems are caught before they compound.
                 </p>
               </div>
               <div className="space-y-4">
                 <DisciplineItem
                   icon={Lock}
-                  text="No skipping steps. Each pipeline stage must complete before the next unlocks. Previous-step validation is enforced at the API level."
+                  text="No skipping steps. Each stage must be completed before the next one opens. The system enforces this automatically."
                 />
                 <DisciplineItem
                   icon={ShieldCheck}
-                  text="Automatic idempotency detection classifies every step as safe, caution, or critical based on deterministic keyword analysis."
+                  text="Every step is scanned and classified as safe, cautious, or critical. Irreversible actions like database changes are flagged before you proceed."
                 />
                 <DisciplineItem
                   icon={ServerCrash}
-                  text="Failure classification with SHA-256 hashing detects duplicate errors. Repeated identical failures escalate severity automatically."
+                  text="The system recognises when the same error keeps happening. Repeated failures are automatically escalated so they get resolved, not ignored."
                 />
                 <DisciplineItem
                   icon={RefreshCw}
-                  text="Controlled clarification loops route blockers upstream. Cross-module contracts enforce resolution before generation resumes."
+                  text="When a step is blocked, the problem is routed back to the earlier stage that can fix it. Nothing moves forward until the issue is resolved."
                 />
                 <DisciplineItem
                   icon={CheckCircle2}
-                  text="Upstream validation ensures prompt artifacts stay synchronized. Session invalidation triggers when source requirements change."
+                  text="If your requirements change, any build instructions based on the old version are flagged. You always work from up-to-date information."
                 />
               </div>
             </div>
@@ -318,10 +318,10 @@ export default function Landing() {
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
               <div className="space-y-4">
-                <h2 className="text-2xl font-semibold tracking-tight">IDE Integration Model</h2>
+                <h2 className="text-2xl font-semibold tracking-tight">Works With Your IDE</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                  Plan2Prompt is the orchestration layer. Your IDE is the runtime.
-                  Build prompts compile into executable instructions tailored to your development environment.
+                  Plan2Prompt plans the build. Your IDE does the building.
+                  You get clear, step-by-step instructions formatted for the tool you already use.
                 </p>
               </div>
               <div className="space-y-3">
@@ -332,10 +332,10 @@ export default function Landing() {
                         <Terminal className="h-4 w-4 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-sm">Prompts Compile to Instructions</h3>
+                        <h3 className="font-semibold text-sm">Structured Instructions, Not Suggestions</h3>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Generated prompts include step dependencies, requirement references,
-                          integrity metadata, and IDE-specific formatting. They are structured artifacts, not free-text suggestions.
+                          Each build step includes what to do, which requirements it covers,
+                          what order to follow, and what to watch out for. No guessing.
                         </p>
                       </div>
                     </div>
@@ -351,7 +351,7 @@ export default function Landing() {
                         <h3 className="font-semibold text-sm">Supported Environments</h3>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDE.
-                          IDE adaptation is a formatting layer only. Core logic is IDE-agnostic.
+                          The same plan adapts its output to match your development environment.
                         </p>
                       </div>
                     </div>
@@ -365,69 +365,69 @@ export default function Landing() {
         <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-governance">
           <div className="max-w-6xl mx-auto">
             <div className="mb-12 space-y-2">
-              <h2 className="text-2xl font-semibold tracking-tight">Governance and Safety</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Security and Control</h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                Production-grade controls for isolation, access, and observability.
+                Your projects, your data. The platform keeps everything separated, tracked, and secure.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <Lock className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Project Isolation</h3>
+                  <h3 className="font-semibold text-sm">Project Separation</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Every API request is scoped to a project via X-Project-Id header enforcement.
-                    Cross-project data access is structurally prevented.
+                    Each project is completely isolated. Data from one project is never
+                    visible to another, even within the same account.
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Role-Based Permissions</h3>
+                  <h3 className="font-semibold text-sm">Roles and Permissions</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Admin and user roles with plan-based access tiers. Admin console provides
-                    audit trail, provider management, and usage controls.
+                    Admin and user roles with plan-based access levels. Admins get a dedicated
+                    console for managing providers, reviewing usage, and auditing actions.
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <Activity className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Usage Tracking</h3>
+                  <h3 className="font-semibold text-sm">Usage Monitoring</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Per-provider token usage tracked across all operations.
-                    Plan-based limits enforced with real-time monitoring in admin console.
+                    AI usage is tracked per provider across all operations.
+                    Plan limits are enforced and visible in real time.
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <Eye className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Structured Logging</h3>
+                  <h3 className="font-semibold text-sm">Audit Trail</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Audit logs persist admin actions, feedback events, and clarification
-                    resolutions to PostgreSQL with timestamp and actor tracking.
+                    Every admin action, feedback event, and resolution is logged
+                    with a timestamp and who performed it. Nothing happens silently.
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">AI Provider Validation</h3>
+                  <h3 className="font-semibold text-sm">AI Health Checks</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Startup-time model probing with fallback chains. Invalid or quota-exhausted
-                    providers are excluded automatically before any user request.
+                    AI providers are tested automatically when the system starts.
+                    Any provider that is unavailable or over its limit is excluded before you begin.
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5 space-y-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Session Security</h3>
+                  <h3 className="font-semibold text-sm">Secure Authentication</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Replit Auth via OpenID Connect with PostgreSQL-backed sessions.
-                    Encrypted session secrets with secure cookie configuration.
+                    Sign in securely with Replit Auth or email and password.
+                    Sessions are encrypted and stored safely.
                   </p>
                 </CardContent>
               </Card>
@@ -438,10 +438,10 @@ export default function Landing() {
         <section className="py-20 px-4 sm:px-6 lg:px-8" data-testid="section-final-cta">
           <div className="max-w-6xl mx-auto text-center">
             <div className="max-w-md mx-auto space-y-5">
-              <h2 className="text-2xl font-semibold tracking-tight">Build With Structure</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Build With Confidence</h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Stop guessing. Start with validated analysis, structured requirements,
-                and traceable execution.
+                Stop guessing whether your idea will work. Get a clear assessment,
+                a proper plan, and step-by-step instructions to build it.
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 <Button size="lg" asChild data-testid="button-get-started-cta">
@@ -463,7 +463,7 @@ export default function Landing() {
             <span className="text-xs text-muted-foreground">Plan2Prompt</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Structured AI build orchestration
+            Structured AI-powered build planning
           </p>
         </div>
       </footer>
