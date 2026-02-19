@@ -143,7 +143,7 @@ export default function Landing() {
                 Structured Build Planning
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
-                From Idea to Production Build
+                From Idea to Execution
                 <br />
                 <span className="text-primary">With Control at Every Step</span>
               </h1>
