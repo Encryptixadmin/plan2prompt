@@ -8,7 +8,6 @@ import {
   Shield,
   Moon,
   Sun,
-  ChevronRight,
   Layers,
   Brain,
   Target,
@@ -35,6 +34,7 @@ function PipelineStage({
   capability,
   icon: Icon,
   isLast,
+  total,
 }: {
   number: number;
   title: string;
@@ -42,19 +42,27 @@ function PipelineStage({
   capability: string;
   icon: React.ElementType;
   isLast?: boolean;
+  total: number;
 }) {
   return (
-    <div className="flex flex-col items-center text-center relative" data-testid={`pipeline-stage-${number}`}>
-      <div className="h-12 w-12 rounded-md bg-primary/10 flex items-center justify-center mb-3">
-        <Icon className="h-5 w-5 text-primary" />
+    <div className="flex flex-col items-center relative" data-testid={`pipeline-stage-${number}`}>
+      <div className="flex items-center w-full mb-5">
+        <div className={`h-[2px] flex-1 ${number === 1 ? "bg-transparent" : "bg-border"}`} />
+        <div className="relative z-10 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm shrink-0 shadow-sm">
+          {number}
+        </div>
+        <div className={`h-[2px] flex-1 ${number === total ? "bg-transparent" : "bg-border"}`} />
       </div>
-      <span className="text-xs font-mono text-muted-foreground mb-1">Stage {number}</span>
-      <h3 className="font-semibold text-sm mb-1.5">{title}</h3>
-      <p className="text-xs text-muted-foreground leading-relaxed mb-2 max-w-[180px]">{description}</p>
-      <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2 py-0.5 rounded-md">{capability}</span>
-      {!isLast && (
-        <ChevronRight className="hidden lg:block absolute -right-3 top-5 h-4 w-4 text-muted-foreground/40" />
-      )}
+      <Card className="w-full h-full">
+        <CardContent className="p-4 flex flex-col items-center text-center space-y-2.5">
+          <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-semibold text-sm">{title}</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+          <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2.5 py-1 rounded-md">{capability}</span>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -181,13 +189,14 @@ export default function Landing() {
                 Six stages, in order. Each one must finish before the next can start.
               </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 lg:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 lg:gap-0">
               <PipelineStage
                 number={1}
                 title="Idea Review"
                 description="Describe your app. Multiple AI models score it independently."
                 capability="Multi-AI Scoring"
                 icon={Lightbulb}
+                total={6}
               />
               <PipelineStage
                 number={2}
@@ -195,6 +204,7 @@ export default function Landing() {
                 description="Turn a validated idea into a full technical spec."
                 capability="Risk Tracking"
                 icon={FileText}
+                total={6}
               />
               <PipelineStage
                 number={3}
@@ -202,6 +212,7 @@ export default function Landing() {
                 description="Get ordered instructions, tailored for your IDE."
                 capability="Linked to Requirements"
                 icon={Zap}
+                total={6}
               />
               <PipelineStage
                 number={4}
@@ -209,6 +220,7 @@ export default function Landing() {
                 description="Work through each step with progress tracking and safety checks."
                 capability="Flags Risky Actions"
                 icon={Terminal}
+                total={6}
               />
               <PipelineStage
                 number={5}
@@ -216,6 +228,7 @@ export default function Landing() {
                 description="When something fails, the system identifies what went wrong."
                 capability="Detects Repeat Errors"
                 icon={RefreshCw}
+                total={6}
               />
               <PipelineStage
                 number={6}
@@ -224,6 +237,7 @@ export default function Landing() {
                 capability="Upstream Resolution"
                 icon={GitBranch}
                 isLast
+                total={6}
               />
             </div>
           </div>
