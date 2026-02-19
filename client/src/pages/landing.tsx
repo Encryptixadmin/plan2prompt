@@ -193,7 +193,7 @@ export default function Landing() {
             <div className="mb-4">
               <span className="text-xs font-semibold uppercase tracking-wider text-foreground">You</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-0 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[15px] mb-10">
               <PipelineStage
                 number={1}
                 title="Describe Your Idea"
@@ -215,7 +215,7 @@ export default function Landing() {
             <div className="mb-4">
               <span className="text-xs font-semibold uppercase tracking-wider text-foreground">The Platform</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-[15px]">
               <PipelineStage
                 number={3}
                 title="Build Steps"
