@@ -467,7 +467,7 @@ export default function Landing() {
               <div className="flex flex-wrap justify-center gap-3">
                 <Button size="lg" asChild data-testid="button-get-started-cta">
                   <a href="/auth">
-                    Start a Project
+                    Start a Build
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
