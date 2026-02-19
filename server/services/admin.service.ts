@@ -5,8 +5,9 @@ import type {
   AIProvider,
 } from "@shared/schema";
 import { adminActionLog } from "@shared/schema";
+import { users } from "@shared/models/auth";
 import { db } from "../db";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { providerValidationService } from "./ai/provider-validation.service";
 
 interface AdminActionLogEntry {
@@ -71,11 +72,8 @@ class AdminService {
   private providerStatus: Map<AIProvider, ProviderStatus> = new Map();
   private users: Map<string, UserSummary> = new Map();
   private projects: Map<string, ProjectSummary> = new Map();
-  private adminUserIds: Set<string> = new Set(["default-user", "admin"]);
-
   constructor() {
     this.initializeProviderStatus();
-    this.initializeDefaultAdmin();
   }
 
   private initializeProviderStatus(): void {
@@ -102,66 +100,30 @@ class AdminService {
     }
   }
 
-  private initializeDefaultAdmin(): void {
-    this.users.set("default-user", {
-      id: "default-user",
-      username: "admin",
-      email: "admin@platform.local",
-      role: "admin",
-      isAdmin: true,
-      generationDisabled: false,
-      projectCount: 1,
-      lastActivityAt: new Date().toISOString(),
-      usageSummary: { totalRequests: 12, estimatedCost: 0.0045 },
-      billingPlan: "free",
-      createdAt: new Date().toISOString(),
-    });
-
-    this.users.set("user-alice", {
-      id: "user-alice",
-      username: "alice",
-      email: "alice@example.com",
-      role: "owner",
-      isAdmin: false,
-      generationDisabled: false,
-      projectCount: 3,
-      lastActivityAt: new Date(Date.now() - 3600000).toISOString(),
-      usageSummary: { totalRequests: 8, estimatedCost: 0.0032 },
-      billingPlan: "free",
-      createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-    });
-
-    this.users.set("user-bob", {
-      id: "user-bob",
-      username: "bob",
-      email: "bob@company.org",
-      role: "collaborator",
-      isAdmin: false,
-      generationDisabled: false,
-      projectCount: 1,
-      lastActivityAt: new Date(Date.now() - 86400000).toISOString(),
-      usageSummary: { totalRequests: 3, estimatedCost: 0.0012 },
-      billingPlan: "free",
-      createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
-    });
-
-    this.users.set("user-carol", {
-      id: "user-carol",
-      username: "carol",
-      email: "carol@startup.io",
-      role: "viewer",
-      isAdmin: false,
-      generationDisabled: false,
-      projectCount: 0,
-      lastActivityAt: undefined,
-      usageSummary: { totalRequests: 0, estimatedCost: 0 },
-      billingPlan: "free",
-      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    });
+  async isUserAdmin(userId: string): Promise<boolean> {
+    try {
+      const [user] = await db
+        .select({ isAdmin: users.isAdmin })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return user?.isAdmin === "true";
+    } catch {
+      return false;
+    }
   }
 
-  async isUserAdmin(userId: string): Promise<boolean> {
-    return this.adminUserIds.has(userId);
+  async isUserAdminByEmail(email: string): Promise<boolean> {
+    try {
+      const [user] = await db
+        .select({ isAdmin: users.isAdmin })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      return user?.isAdmin === "true";
+    } catch {
+      return false;
+    }
   }
 
   async logAction(entry: Omit<AdminActionLogEntry, "id" | "timestamp">): Promise<AdminActionLogEntry> {
