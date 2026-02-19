@@ -34,7 +34,7 @@ function PipelineStage({
   capability,
   icon: Icon,
   isLast,
-  total,
+  isFirst,
 }: {
   number: number;
   title: string;
@@ -42,16 +42,16 @@ function PipelineStage({
   capability: string;
   icon: React.ElementType;
   isLast?: boolean;
-  total: number;
+  isFirst?: boolean;
 }) {
   return (
     <div className="flex flex-col items-center relative" data-testid={`pipeline-stage-${number}`}>
       <div className="flex items-center w-full mb-5">
-        <div className={`h-[2px] flex-1 ${number === 1 ? "bg-transparent" : "bg-border"}`} />
+        <div className={`h-[2px] flex-1 ${isFirst ? "bg-transparent" : "bg-border"}`} />
         <div className="relative z-10 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm shrink-0 shadow-sm">
           {number}
         </div>
-        <div className={`h-[2px] flex-1 ${number === total ? "bg-transparent" : "bg-border"}`} />
+        <div className={`h-[2px] flex-1 ${isLast ? "bg-transparent" : "bg-border"}`} />
       </div>
       <Card className="w-full h-full">
         <CardContent className="p-4 flex flex-col items-center text-center h-full">
@@ -186,58 +186,65 @@ export default function Landing() {
             <div className="mb-14 space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight">How It Works</h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                Six stages, in order. Each one must finish before the next can start.
+                You describe your idea and refine the requirements. The platform handles everything else.
               </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 lg:gap-0">
+
+            <div className="mb-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">You</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-0 mb-10">
               <PipelineStage
                 number={1}
-                title="Idea Review"
-                description="Describe your app. Multiple AI models score it independently."
+                title="Describe Your Idea"
+                description="Tell the platform what you want to build. Multiple AI models review and score it independently."
                 capability="Multi-AI Scoring"
                 icon={Lightbulb}
-                total={6}
+                isFirst
               />
               <PipelineStage
                 number={2}
-                title="Requirements"
-                description="Turn a validated idea into a full technical spec."
-                capability="Risk Tracking"
+                title="Refine Requirements"
+                description="Review the generated spec. Answer clarifying questions to sharpen the technical plan."
+                capability="Guided Refinement"
                 icon={FileText}
-                total={6}
+                isLast
               />
+            </div>
+
+            <div className="mb-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">The Platform</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
               <PipelineStage
                 number={3}
                 title="Build Steps"
-                description="Get ordered instructions, tailored for your IDE."
+                description="Ordered, IDE-specific instructions are generated from your requirements."
                 capability="Linked to Requirements"
                 icon={Zap}
-                total={6}
+                isFirst
               />
               <PipelineStage
                 number={4}
-                title="Execution"
-                description="Work through each step with progress tracking and safety checks."
+                title="Execution Tracking"
+                description="Each step is tracked with progress state and safety classification."
                 capability="Flags Risky Actions"
                 icon={Terminal}
-                total={6}
               />
               <PipelineStage
                 number={5}
-                title="Feedback"
-                description="When something fails, the system identifies what went wrong."
+                title="Error Detection"
+                description="Failures are classified automatically. Repeated errors are flagged."
                 capability="Detects Repeat Errors"
                 icon={RefreshCw}
-                total={6}
               />
               <PipelineStage
                 number={6}
-                title="Refinement"
-                description="Unresolved problems are routed back to the right stage."
+                title="Auto-Refinement"
+                description="Unresolved problems are routed back to the right stage for resolution."
                 capability="Upstream Resolution"
                 icon={GitBranch}
                 isLast
-                total={6}
               />
             </div>
           </div>
