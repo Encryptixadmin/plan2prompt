@@ -483,9 +483,11 @@ export default function Landing() {
             <Layers className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Plan2Prompt</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Structured AI-powered build planning
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 text-xs text-muted-foreground">
+            <span>&copy; {new Date().getFullYear()} MTE Software Ltd</span>
+            <span className="hidden sm:inline">&middot;</span>
+            <span>Platform Version: 1.0.5</span>
+          </div>
         </div>
       </footer>
     </div>
