@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { adminService } from "../services/admin.service";
 
-const DEFAULT_USER_ID = "default-user";
-
 declare global {
   namespace Express {
     interface Request {
@@ -12,12 +10,29 @@ declare global {
   }
 }
 
+function getUserId(req: Request): string | undefined {
+  if ((req.session as any)?.localUserId) {
+    return (req.session as any).localUserId;
+  }
+  return (req.user as any)?.claims?.sub;
+}
+
 export async function requireAdmin(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+  const userId = getUserId(req);
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required.",
+      },
+    });
+  }
 
   const isAdmin = await adminService.isUserAdmin(userId);
 
