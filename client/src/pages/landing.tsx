@@ -159,9 +159,6 @@ export default function Landing() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
-                <Button size="lg" variant="outline" asChild data-testid="button-see-how-it-works">
-                  <a href="#pipeline">See How It Works</a>
-                </Button>
               </div>
               <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-2">
                 <span className="flex items-center gap-1.5">
