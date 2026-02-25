@@ -13,13 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle, X, ChevronDown, ChevronUp, Info, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle, X, ChevronDown, ChevronUp, Info, ShieldAlert, RefreshCw } from "lucide-react";
 import type { ClarificationContract, ClarificationQuestion, IntegrityContext } from "@shared/types/clarification";
 
 interface ClarificationPanelProps {
   projectId: string;
   module?: string;
   inline?: ClarificationContract[];
+  onRegenerateWithClarifications?: (context: string) => void;
 }
 
 function QuestionField({
@@ -244,7 +245,19 @@ function ClarificationCard({
   );
 }
 
-export function ClarificationPanel({ projectId, module, inline }: ClarificationPanelProps) {
+function buildClarificationContext(contracts: ClarificationContract[]): string {
+  return contracts
+    .flatMap((c) => {
+      const data = c.resolutionData || {};
+      return c.requiredClarifications.map((q) => {
+        const answer = (data[q.field] as string) || "No answer provided";
+        return `Q: ${q.question}\nA: ${answer}`;
+      });
+    })
+    .join("\n\n");
+}
+
+export function ClarificationPanel({ projectId, module, inline, onRegenerateWithClarifications }: ClarificationPanelProps) {
   const { data, isLoading } = useQuery<{
     contracts: ClarificationContract[];
     hasBlockers: boolean;
@@ -263,6 +276,20 @@ export function ClarificationPanel({ projectId, module, inline }: ClarificationP
     refetchInterval: 30000,
   });
 
+  const resolvedQuery = useQuery<ClarificationContract[]>({
+    queryKey: ["/api/clarifications/resolved", projectId, module],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (module) params.set("module", module);
+      const res = await fetch(`/api/clarifications/resolved?${params}`, {
+        headers: { "x-project-id": projectId },
+      });
+      const json = await res.json();
+      return json.data || [];
+    },
+    enabled: !inline && !!module && !!onRegenerateWithClarifications,
+  });
+
   const contracts = inline || data?.contracts || [];
   const hasBlockers = inline
     ? inline.some((c) => c.severity === "blocker")
@@ -274,6 +301,7 @@ export function ClarificationPanel({ projectId, module, inline }: ClarificationP
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clarifications/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clarifications/resolved"] });
     },
   });
 
@@ -287,9 +315,49 @@ export function ClarificationPanel({ projectId, module, inline }: ClarificationP
   });
 
   const pendingContracts = contracts.filter((c) => c.resolutionStatus === "pending");
+  const resolvedContracts = inline
+    ? contracts.filter((c) => c.resolutionStatus !== "pending")
+    : resolvedQuery.data || [];
+
+  const showRegenerateBanner =
+    !!onRegenerateWithClarifications &&
+    pendingContracts.length === 0 &&
+    resolvedContracts.length > 0;
 
   if (isLoading && !inline) return null;
-  if (pendingContracts.length === 0) return null;
+  if (pendingContracts.length === 0 && !showRegenerateBanner) return null;
+
+  if (showRegenerateBanner) {
+    const context = buildClarificationContext(resolvedContracts);
+    return (
+      <div
+        data-testid="clarification-regenerate-banner"
+        className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/20 p-4 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <h3 className="text-sm font-semibold text-green-700 dark:text-green-400">
+            All Clarifications Resolved
+          </h3>
+          <Badge variant="outline" className="text-green-700 dark:text-green-400 border-green-400">
+            {resolvedContracts.length} answered
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Your answers have been recorded. Regenerate to incorporate them into the AI analysis.
+        </p>
+        <Button
+          size="sm"
+          className="gap-2"
+          onClick={() => onRegenerateWithClarifications(context)}
+          data-testid="button-regenerate-with-clarifications"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Regenerate with Your Answers
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div data-testid="clarification-panel" className="space-y-3">

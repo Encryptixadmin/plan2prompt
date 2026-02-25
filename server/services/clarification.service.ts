@@ -77,6 +77,11 @@ export class ClarificationService {
     return records.map(r => this.recordToContract(r));
   }
 
+  async listResolvedByModule(projectId: string, module: string): Promise<ClarificationContract[]> {
+    const records = await storage.listResolvedClarificationsByModule(projectId, module);
+    return records.map(r => this.recordToContract(r));
+  }
+
   async listAllByProject(projectId: string): Promise<ClarificationContract[]> {
     const records = await storage.listClarificationsByProject(projectId);
     return records.map(r => this.recordToContract(r));

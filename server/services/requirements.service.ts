@@ -25,7 +25,7 @@ import type { PipelineStage } from "@shared/types/pipeline";
 import type { UsageModule } from "@shared/schema";
 
 export class RequirementsService {
-  async generateRequirements(ideaArtifactId: string, projectId?: string, userId?: string): Promise<RequirementsDocument> {
+  async generateRequirements(ideaArtifactId: string, projectId?: string, userId?: string, clarificationContext?: string): Promise<RequirementsDocument> {
     const ideaArtifact = await artifactService.getById(ideaArtifactId);
     if (!ideaArtifact) {
       throw new Error(`Idea artifact not found: ${ideaArtifactId}`);
@@ -34,7 +34,11 @@ export class RequirementsService {
     const ideaTitle = this.extractIdeaTitle(ideaArtifact);
     const ideaDescription = this.extractIdeaDescription(ideaArtifact);
 
-    const prompt = this.buildRequirementsPrompt(ideaArtifact);
+    let prompt = this.buildRequirementsPrompt(ideaArtifact);
+
+    if (clarificationContext) {
+      prompt = `USER CLARIFICATIONS (treat these as hard requirements constraints — do not contradict them):\n\n${clarificationContext}\n\n---\n\n${prompt}`;
+    }
 
     const usageContext = projectId
       ? { projectId, module: "requirements" as UsageModule, artifactId: ideaArtifactId, userId }
@@ -68,6 +72,12 @@ export class RequirementsService {
     requirements.artifactId = artifact.metadata.id;
 
     return requirements;
+  }
+
+  async updateRequirements(existingArtifactId: string, updatedDoc: RequirementsDocument): Promise<RequirementsDocument> {
+    const artifact = await this.saveAsArtifact(updatedDoc, undefined, existingArtifactId);
+    updatedDoc.artifactId = artifact.metadata.id;
+    return updatedDoc;
   }
 
   private extractIdeaTitle(artifact: Artifact): string {
@@ -827,7 +837,7 @@ IMPORTANT:
     return `Requirements document for "${ideaTitle}" specifies ${frCount} functional requirements, ${entityCount} data entities, and ${endpointCount} API endpoints. Generated with ${Math.round(confidence * 100)}% AI consensus confidence.`;
   }
 
-  private async saveAsArtifact(requirements: RequirementsDocument, sourceVersion?: number) {
+  private async saveAsArtifact(requirements: RequirementsDocument, sourceVersion?: number, parentArtifactId?: string) {
     const sections = [
       {
         heading: "Executive Summary",
@@ -964,16 +974,27 @@ IMPORTANT:
     const projectId = (requirements as any).projectId;
     const authorId = (requirements as any).authorId;
 
-    const artifact = await artifactService.create({
-      title: `Requirements Reference: ${requirements.ideaTitle}`,
-      module: "requirements",
-      stage: "REQUIREMENTS_COMPLETE" as PipelineStage,
-      sections,
-      sourceArtifactId: requirements.ideaArtifactId,
-      sourceArtifactVersion: sourceVersion,
-      projectId,
-      authorId,
-    });
+    let artifact;
+    if (parentArtifactId) {
+      artifact = await artifactService.update(parentArtifactId, {
+        title: `Requirements Reference: ${requirements.ideaTitle}`,
+        sections,
+      });
+      if (!artifact) {
+        throw new Error(`Parent artifact not found: ${parentArtifactId}`);
+      }
+    } else {
+      artifact = await artifactService.create({
+        title: `Requirements Reference: ${requirements.ideaTitle}`,
+        module: "requirements",
+        stage: "REQUIREMENTS_COMPLETE" as PipelineStage,
+        sections,
+        sourceArtifactId: requirements.ideaArtifactId,
+        sourceArtifactVersion: sourceVersion,
+        projectId,
+        authorId,
+      });
+    }
 
     return artifact;
   }

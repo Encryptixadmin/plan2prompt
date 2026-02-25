@@ -52,7 +52,14 @@ import {
   Target,
   GitBranch,
   ShieldAlert,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+  Save,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import type { RequirementsDocument, GenerateRequirementsResponse } from "@shared/types/requirements";
 import { StageCard } from "@/components/stage-indicator";
 import { ModuleBlockedState } from "@/components/module-blocked-state";
@@ -109,16 +116,91 @@ interface RequirementsResultsProps {
   onGoBack: () => void;
   isAccepting: boolean;
   isAccepted: boolean;
+  onRequirementsUpdated?: (doc: RequirementsDocument) => void;
 }
 
-function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, isAccepting, isAccepted }: RequirementsResultsProps) {
+type EditableSectionKey = "overview" | "functional" | "nonfunctional" | "architecture";
+
+function RequirementsResults({
+  requirements,
+  onAccept,
+  onRegenerate,
+  onGoBack,
+  isAccepting,
+  isAccepted,
+  onRequirementsUpdated,
+}: RequirementsResultsProps) {
+  const { toast } = useToast();
+  const [localDoc, setLocalDoc] = useState<RequirementsDocument>(requirements);
+  const [editingSection, setEditingSection] = useState<EditableSectionKey | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, unknown>>({});
+
+  const editMutation = useMutation({
+    mutationFn: async (updatedDoc: RequirementsDocument) => {
+      const res = await apiRequest("PATCH", `/api/requirements/${updatedDoc.artifactId}`, { requirements: updatedDoc });
+      return res.json() as Promise<{ success: boolean; data: { requirements: RequirementsDocument } }>;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setLocalDoc(data.data.requirements);
+        onRequirementsUpdated?.(data.data.requirements);
+        setEditingSection(null);
+        setEditDraft({});
+        toast({ title: "Section updated", description: `Saved as v${data.data.requirements.version}` });
+      }
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Save failed", description: "Could not save changes to requirements." });
+    },
+  });
+
+  function startEdit(section: EditableSectionKey) {
+    if (section === "overview") {
+      setEditDraft({ ...localDoc.systemOverview });
+    } else if (section === "functional") {
+      setEditDraft({ items: localDoc.functionalRequirements.map((fr) => ({ ...fr, acceptanceCriteria: fr.acceptanceCriteria.join("\n") })) });
+    } else if (section === "nonfunctional") {
+      setEditDraft({ items: localDoc.nonFunctionalRequirements.map((nfr) => ({ ...nfr })) });
+    } else if (section === "architecture") {
+      setEditDraft({ pattern: localDoc.architecture.pattern, description: localDoc.architecture.description });
+    }
+    setEditingSection(section);
+  }
+
+  function cancelEdit() {
+    setEditingSection(null);
+    setEditDraft({});
+  }
+
+  function saveSection(section: EditableSectionKey) {
+    let updatedDoc = { ...localDoc };
+    if (section === "overview") {
+      updatedDoc = { ...updatedDoc, systemOverview: { ...localDoc.systemOverview, ...editDraft } as typeof localDoc.systemOverview };
+    } else if (section === "functional") {
+      const items = (editDraft.items as Array<Record<string, unknown>>).map((item) => ({
+        ...item,
+        acceptanceCriteria: typeof item.acceptanceCriteria === "string"
+          ? item.acceptanceCriteria.split("\n").map((s: string) => s.trim()).filter(Boolean)
+          : item.acceptanceCriteria,
+      })) as typeof localDoc.functionalRequirements;
+      updatedDoc = { ...updatedDoc, functionalRequirements: items };
+    } else if (section === "nonfunctional") {
+      updatedDoc = { ...updatedDoc, nonFunctionalRequirements: editDraft.items as typeof localDoc.nonFunctionalRequirements };
+    } else if (section === "architecture") {
+      updatedDoc = { ...updatedDoc, architecture: { ...localDoc.architecture, pattern: editDraft.pattern as string, description: editDraft.description as string } };
+    }
+    editMutation.mutate(updatedDoc);
+  }
+
+  const canEdit = isAccepted;
+
   return (
     <div className="space-y-8">
       {isAccepted && (
         <StageCard 
           currentStage="LOCKED_REQUIREMENTS" 
-          artifactId={requirements.artifactId}
-          sourceArtifactId={requirements.ideaArtifactId}
+          artifactId={localDoc.artifactId}
+          sourceArtifactId={localDoc.ideaArtifactId}
         />
       )}
       
@@ -128,12 +210,12 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             <div className="space-y-1">
               <CardTitle className="text-xl flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
-                Requirements: {requirements.ideaTitle}
+                Requirements: {localDoc.ideaTitle}
               </CardTitle>
-              <CardDescription className="max-w-2xl">{requirements.summary}</CardDescription>
+              <CardDescription className="max-w-2xl">{localDoc.summary}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">v{requirements.version}</Badge>
+              <Badge variant="outline">v{localDoc.version}</Badge>
               {isAccepted && (
                 <Badge className="gap-1 bg-green-500">
                   <Lock className="h-3 w-3" />
@@ -160,29 +242,78 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
         </Card>
       )}
 
-      {requirements.systemOverview && (
+      {localDoc.systemOverview && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              System Overview
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                System Overview
+              </CardTitle>
+              {canEdit && editingSection !== "overview" && (
+                <Button variant="ghost" size="sm" className="gap-1.5 h-7" onClick={() => startEdit("overview")} data-testid="button-edit-overview">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-purpose">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purpose</span>
-                <p className="text-sm">{requirements.systemOverview.purpose}</p>
+            {editingSection === "overview" ? (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purpose</label>
+                  <Textarea
+                    rows={2}
+                    value={(editDraft.purpose as string) || ""}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, purpose: e.target.value }))}
+                    data-testid="textarea-overview-purpose"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Core User</label>
+                  <Textarea
+                    rows={2}
+                    value={(editDraft.coreUser as string) || ""}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, coreUser: e.target.value }))}
+                    data-testid="textarea-overview-core-user"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Outcome</label>
+                  <Textarea
+                    rows={2}
+                    value={(editDraft.primaryOutcome as string) || ""}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, primaryOutcome: e.target.value }))}
+                    data-testid="textarea-overview-outcome"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => saveSection("overview")} disabled={editMutation.isPending} data-testid="button-save-overview">
+                    {editMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={cancelEdit} data-testid="button-cancel-overview">
+                    <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                  </Button>
+                </div>
               </div>
-              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-core-user">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Core User</span>
-                <p className="text-sm">{requirements.systemOverview.coreUser}</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-purpose">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purpose</span>
+                  <p className="text-sm">{localDoc.systemOverview.purpose}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-core-user">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Core User</span>
+                  <p className="text-sm">{localDoc.systemOverview.coreUser}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-outcome">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Outcome</span>
+                  <p className="text-sm">{localDoc.systemOverview.primaryOutcome}</p>
+                </div>
               </div>
-              <div className="p-4 rounded-lg bg-muted/50 space-y-1" data-testid="overview-outcome">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Outcome</span>
-                <p className="text-sm">{requirements.systemOverview.primaryOutcome}</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -197,45 +328,154 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">Functional Requirements</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.functionalRequirements.length} items)
+                  ({localDoc.functionalRequirements.length} items)
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4 pt-4">
-              {requirements.functionalRequirements.map((fr) => (
-                <div key={fr.id} className="p-4 rounded-lg bg-muted/50 space-y-3">
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs font-mono">{fr.id}</Badge>
-                        <span className="font-medium">{fr.title}</span>
+            {editingSection === "functional" ? (
+              <div className="space-y-4 pt-4">
+                {(editDraft.items as Array<Record<string, unknown>>).map((item, idx) => (
+                  <div key={idx} className="p-4 rounded-lg border space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="secondary" className="text-xs font-mono">{item.id as string}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive"
+                        onClick={() => setEditDraft((d) => ({ ...d, items: (d.items as unknown[]).filter((_, i) => i !== idx) }))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Title</label>
+                        <Input
+                          value={item.title as string}
+                          onChange={(e) => setEditDraft((d) => {
+                            const items = [...(d.items as Record<string, unknown>[])];
+                            items[idx] = { ...items[idx], title: e.target.value };
+                            return { ...d, items };
+                          })}
+                          data-testid={`input-fr-title-${idx}`}
+                        />
                       </div>
-                      <span className="text-xs text-muted-foreground">{fr.category}</span>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                        <select
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                          value={item.priority as string}
+                          onChange={(e) => setEditDraft((d) => {
+                            const items = [...(d.items as Record<string, unknown>[])];
+                            items[idx] = { ...items[idx], priority: e.target.value };
+                            return { ...d, items };
+                          })}
+                          data-testid={`select-fr-priority-${idx}`}
+                        >
+                          <option value="must-have">must-have</option>
+                          <option value="should-have">should-have</option>
+                          <option value="could-have">could-have</option>
+                          <option value="wont-have">wont-have</option>
+                        </select>
+                      </div>
                     </div>
-                    <PriorityBadge priority={fr.priority} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">{fr.description}</p>
-                  <div>
-                    <span className="text-xs font-medium">Acceptance Criteria:</span>
-                    <ul className="mt-1 space-y-1">
-                      {fr.acceptanceCriteria.map((ac, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <CheckCircle className="h-3 w-3 mt-1 text-green-500 flex-shrink-0" />
-                          {ac}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {fr.dependencies && fr.dependencies.length > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-medium">Dependencies:</span> {fr.dependencies.join(", ")}
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Description</label>
+                      <Textarea
+                        rows={2}
+                        value={item.description as string}
+                        onChange={(e) => setEditDraft((d) => {
+                          const items = [...(d.items as Record<string, unknown>[])];
+                          items[idx] = { ...items[idx], description: e.target.value };
+                          return { ...d, items };
+                        })}
+                        data-testid={`textarea-fr-desc-${idx}`}
+                      />
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Acceptance Criteria (one per line)</label>
+                      <Textarea
+                        rows={3}
+                        value={item.acceptanceCriteria as string}
+                        onChange={(e) => setEditDraft((d) => {
+                          const items = [...(d.items as Record<string, unknown>[])];
+                          items[idx] = { ...items[idx], acceptanceCriteria: e.target.value };
+                          return { ...d, items };
+                        })}
+                        data-testid={`textarea-fr-criteria-${idx}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    const nextId = `FR-${String((editDraft.items as unknown[]).length + 1).padStart(3, "0")}`;
+                    setEditDraft((d) => ({
+                      ...d,
+                      items: [...(d.items as unknown[]), { id: nextId, title: "", priority: "should-have", description: "", acceptanceCriteria: "", category: "functional" }],
+                    }));
+                  }}
+                  data-testid="button-add-fr"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Requirement
+                </Button>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button size="sm" onClick={() => saveSection("functional")} disabled={editMutation.isPending} data-testid="button-save-functional">
+                    {editMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save Changes
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                    <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                  </Button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-4">
+                {canEdit && (
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" className="gap-1.5 h-7" onClick={() => startEdit("functional")} data-testid="button-edit-functional">
+                      <Pencil className="h-3.5 w-3.5" /> Edit Section
+                    </Button>
+                  </div>
+                )}
+                {localDoc.functionalRequirements.map((fr) => (
+                  <div key={fr.id} className="p-4 rounded-lg bg-muted/50 space-y-3">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs font-mono">{fr.id}</Badge>
+                          <span className="font-medium">{fr.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{fr.category}</span>
+                      </div>
+                      <PriorityBadge priority={fr.priority} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{fr.description}</p>
+                    <div>
+                      <span className="text-xs font-medium">Acceptance Criteria:</span>
+                      <ul className="mt-1 space-y-1">
+                        {fr.acceptanceCriteria.map((ac, i) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <CheckCircle className="h-3 w-3 mt-1 text-green-500 flex-shrink-0" />
+                            {ac}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {fr.dependencies && fr.dependencies.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Dependencies:</span> {fr.dependencies.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -248,36 +488,134 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">Non-Functional Requirements</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.nonFunctionalRequirements.length} items)
+                  ({localDoc.nonFunctionalRequirements.length} items)
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2 font-medium">ID</th>
-                    <th className="text-left py-2 px-2 font-medium">Category</th>
-                    <th className="text-left py-2 px-2 font-medium">Title</th>
-                    <th className="text-left py-2 px-2 font-medium">Target</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requirements.nonFunctionalRequirements.map((nfr) => (
-                    <tr key={nfr.id} className="border-b last:border-0">
-                      <td className="py-2 px-2 font-mono text-xs">{nfr.id}</td>
-                      <td className="py-2 px-2">
-                        <Badge variant="outline" className="capitalize text-xs">{nfr.category}</Badge>
-                      </td>
-                      <td className="py-2 px-2">{nfr.title}</td>
-                      <td className="py-2 px-2 text-muted-foreground">{nfr.target || "-"}</td>
+            {editingSection === "nonfunctional" ? (
+              <div className="space-y-4 pt-4">
+                {(editDraft.items as Array<Record<string, unknown>>).map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="secondary" className="text-xs font-mono">{item.id as string}</Badge>
+                      <Button
+                        variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+                        onClick={() => setEditDraft((d) => ({ ...d, items: (d.items as unknown[]).filter((_, i) => i !== idx) }))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Category</label>
+                        <Input
+                          value={item.category as string}
+                          onChange={(e) => setEditDraft((d) => {
+                            const items = [...(d.items as Record<string, unknown>[])];
+                            items[idx] = { ...items[idx], category: e.target.value };
+                            return { ...d, items };
+                          })}
+                          data-testid={`input-nfr-category-${idx}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Title</label>
+                        <Input
+                          value={item.title as string}
+                          onChange={(e) => setEditDraft((d) => {
+                            const items = [...(d.items as Record<string, unknown>[])];
+                            items[idx] = { ...items[idx], title: e.target.value };
+                            return { ...d, items };
+                          })}
+                          data-testid={`input-nfr-title-${idx}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Target</label>
+                        <Input
+                          value={(item.target as string) || ""}
+                          onChange={(e) => setEditDraft((d) => {
+                            const items = [...(d.items as Record<string, unknown>[])];
+                            items[idx] = { ...items[idx], target: e.target.value };
+                            return { ...d, items };
+                          })}
+                          data-testid={`input-nfr-target-${idx}`}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Description</label>
+                      <Textarea
+                        rows={2}
+                        value={(item.description as string) || ""}
+                        onChange={(e) => setEditDraft((d) => {
+                          const items = [...(d.items as Record<string, unknown>[])];
+                          items[idx] = { ...items[idx], description: e.target.value };
+                          return { ...d, items };
+                        })}
+                        data-testid={`textarea-nfr-desc-${idx}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline" size="sm" className="gap-1.5"
+                  onClick={() => {
+                    const nextId = `NFR-${String((editDraft.items as unknown[]).length + 1).padStart(3, "0")}`;
+                    setEditDraft((d) => ({
+                      ...d,
+                      items: [...(d.items as unknown[]), { id: nextId, category: "", title: "", target: "", description: "" }],
+                    }));
+                  }}
+                  data-testid="button-add-nfr"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Requirement
+                </Button>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button size="sm" onClick={() => saveSection("nonfunctional")} disabled={editMutation.isPending} data-testid="button-save-nonfunctional">
+                    {editMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save Changes
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                    <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="pt-4 overflow-x-auto">
+                {canEdit && (
+                  <div className="flex justify-end mb-3">
+                    <Button variant="ghost" size="sm" className="gap-1.5 h-7" onClick={() => startEdit("nonfunctional")} data-testid="button-edit-nonfunctional">
+                      <Pencil className="h-3.5 w-3.5" /> Edit Section
+                    </Button>
+                  </div>
+                )}
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-medium">ID</th>
+                      <th className="text-left py-2 px-2 font-medium">Category</th>
+                      <th className="text-left py-2 px-2 font-medium">Title</th>
+                      <th className="text-left py-2 px-2 font-medium">Target</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {localDoc.nonFunctionalRequirements.map((nfr) => (
+                      <tr key={nfr.id} className="border-b last:border-0">
+                        <td className="py-2 px-2 font-mono text-xs">{nfr.id}</td>
+                        <td className="py-2 px-2">
+                          <Badge variant="outline" className="capitalize text-xs">{nfr.category}</Badge>
+                        </td>
+                        <td className="py-2 px-2">{nfr.title}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{nfr.target || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -290,19 +628,57 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">Architecture Overview</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.architecture.components.length} components)
+                  ({localDoc.architecture.components.length} components)
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
+            {editingSection === "architecture" ? (
+              <div className="space-y-4 pt-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pattern</label>
+                  <Input
+                    value={(editDraft.pattern as string) || ""}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, pattern: e.target.value }))}
+                    data-testid="input-arch-pattern"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
+                  <Textarea
+                    rows={4}
+                    value={(editDraft.description as string) || ""}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                    data-testid="textarea-arch-description"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Components are read-only and managed by the AI.</p>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button size="sm" onClick={() => saveSection("architecture")} disabled={editMutation.isPending} data-testid="button-save-architecture">
+                    {editMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save Changes
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                    <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-4 pt-4">
+              {canEdit && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="gap-1.5 h-7" onClick={() => startEdit("architecture")} data-testid="button-edit-architecture">
+                    <Pencil className="h-3.5 w-3.5" /> Edit Section
+                  </Button>
+                </div>
+              )}
               <div className="p-4 rounded-lg bg-muted/50">
-                <h4 className="font-medium mb-2">{requirements.architecture.pattern}</h4>
-                <p className="text-sm text-muted-foreground">{requirements.architecture.description}</p>
+                <h4 className="font-medium mb-2">{localDoc.architecture.pattern}</h4>
+                <p className="text-sm text-muted-foreground">{localDoc.architecture.description}</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {requirements.architecture.components.map((comp) => (
+                {localDoc.architecture.components.map((comp) => (
                   <div key={comp.name} className="p-4 rounded-lg border space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-sm">{comp.name}</span>
@@ -321,13 +697,14 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <h4 className="font-medium text-sm mb-2">Data Flow</h4>
-                <p className="text-sm text-muted-foreground">{requirements.architecture.dataFlow}</p>
+                <p className="text-sm text-muted-foreground">{localDoc.architecture.dataFlow}</p>
               </div>
             </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
-        {requirements.architectureDecisions && requirements.architectureDecisions.length > 0 && (
+        {localDoc.architectureDecisions && localDoc.architectureDecisions.length > 0 && (
           <AccordionItem value="archdecisions" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
@@ -337,14 +714,14 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
                 <div className="text-left">
                   <span className="font-semibold">Architecture Decisions</span>
                   <span className="text-sm text-muted-foreground ml-2">
-                    ({requirements.architectureDecisions.length} decisions)
+                    ({localDoc.architectureDecisions.length} decisions)
                   </span>
                 </div>
               </div>
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-4 pt-4">
-                {requirements.architectureDecisions.map((ad) => (
+                {localDoc.architectureDecisions.map((ad) => (
                   <div key={ad.id} className="p-4 rounded-lg bg-muted/50 space-y-2" data-testid={`arch-decision-${ad.id}`}>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs font-mono">{ad.id}</Badge>
@@ -378,14 +755,14 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">Data Models</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.dataModels.length} entities)
+                  ({localDoc.dataModels.length} entities)
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-4 pt-4">
-              {requirements.dataModels.map((model) => (
+              {localDoc.dataModels.map((model) => (
                 <div key={model.name} className="p-4 rounded-lg border space-y-3">
                   <div>
                     <h4 className="font-medium">{model.name}</h4>
@@ -428,7 +805,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">API Contracts</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.apiContracts.endpoints.length} endpoints)
+                  ({localDoc.apiContracts.endpoints.length} endpoints)
                 </span>
               </div>
             </div>
@@ -438,16 +815,16 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="flex flex-wrap gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Base URL:</span>{" "}
-                  <code className="px-1 py-0.5 bg-muted rounded text-xs">{requirements.apiContracts.baseUrl}</code>
+                  <code className="px-1 py-0.5 bg-muted rounded text-xs">{localDoc.apiContracts.baseUrl}</code>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Version:</span>{" "}
-                  <Badge variant="outline">{requirements.apiContracts.version}</Badge>
+                  <Badge variant="outline">{localDoc.apiContracts.version}</Badge>
                 </div>
               </div>
               <ScrollArea className="h-[400px] pr-4">
                 <div className="space-y-3">
-                  {requirements.apiContracts.endpoints.map((ep, i) => (
+                  {localDoc.apiContracts.endpoints.map((ep, i) => (
                     <div key={i} className="p-3 rounded-lg border space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge className={`text-xs font-mono ${
@@ -481,7 +858,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">UI/UX Principles</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.uiuxPrinciples.keyPrinciples.length} principles)
+                  ({localDoc.uiuxPrinciples.keyPrinciples.length} principles)
                 </span>
               </div>
             </div>
@@ -490,10 +867,10 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             <div className="space-y-4 pt-4">
               <div className="p-4 rounded-lg bg-muted/50">
                 <h4 className="font-medium text-sm mb-1">Design System</h4>
-                <p className="text-sm text-muted-foreground">{requirements.uiuxPrinciples.designSystem}</p>
+                <p className="text-sm text-muted-foreground">{localDoc.uiuxPrinciples.designSystem}</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {requirements.uiuxPrinciples.keyPrinciples.map((p) => (
+                {localDoc.uiuxPrinciples.keyPrinciples.map((p) => (
                   <div key={p.principle} className="p-3 rounded-lg border">
                     <h4 className="font-medium text-sm">{p.principle}</h4>
                     <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
@@ -503,7 +880,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div>
                 <h4 className="font-medium text-sm mb-2">User Flows</h4>
                 <div className="space-y-3">
-                  {requirements.uiuxPrinciples.userFlows.map((uf) => (
+                  {localDoc.uiuxPrinciples.userFlows.map((uf) => (
                     <div key={uf.name} className="p-3 rounded-lg border">
                       <h5 className="font-medium text-sm">{uf.name}</h5>
                       <p className="text-xs text-muted-foreground mb-2">{uf.description}</p>
@@ -534,14 +911,14 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
               <div className="text-left">
                 <span className="font-semibold">Security Considerations</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  ({requirements.securityConsiderations.length} items)
+                  ({localDoc.securityConsiderations.length} items)
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-3 pt-4">
-              {requirements.securityConsiderations.map((sc, i) => (
+              {localDoc.securityConsiderations.map((sc, i) => (
                 <div key={i} className="p-4 rounded-lg border space-y-2">
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div>
@@ -560,7 +937,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             </div>
           </AccordionContent>
         </AccordionItem>
-        {requirements.riskTraceability && requirements.riskTraceability.length > 0 && (
+        {localDoc.riskTraceability && localDoc.riskTraceability.length > 0 && (
           <AccordionItem value="risktraceability" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
@@ -570,7 +947,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
                 <div className="text-left">
                   <span className="font-semibold">Risk Traceability</span>
                   <span className="text-sm text-muted-foreground ml-2">
-                    ({requirements.riskTraceability.length} risks tracked)
+                    ({localDoc.riskTraceability.length} risks tracked)
                   </span>
                 </div>
               </div>
@@ -587,7 +964,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
                     </tr>
                   </thead>
                   <tbody>
-                    {requirements.riskTraceability.map((rt) => (
+                    {localDoc.riskTraceability.map((rt) => (
                       <tr key={rt.riskId} className="border-b last:border-0" data-testid={`risk-row-${rt.riskId}`}>
                         <td className="py-2 px-2 font-mono text-xs">{rt.riskId}</td>
                         <td className="py-2 px-2">{rt.riskDescription}</td>
@@ -688,7 +1065,7 @@ function RequirementsResults({ requirements, onAccept, onRegenerate, onGoBack, i
             <div className="flex items-center gap-4 flex-wrap">
               <div className="text-sm">
                 <span className="text-muted-foreground">Artifact ID:</span>{" "}
-                <code className="px-2 py-0.5 bg-muted rounded text-xs">{requirements.artifactId}</code>
+                <code className="px-2 py-0.5 bg-muted rounded text-xs">{localDoc.artifactId}</code>
               </div>
               <Separator orientation="vertical" className="h-4" />
               <div className="text-sm">
@@ -716,6 +1093,7 @@ export default function RequirementsPage() {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [inlineClarifications, setInlineClarifications] = useState<any[]>([]);
+  const [clarificationContext, setClarificationContext] = useState<string | undefined>();
 
   const { activeProject } = useProject();
 
@@ -737,9 +1115,10 @@ export default function RequirementsPage() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (ideaArtifactId: string) => {
+    mutationFn: async ({ ideaArtifactId, clarificationContext: ctx }: { ideaArtifactId: string; clarificationContext?: string }) => {
       const response = await apiRequest("POST", "/api/requirements/generate", {
         ideaArtifactId,
+        ...(ctx ? { clarificationContext: ctx } : {}),
       });
       return response.json() as Promise<{ success: boolean; data: GenerateRequirementsResponse }>;
     },
@@ -804,7 +1183,7 @@ export default function RequirementsPage() {
     setShowGenerateDialog(false);
     if (selectedIdeaId) {
       requireProject(() => {
-        generateMutation.mutate(selectedIdeaId);
+        generateMutation.mutate({ ideaArtifactId: selectedIdeaId, clarificationContext });
       });
     }
   };
@@ -825,7 +1204,16 @@ export default function RequirementsPage() {
   const handleRegenerate = () => {
     if (selectedIdeaId) {
       requireProject(() => {
-        generateMutation.mutate(selectedIdeaId);
+        generateMutation.mutate({ ideaArtifactId: selectedIdeaId, clarificationContext });
+      });
+    }
+  };
+
+  const handleRegenerateWithClarifications = (context: string) => {
+    setClarificationContext(context);
+    if (selectedIdeaId) {
+      requireProject(() => {
+        generateMutation.mutate({ ideaArtifactId: selectedIdeaId, clarificationContext: context });
       });
     }
   };
@@ -974,6 +1362,7 @@ export default function RequirementsPage() {
                   projectId={activeProject.id}
                   module="requirements"
                   inline={inlineClarifications}
+                  onRegenerateWithClarifications={handleRegenerateWithClarifications}
                 />
               </div>
             )}
@@ -981,6 +1370,7 @@ export default function RequirementsPage() {
               <ClarificationPanel
                 projectId={activeProject.id}
                 module="requirements"
+                onRegenerateWithClarifications={handleRegenerateWithClarifications}
               />
             )}
             <RequirementsResults

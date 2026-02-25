@@ -200,6 +200,7 @@ export interface RequirementsDocument {
 
 export interface GenerateRequirementsRequest {
   ideaArtifactId: string;
+  clarificationContext?: string;
 }
 
 export interface GenerateRequirementsResponse {

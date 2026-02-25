@@ -883,7 +883,7 @@ export class PromptsService {
     return `This document contains ${stepCount} sequential prompts for building "${ideaTitle}" using ${this.ideNames[ide]}. Each prompt is derived from the requirements document and includes prerequisites, verification checkpoints, failure recovery guidance, scope guardrails, and requirement traceability. Prompts are copy-paste ready, dependency-aware, and failure-safe.`;
   }
 
-  private formatPromptContent(prompt: BuildPrompt): string {
+  formatPromptContent(prompt: BuildPrompt): string {
     let content = `**Objective:** ${prompt.objective}\n**Estimated Time:** ${prompt.estimatedTime || "15-20 minutes"}\n`;
 
     if (prompt.requirementsCovered && prompt.requirementsCovered.length > 0) {
@@ -944,6 +944,40 @@ export class PromptsService {
     return content;
   }
 
+  async updatePromptStep(artifactId: string, stepNum: number, updates: Partial<BuildPrompt>): Promise<{ step: BuildPrompt } | null> {
+    const artifact = await artifactService.getById(artifactId);
+    if (!artifact) return null;
+
+    const jsonSection = artifact.sections.find(s => s.heading === "Build Prompts JSON");
+    if (!jsonSection) return null;
+
+    let prompts: BuildPrompt[] = [];
+    try {
+      prompts = JSON.parse(jsonSection.content);
+    } catch {
+      return null;
+    }
+
+    const stepIndex = prompts.findIndex(p => p.step === stepNum);
+    if (stepIndex === -1) return null;
+
+    const updatedStep = { ...prompts[stepIndex], ...updates };
+    prompts[stepIndex] = updatedStep;
+
+    const newSections = artifact.sections.map(s => {
+      if (s.heading === "Build Prompts JSON") {
+        return { ...s, content: JSON.stringify(prompts) };
+      }
+      if (s.heading.startsWith(`Step ${stepNum}:`)) {
+        return { ...s, heading: `Step ${stepNum}: ${updatedStep.title}`, content: this.formatPromptContent(updatedStep) };
+      }
+      return s;
+    });
+
+    const updatedArtifact = await artifactService.update(artifactId, { sections: newSections });
+    return updatedArtifact ? { step: updatedStep } : null;
+  }
+
   private async saveAsArtifact(document: PromptDocument) {
     const sections = [
       {
@@ -965,6 +999,11 @@ export class PromptsService {
         heading: "Completion Checklist",
         level: 2 as const,
         content: document.prompts.map((p) => `- [ ] Step ${p.step}: ${p.title}`).join("\n"),
+      },
+      {
+        heading: "Build Prompts JSON",
+        level: 2 as const,
+        content: JSON.stringify(document.prompts),
       },
     ];
 

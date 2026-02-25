@@ -55,6 +55,7 @@ export interface IStorage {
   listClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]>;
   listPendingClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]>;
   listPendingClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]>;
+  listResolvedClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]>;
   getClarificationByHash(projectId: string, hash: string): Promise<ClarificationContractRecord | undefined>;
   updateClarificationStatus(id: string, status: ClarificationResolutionStatus, resolutionData?: string): Promise<ClarificationContractRecord | undefined>;
   incrementClarificationOccurrence(id: string): Promise<ClarificationContractRecord | undefined>;
@@ -303,6 +304,20 @@ export class DatabaseStorage implements IStorage {
           eq(clarificationContracts.projectId, projectId),
           eq(clarificationContracts.originatingModule, module),
           eq(clarificationContracts.resolutionStatus, "pending")
+        )
+      )
+      .orderBy(desc(clarificationContracts.timestamp));
+  }
+
+  async listResolvedClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]> {
+    return db
+      .select()
+      .from(clarificationContracts)
+      .where(
+        and(
+          eq(clarificationContracts.projectId, projectId),
+          eq(clarificationContracts.originatingModule, module),
+          eq(clarificationContracts.resolutionStatus, "resolved")
         )
       )
       .orderBy(desc(clarificationContracts.timestamp));

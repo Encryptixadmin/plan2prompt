@@ -28,7 +28,11 @@ import {
   RotateCcw,
   ShieldAlert,
   Circle,
+  Pencil,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { StepFeedbackForm } from "@/components/step-feedback-form";
 import type { PromptDocument, IDEType, BuildPrompt, IDE_OPTIONS } from "@shared/types/prompts";
 import { StageCard } from "@/components/stage-indicator";
@@ -105,6 +109,7 @@ export default function Prompts() {
   const [executionSession, setExecutionSession] = useState<ExecutionSession | null>(null);
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
   const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [clarificationContext, setClarificationContext] = useState<string | undefined>();
   const { toast } = useToast();
 
   const { activeProject } = useProject();
@@ -116,7 +121,7 @@ export default function Prompts() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { requirementsArtifactId: string; ide: IDEType }) => {
+    mutationFn: async (data: { requirementsArtifactId: string; ide: IDEType; clarificationContext?: string }) => {
       const response = await apiRequest("POST", "/api/prompts/generate", data);
       return response.json();
     },
@@ -291,6 +296,19 @@ export default function Prompts() {
       generateMutation.mutate({
         requirementsArtifactId: selectedRequirements,
         ide: selectedIDE as IDEType,
+        ...(clarificationContext ? { clarificationContext } : {}),
+      });
+    });
+  };
+
+  const handleRegenerateWithClarifications = (context: string) => {
+    setClarificationContext(context);
+    if (!selectedRequirements || !selectedIDE) return;
+    requireProject(() => {
+      generateMutation.mutate({
+        requirementsArtifactId: selectedRequirements,
+        ide: selectedIDE as IDEType,
+        clarificationContext: context,
       });
     });
   };
@@ -587,6 +605,7 @@ export default function Prompts() {
                 projectId={activeProject.id}
                 module="prompts"
                 inline={(generatedPrompts as any).clarifications}
+                onRegenerateWithClarifications={handleRegenerateWithClarifications}
               />
             )}
 
@@ -770,8 +789,17 @@ function StepStatusIndicator({ status }: { status?: string }) {
 }
 
 function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, ideName, executionStep, stepEnabled, onStepAction, isUpdating }: PromptCardProps) {
+  const { toast } = useToast();
   const [showFeedback, setShowFeedback] = useState(false);
   const [showRerunConfirm, setShowRerunConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [displayStep, setDisplayStep] = useState<BuildPrompt>(prompt);
+  const [editDraft, setEditDraft] = useState({
+    title: prompt.title,
+    objective: prompt.objective,
+    prompt: prompt.prompt,
+    expectedOutcome: prompt.expectedOutcome,
+  });
   const stepStatus = executionStep?.status || "not_started";
   const isCompleted = stepStatus === "completed";
   const isFailed = stepStatus === "failed";
@@ -789,6 +817,25 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
     : isDisabled
     ? "border-muted-foreground/30 bg-muted text-muted-foreground"
     : "border-primary bg-primary text-primary-foreground";
+
+  const canEdit = !!promptDocumentId && stepStatus !== "in_progress" && stepStatus !== "completed";
+
+  const saveEditMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/prompts/${promptDocumentId}/steps/${displayStep.step}`, editDraft);
+      return res.json() as Promise<{ success: boolean; data: { step: BuildPrompt } }>;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setDisplayStep((prev) => ({ ...prev, ...editDraft }));
+        setIsEditing(false);
+        toast({ title: "Step updated", description: "Prompt step saved successfully." });
+      }
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Save failed", description: "Could not update this step. It may not have editable metadata yet." });
+    },
+  });
 
   return (
     <div className="relative" data-testid={`step-card-${prompt.step}`}>
@@ -808,7 +855,7 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                    <CardTitle className="text-lg">{displayStep.title}</CardTitle>
                     <StepStatusIndicator status={stepStatus} />
                   </div>
                   {prompt.dependencies && prompt.dependencies.length > 0 && (
@@ -873,21 +920,103 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                     </div>
                   )}
                 </div>
-                {prompt.estimatedTime && (
-                  <Badge variant="secondary" className="text-xs shrink-0 gap-1">
-                    <Clock className="h-3 w-3" />
-                    {prompt.estimatedTime}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {prompt.estimatedTime && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Clock className="h-3 w-3" />
+                      {prompt.estimatedTime}
+                    </Badge>
+                  )}
+                  {canEdit && !isEditing && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => {
+                        setEditDraft({
+                          title: displayStep.title,
+                          objective: displayStep.objective,
+                          prompt: displayStep.prompt,
+                          expectedOutcome: displayStep.expectedOutcome,
+                        });
+                        setIsEditing(true);
+                      }}
+                      data-testid={`button-edit-step-${prompt.step}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium uppercase text-muted-foreground">Title</label>
+                    <Input
+                      value={editDraft.title}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, title: e.target.value }))}
+                      data-testid={`input-step-title-${prompt.step}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium uppercase text-muted-foreground">Goal</label>
+                    <Textarea
+                      rows={2}
+                      value={editDraft.objective}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, objective: e.target.value }))}
+                      data-testid={`textarea-step-objective-${prompt.step}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium uppercase text-muted-foreground">Instructions (Prompt)</label>
+                    <Textarea
+                      rows={8}
+                      className="font-mono text-sm"
+                      value={editDraft.prompt}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, prompt: e.target.value }))}
+                      data-testid={`textarea-step-prompt-${prompt.step}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium uppercase text-muted-foreground">Expected Outcome</label>
+                    <Textarea
+                      rows={2}
+                      value={editDraft.expectedOutcome}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, expectedOutcome: e.target.value }))}
+                      data-testid={`textarea-step-outcome-${prompt.step}`}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => saveEditMutation.mutate()}
+                      disabled={saveEditMutation.isPending}
+                      data-testid={`button-save-step-${prompt.step}`}
+                    >
+                      {saveEditMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                      Save Changes
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsEditing(false)}
+                      data-testid={`button-cancel-edit-step-${prompt.step}`}
+                    >
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="flex items-start gap-2">
                 <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                 <div>
                   <span className="text-xs font-medium uppercase text-muted-foreground">Goal</span>
-                  <p className="text-sm">{prompt.objective}</p>
+                  <p className="text-sm">{displayStep.objective}</p>
                 </div>
               </div>
 
@@ -920,7 +1049,7 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                     </Button>
                   </div>
                   <pre className="p-4 text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                    {prompt.prompt}
+                    {displayStep.prompt}
                   </pre>
                 </div>
               </div>
@@ -929,7 +1058,7 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                 <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <span className="text-xs font-medium uppercase text-muted-foreground">Expected Outcome</span>
-                  <p className="text-sm text-muted-foreground">{prompt.expectedOutcome}</p>
+                  <p className="text-sm text-muted-foreground">{displayStep.expectedOutcome}</p>
                 </div>
               </div>
 
@@ -941,7 +1070,7 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                   </span>
                 </div>
                 <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-2">
-                  {prompt.waitInstruction}
+                  {displayStep.waitInstruction}
                 </p>
               </div>
 
@@ -1070,6 +1199,8 @@ function PromptCard({ prompt, isLast, isCopied, onCopy, promptDocumentId, ide, i
                     </div>
                   )}
                 </div>
+              )}
+              </>
               )}
             </CardContent>
           </Card>

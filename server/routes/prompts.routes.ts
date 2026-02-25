@@ -22,6 +22,7 @@ const router = Router();
 const generatePromptsSchema = z.object({
   requirementsArtifactId: z.string().uuid("Invalid requirements artifact ID"),
   ide: z.enum(["replit", "cursor", "lovable", "antigravity", "warp", "other"]),
+  clarificationContext: z.string().optional(),
 });
 
 /**
@@ -419,7 +420,7 @@ router.post(
         executionContext: {
           ide,
           ideName: ideNames[ide] || "Generic IDE",
-          ideaTitle: artifact.title || "Untitled",
+          ideaTitle: artifact.metadata.title || "Untitled",
           totalSteps: prompts.length,
           currentStep: stepNumber,
           previousStepsCompleted,
@@ -459,6 +460,78 @@ router.post(
         error: {
           code: "COMPILATION_ERROR",
           message: error instanceof Error ? error.message : "Failed to compile prompt step",
+        },
+      });
+    }
+  }
+);
+
+// Edit a specific prompt step (creates new artifact version)
+router.patch(
+  "/:artifactId/steps/:stepNum",
+  requireProjectContext,
+  async (req: Request, res: Response) => {
+    try {
+      const artifactId = req.params.artifactId;
+      const stepNum = parseInt(req.params.stepNum, 10);
+
+      if (isNaN(stepNum) || stepNum < 1) {
+        return res.status(400).json({
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: "Invalid step number" },
+        });
+      }
+
+      const { title, objective, prompt: promptText, expectedOutcome, waitInstruction } = req.body as {
+        title?: string;
+        objective?: string;
+        prompt?: string;
+        expectedOutcome?: string;
+        waitInstruction?: string;
+      };
+
+      const existing = await artifactService.getById(artifactId);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Prompt artifact not found" },
+        });
+      }
+
+      if (existing.metadata.projectId && existing.metadata.projectId !== req.projectId) {
+        return res.status(403).json({
+          success: false,
+          error: { code: "PROJECT_ISOLATION_VIOLATION", message: "Artifact belongs to a different project" },
+        });
+      }
+
+      const updates: Record<string, unknown> = {};
+      if (title !== undefined) updates.title = title;
+      if (objective !== undefined) updates.objective = objective;
+      if (promptText !== undefined) updates.prompt = promptText;
+      if (expectedOutcome !== undefined) updates.expectedOutcome = expectedOutcome;
+      if (waitInstruction !== undefined) updates.waitInstruction = waitInstruction;
+
+      const result = await promptsService.updatePromptStep(artifactId, stepNum, updates as any);
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Step not found or artifact has no editable JSON metadata" },
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { step: result.step },
+        metadata: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "UPDATE_ERROR",
+          message: error instanceof Error ? error.message : "Failed to update prompt step",
         },
       });
     }

@@ -147,7 +147,8 @@ router.post(
       const requirements = await requirementsService.generateRequirements(
         request.ideaArtifactId,
         projectId,
-        userId
+        userId,
+        request.clarificationContext
       );
 
       let clarifications: any[] = [];
@@ -265,6 +266,63 @@ router.post(
         error: {
           code: "ACCEPT_ERROR",
           message: error instanceof Error ? error.message : "Failed to accept requirements",
+        },
+      });
+    }
+  }
+);
+
+// Edit requirements (creates new version with updated sections)
+router.patch(
+  "/:artifactId",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  async (req, res) => {
+    try {
+      const { artifactId } = req.params;
+      const { requirements } = req.body as { requirements: import("@shared/types/requirements").RequirementsDocument };
+
+      if (!requirements) {
+        return res.status(400).json({
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: "Missing requirements body" },
+        });
+      }
+
+      const existing = await artifactService.getById(artifactId);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Requirements artifact not found" },
+        });
+      }
+
+      if (existing.metadata.projectId && existing.metadata.projectId !== req.projectId) {
+        return res.status(403).json({
+          success: false,
+          error: { code: "PROJECT_ISOLATION_VIOLATION", message: "Artifact belongs to a different project" },
+        });
+      }
+
+      const requirementsWithProject = {
+        ...requirements,
+        projectId: req.projectId,
+        authorId: req.userId,
+      };
+
+      const updated = await requirementsService.updateRequirements(artifactId, requirementsWithProject);
+
+      res.json({
+        success: true,
+        data: { requirements: updated },
+        metadata: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "UPDATE_ERROR",
+          message: error instanceof Error ? error.message : "Failed to update requirements",
         },
       });
     }
