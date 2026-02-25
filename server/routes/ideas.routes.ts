@@ -6,6 +6,7 @@ import type { AnalyzeIdeaRequest, IdeaAnalysis } from "@shared/types/ideas";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { adminService } from "../services/admin.service";
 import { computeRiskDeltas, applyDeltasToAnalysis, computeDeltaScoreAdjustment } from "../services/risk-delta.service";
+import { aiGenerationRateLimiter } from "../middleware/rate-limit";
 
 const router = Router();
 
@@ -90,6 +91,7 @@ router.post(
   "/analyze",
   requireProjectContext,
   requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
   async (req, res) => {
     try {
       const request = req.body as AnalyzeIdeaRequest & { previousAnalysis?: IdeaAnalysis };

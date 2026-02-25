@@ -59,7 +59,7 @@ export class ConsensusService {
     const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery);
 
     if (usageContext) {
-      this.recordUsageForResults(results, usageContext);
+      await this.recordUsageForResults(results, usageContext);
     }
 
     const successfulResponses = results
@@ -320,10 +320,10 @@ export class ConsensusService {
     return status;
   }
 
-  private recordUsageForResults(
+  private async recordUsageForResults(
     results: ProviderQueryResult[],
     context: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
-  ): void {
+  ): Promise<void> {
     let totalTokens = 0;
     
     for (const result of results) {
@@ -353,7 +353,7 @@ export class ConsensusService {
     
     // Record to billing service for user usage tracking
     if (context.userId && totalTokens > 0) {
-      billingService.recordGeneration(context.userId, totalTokens);
+      await billingService.recordGeneration(context.userId, totalTokens);
     }
   }
 }

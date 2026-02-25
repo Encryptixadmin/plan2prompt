@@ -1,23 +1,23 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { billingService } from "../../server/services/billing.service";
 
 describe("Usage & Billing Invariants", () => {
-  const testUserId = `test-invariant-${Date.now()}`;
+  const testUserId = `test-invariant-billing-${Date.now()}`;
 
-  it("5.1 Each generation MUST call recordGeneration once, increment usage, and trigger warning at threshold", () => {
-    const initialInfo = billingService.getUserBillingInfo(testUserId);
+  it("5.1 Each generation MUST call recordGeneration once, increment usage, and trigger warning at threshold", async () => {
+    const initialInfo = await billingService.getUserBillingInfo(testUserId);
     const initialGenerations = initialInfo.currentUsage.generationsThisMonth;
 
-    billingService.recordGeneration(testUserId, 500);
+    await billingService.recordGeneration(testUserId, 500);
 
-    const afterOne = billingService.getUserBillingInfo(testUserId);
+    const afterOne = await billingService.getUserBillingInfo(testUserId);
     expect(afterOne.currentUsage.generationsThisMonth).toBe(initialGenerations + 1);
     expect(afterOne.currentUsage.tokensThisMonth).toBeGreaterThanOrEqual(500);
 
-    billingService.recordGeneration(testUserId, 300);
-    billingService.recordGeneration(testUserId, 200);
+    await billingService.recordGeneration(testUserId, 300);
+    await billingService.recordGeneration(testUserId, 200);
 
-    const afterThree = billingService.getUserBillingInfo(testUserId);
+    const afterThree = await billingService.getUserBillingInfo(testUserId);
     expect(afterThree.currentUsage.generationsThisMonth).toBe(initialGenerations + 3);
     expect(afterThree.currentUsage.tokensThisMonth).toBeGreaterThanOrEqual(1000);
 

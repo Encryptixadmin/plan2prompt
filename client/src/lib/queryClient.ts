@@ -39,6 +39,15 @@ function getProjectHeaders(url: string): Record<string, string> {
   return { "X-Project-Id": activeProjectId };
 }
 
+export class RateLimitError extends Error {
+  public retryAfter: number;
+  constructor(message: string, retryAfter: number) {
+    super(message);
+    this.name = "RateLimitError";
+    this.retryAfter = retryAfter;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -48,8 +57,14 @@ async function throwIfResNotOk(res: Response) {
       if (json.error?.code === "MISSING_PROJECT_CONTEXT") {
         throw new MissingProjectContextError();
       }
+      if (res.status === 429 || json.error?.code === "RATE_LIMIT_EXCEEDED") {
+        throw new RateLimitError(
+          json.error?.message || "Too many requests. Please try again later.",
+          json.error?.retryAfter || 60
+        );
+      }
     } catch (e) {
-      if (e instanceof MissingProjectContextError) throw e;
+      if (e instanceof MissingProjectContextError || e instanceof RateLimitError) throw e;
     }
     
     throw new Error(`${res.status}: ${text}`);

@@ -34,7 +34,7 @@ router.get("/my-plan", isAuthenticated, async (req, res) => {
         error: { code: "UNAUTHORIZED", message: "Authentication required" },
       });
     }
-    const billingInfo = billingService.getUserBillingInfo(userId);
+    const billingInfo = await billingService.getUserBillingInfo(userId);
     res.json({
       success: true,
       data: billingInfo,

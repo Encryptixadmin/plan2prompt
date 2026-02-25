@@ -1,3 +1,5 @@
+import { storage } from "../storage";
+
 export type PlanStatus = "active" | "legacy";
 
 export interface BillingPlan {
@@ -58,21 +60,25 @@ const BILLING_PLANS: Map<string, BillingPlan> = new Map([
   }],
 ]);
 
-interface UserUsageTracker {
-  generationsThisMonth: number;
-  tokensThisMonth: number;
-  lastResetMonth: number;
+function getCurrentYearMonth(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function dbPlanToBillingPlanId(dbPlan: string): string {
+  if (dbPlan === "professional") return "pro";
+  if (dbPlan === "starter") return "free";
+  return dbPlan;
+}
+
+function billingPlanIdToDbPlan(planId: string): "free" | "starter" | "professional" | "team" {
+  if (planId === "pro") return "professional";
+  return planId as "free" | "team";
 }
 
 class BillingService {
-  private userPlans: Map<string, string> = new Map();
-  private userUsage: Map<string, UserUsageTracker> = new Map();
-
-  constructor() {
-    // No demo data - real usage starts at zero
-    // User plans default to "free" when not explicitly set
-  }
-
   getAllPlans(): BillingPlan[] {
     return Array.from(BILLING_PLANS.values());
   }
@@ -81,37 +87,30 @@ class BillingService {
     return BILLING_PLANS.get(planId);
   }
 
-  getUserPlanId(userId: string): string {
-    return this.userPlans.get(userId) || "free";
+  async getUserPlanId(userId: string): Promise<string> {
+    const user = await storage.getUser(userId);
+    const rawPlan = user?.billingPlan ?? "free";
+    return dbPlanToBillingPlanId(rawPlan);
   }
 
-  private getUserUsage(userId: string): UserUsageTracker {
-    const currentMonth = new Date().getMonth();
-    let usage = this.userUsage.get(userId);
-
-    if (!usage) {
-      usage = { generationsThisMonth: 0, tokensThisMonth: 0, lastResetMonth: currentMonth };
-      this.userUsage.set(userId, usage);
-    }
-
-    if (usage.lastResetMonth !== currentMonth) {
-      usage.generationsThisMonth = 0;
-      usage.tokensThisMonth = 0;
-      usage.lastResetMonth = currentMonth;
-    }
-
-    return usage;
+  async setUserPlan(userId: string, planId: string): Promise<void> {
+    const dbPlan = billingPlanIdToDbPlan(planId);
+    await storage.updateUserBillingPlan(userId, dbPlan);
   }
 
-  getUserBillingInfo(userId: string): UserBillingInfo {
-    const planId = this.getUserPlanId(userId);
+  async getUserBillingInfo(userId: string): Promise<UserBillingInfo> {
+    const planId = await this.getUserPlanId(userId);
     const plan = this.getPlan(planId) || BILLING_PLANS.get("free")!;
-    const usage = this.getUserUsage(userId);
+    const yearMonth = getCurrentYearMonth();
+    const usageRecord = await storage.getBillingUsage(userId, yearMonth);
+
+    const generationsThisMonth = usageRecord?.generationsCount ?? 0;
+    const tokensThisMonth = usageRecord?.tokensCount ?? 0;
 
     const warnings: string[] = [];
 
-    const genPercentage = (usage.generationsThisMonth / plan.softLimits.monthlyGenerations) * 100;
-    const tokenPercentage = (usage.tokensThisMonth / plan.softLimits.monthlyTokenBudget) * 100;
+    const genPercentage = (generationsThisMonth / plan.softLimits.monthlyGenerations) * 100;
+    const tokenPercentage = (tokensThisMonth / plan.softLimits.monthlyTokenBudget) * 100;
 
     if (genPercentage >= 80 && genPercentage < 100) {
       warnings.push(`You've used ${Math.round(genPercentage)}% of your monthly generations.`);
@@ -129,36 +128,36 @@ class BillingService {
       planId: plan.id,
       planName: plan.name,
       currentUsage: {
-        generationsThisMonth: usage.generationsThisMonth,
-        tokensThisMonth: usage.tokensThisMonth,
+        generationsThisMonth,
+        tokensThisMonth,
       },
       softLimits: plan.softLimits,
       warnings,
     };
   }
 
-  recordGeneration(userId: string, tokenCount: number): void {
-    const usage = this.getUserUsage(userId);
-    usage.generationsThisMonth++;
-    usage.tokensThisMonth += tokenCount;
+  async recordGeneration(userId: string, tokenCount: number): Promise<void> {
+    const yearMonth = getCurrentYearMonth();
+    await storage.incrementBillingUsage(userId, yearMonth, tokenCount);
   }
 
-  getUsageByPlan(): Record<string, { userCount: number; totalGenerations: number; totalTokens: number }> {
-    const result: Record<string, { userCount: number; totalGenerations: number; totalTokens: number }> = {};
+  async getUsageByPlan(): Promise<Record<string, { userCount: number; totalGenerations: number; totalTokens: number }>> {
+    const yearMonth = getCurrentYearMonth();
+    const rows = await storage.getBillingUsageByPlan(yearMonth);
 
-    Array.from(BILLING_PLANS.values()).forEach(plan => {
+    const result: Record<string, { userCount: number; totalGenerations: number; totalTokens: number }> = {};
+    Array.from(BILLING_PLANS.values()).forEach((plan) => {
       result[plan.id] = { userCount: 0, totalGenerations: 0, totalTokens: 0 };
     });
 
-    Array.from(this.userPlans.entries()).forEach(([userId, planId]) => {
-      const usage = this.getUserUsage(userId);
-      if (!result[planId]) {
-        result[planId] = { userCount: 0, totalGenerations: 0, totalTokens: 0 };
+    for (const row of rows) {
+      if (!result[row.planId]) {
+        result[row.planId] = { userCount: 0, totalGenerations: 0, totalTokens: 0 };
       }
-      result[planId].userCount++;
-      result[planId].totalGenerations += usage.generationsThisMonth;
-      result[planId].totalTokens += usage.tokensThisMonth;
-    });
+      result[row.planId].userCount += row.userCount;
+      result[row.planId].totalGenerations += row.totalGenerations;
+      result[row.planId].totalTokens += row.totalTokens;
+    }
 
     return result;
   }

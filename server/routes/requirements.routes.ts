@@ -6,6 +6,7 @@ import { clarificationDetectionService } from "../services/clarification-detecti
 import type { GenerateRequirementsRequest, RequirementsDocument } from "@shared/types/requirements";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { validateRequirementsGenerationStage } from "../validation/pipeline.validation";
+import { aiGenerationRateLimiter } from "../middleware/rate-limit";
 
 const router = Router();
 
@@ -95,6 +96,7 @@ router.post(
   "/generate",
   requireProjectContext,
   requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
   async (req, res) => {
     try {
       const request: GenerateRequirementsRequest = req.body;

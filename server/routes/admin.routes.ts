@@ -370,7 +370,7 @@ router.get("/actions", async (req, res) => {
 
 router.get("/billing/usage-by-plan", async (_req, res) => {
   try {
-    const usageByPlan = billingService.getUsageByPlan();
+    const usageByPlan = await billingService.getUsageByPlan();
     const plans = billingService.getAllPlans();
     res.json({
       success: true,

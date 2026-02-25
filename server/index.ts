@@ -4,6 +4,18 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { providerValidationService } from "./services/ai/provider-validation.service";
+import { migrateFilesystemArtifacts } from "./services/artifact.service";
+import { logger } from "./logger";
+import * as Sentry from "@sentry/node";
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    tracesSampleRate: 0.2,
+  });
+  logger.info("Sentry initialized");
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -25,14 +37,7 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
+  logger.info({ source }, message);
 }
 
 app.use((req, res, next) => {
@@ -49,12 +54,16 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      log(logLine);
+      logger.info(
+        {
+          method: req.method,
+          path,
+          status: res.statusCode,
+          durationMs: duration,
+          ...(capturedJsonResponse && { responseBody: capturedJsonResponse }),
+        },
+        `${req.method} ${path} ${res.statusCode} in ${duration}ms`
+      );
     }
   });
 
@@ -64,6 +73,9 @@ app.use((req, res, next) => {
 (async () => {
   // Validate AI providers at startup
   await providerValidationService.validateAllProvidersAtStartup();
+
+  // Migrate any existing filesystem artifacts to the database
+  await migrateFilesystemArtifacts();
   
   // Setup Replit Auth BEFORE registering other routes
   await setupAuth(app);
@@ -71,12 +83,18 @@ app.use((req, res, next) => {
   
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    if (status >= 500) {
+      logger.error({ err, method: req.method, url: req.url, status }, "Unhandled server error");
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(err);
+      }
+    }
+
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after

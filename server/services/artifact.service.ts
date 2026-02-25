@@ -14,17 +14,9 @@ import type {
   DownstreamArtifact,
 } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
+import { storage } from "../storage";
 
 const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts");
-
-// Ensure artifacts directory exists
-async function ensureArtifactsDir(): Promise<void> {
-  try {
-    await fs.access(ARTIFACTS_DIR);
-  } catch {
-    await fs.mkdir(ARTIFACTS_DIR, { recursive: true });
-  }
-}
 
 // Generate a slug from title for file naming
 function slugify(text: string): string {
@@ -35,10 +27,9 @@ function slugify(text: string): string {
     .substring(0, 50);
 }
 
-// Build file path for an artefact
-function getArtifactPath(module: string, slug: string, version: number): string {
-  const moduleDir = path.join(ARTIFACTS_DIR, module);
-  return path.join(moduleDir, `${slug}_v${version}.md`);
+// Build relative path for display (module/filename)
+function buildRelativePath(module: string, filename: string): string {
+  return `${module}/${filename}`;
 }
 
 // Parse frontmatter from Markdown content
@@ -245,18 +236,81 @@ function parseMarkdown(content: string, filePath: string): Artifact {
   };
 }
 
+// Idempotent migration: scan filesystem artifacts/ dir and insert into DB if not already present
+export async function migrateFilesystemArtifacts(): Promise<void> {
+  try {
+    await fs.access(ARTIFACTS_DIR);
+  } catch {
+    return;
+  }
+
+  const files = await getAllFilesFromDisk();
+  let migrated = 0;
+
+  for (const file of files) {
+    try {
+      const content = await fs.readFile(file, "utf-8");
+      const { metadata } = parseFrontmatter(content);
+      const id = metadata.id as string | undefined;
+      if (!id) continue;
+
+      const exists = await storage.artifactExistsById(id);
+      if (exists) continue;
+
+      const moduleName = metadata.module as string || path.basename(path.dirname(file));
+      const filename = path.basename(file);
+
+      await storage.insertArtifact({
+        id,
+        projectId: metadata.projectId as string | undefined,
+        module: moduleName,
+        filename,
+        parentId: metadata.parentId as string | undefined,
+        sourceArtifactId: metadata.sourceArtifactId as string | undefined,
+        content,
+        artifactMetadata: metadata,
+      });
+      migrated++;
+    } catch {
+      // Skip files that can't be parsed
+    }
+  }
+
+  if (migrated > 0) {
+    console.log(`[ArtifactService] Migrated ${migrated} filesystem artifact(s) to database`);
+  }
+}
+
+async function getAllFilesFromDisk(module?: string): Promise<string[]> {
+  const searchDir = module ? path.join(ARTIFACTS_DIR, module) : ARTIFACTS_DIR;
+  const files: string[] = [];
+
+  try {
+    const entries = await fs.readdir(searchDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(searchDir, entry.name);
+
+      if (entry.isDirectory() && !module) {
+        const subFiles = await getAllFilesFromDisk(entry.name);
+        files.push(...subFiles);
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        files.push(fullPath);
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet
+  }
+
+  return files;
+}
+
 export class ArtifactService {
   // Create a new artefact
   async create(input: CreateArtifactInput): Promise<Artifact> {
-    await ensureArtifactsDir();
-
     const now = new Date().toISOString();
     const id = randomUUID();
     const slug = slugify(input.title);
-
-    // Ensure module directory exists
-    const moduleDir = path.join(ARTIFACTS_DIR, input.module);
-    await fs.mkdir(moduleDir, { recursive: true });
 
     const metadata: ArtifactMetadata = {
       id,
@@ -296,36 +350,40 @@ export class ArtifactService {
     };
 
     artifact.rawContent = buildMarkdown(artifact);
+    const filename = `${slug}_v1.md`;
 
-    const filePath = getArtifactPath(input.module, slug, 1);
-    await fs.writeFile(filePath, artifact.rawContent, "utf-8");
+    await storage.insertArtifact({
+      id,
+      projectId: input.projectId,
+      module: input.module,
+      filename,
+      parentId: undefined,
+      sourceArtifactId: input.sourceArtifactId,
+      content: artifact.rawContent,
+      artifactMetadata: metadata as unknown as Record<string, unknown>,
+    });
 
     return artifact;
   }
 
   // Read an artefact by ID
   async getById(id: string): Promise<Artifact | null> {
-    await ensureArtifactsDir();
-
-    const files = await this.getAllFiles();
-    
-    for (const file of files) {
-      const content = await fs.readFile(file, "utf-8");
-      const { metadata } = parseFrontmatter(content);
-      
-      if (metadata.id === id) {
-        return parseMarkdown(content, file);
-      }
-    }
-
-    return null;
+    const record = await storage.getArtifactById(id);
+    if (!record) return null;
+    return parseMarkdown(record.content, "");
   }
 
-  // Read an artefact by path
+  // Read an artefact by path (module/filename or absolute path)
   async getByPath(filePath: string): Promise<Artifact | null> {
+    const filename = path.basename(filePath);
+    const records = await storage.listAllArtifacts();
+    const record = records.find((r) => r.filename === filename);
+    if (record) return parseMarkdown(record.content, "");
+
+    // Fallback: try filesystem for backward compatibility
     try {
-      const fullPath = path.isAbsolute(filePath) 
-        ? filePath 
+      const fullPath = path.isAbsolute(filePath)
+        ? filePath
         : path.join(ARTIFACTS_DIR, filePath);
       const content = await fs.readFile(fullPath, "utf-8");
       return parseMarkdown(content, fullPath);
@@ -379,9 +437,18 @@ export class ArtifactService {
     };
 
     artifact.rawContent = buildMarkdown(artifact);
+    const filename = `${slug}_v${newVersion}.md`;
 
-    const filePath = getArtifactPath(existing.metadata.module, slug, newVersion);
-    await fs.writeFile(filePath, artifact.rawContent, "utf-8");
+    await storage.insertArtifact({
+      id: newId,
+      projectId: existing.metadata.projectId,
+      module: existing.metadata.module,
+      filename,
+      parentId: id,
+      sourceArtifactId: existing.metadata.sourceArtifactId,
+      content: artifact.rawContent,
+      artifactMetadata: metadata as unknown as Record<string, unknown>,
+    });
 
     return artifact;
   }
@@ -396,33 +463,30 @@ export class ArtifactService {
 
     // Walk back through parent chain
     while (currentId) {
-      const current = await this.getById(currentId);
-      if (!current) break;
+      const record = await storage.getArtifactById(currentId);
+      if (!record) break;
+      const meta = parseMarkdown(record.content, "").metadata;
 
-      const slug = slugify(current.metadata.title);
       versions.push({
-        version: current.metadata.version,
-        id: current.metadata.id,
-        createdAt: current.metadata.updatedAt,
-        path: getArtifactPath(current.metadata.module, slug, current.metadata.version),
+        version: meta.version,
+        id: meta.id,
+        createdAt: meta.updatedAt,
+        path: buildRelativePath(record.module, record.filename),
       });
 
-      currentId = current.metadata.parentId;
+      currentId = meta.parentId;
     }
 
-    // Also find all versions that reference this as parent
-    const allFiles = await this.getAllFiles();
-    for (const file of allFiles) {
-      const content = await fs.readFile(file, "utf-8");
-      const { metadata } = parseFrontmatter(content);
-      
-      if (metadata.parentId === id && !versions.find((v) => v.id === metadata.id)) {
-        const slug = slugify(metadata.title as string);
+    // Also find all versions that reference this artifact as parent
+    const children = await storage.getArtifactsByParentId(id);
+    for (const child of children) {
+      if (!versions.find((v) => v.id === child.id)) {
+        const meta = parseMarkdown(child.content, "").metadata;
         versions.push({
-          version: metadata.version as number,
-          id: metadata.id as string,
-          createdAt: metadata.updatedAt as string,
-          path: getArtifactPath(metadata.module as string, slug, metadata.version as number),
+          version: meta.version,
+          id: meta.id,
+          createdAt: meta.updatedAt,
+          path: buildRelativePath(child.module, child.filename),
         });
       }
     }
@@ -432,54 +496,58 @@ export class ArtifactService {
 
   // List all artefacts
   async list(module?: string): Promise<ArtifactListItem[]> {
-    await ensureArtifactsDir();
-
-    const files = await this.getAllFiles(module);
-    const items: ArtifactListItem[] = [];
-
-    for (const file of files) {
-      const content = await fs.readFile(file, "utf-8");
-      const { metadata } = parseFrontmatter(content);
-
-      items.push({
-        id: metadata.id as string,
-        title: metadata.title as string,
-        module: metadata.module as string,
-        version: metadata.version as number,
-        createdAt: metadata.createdAt as string,
-        updatedAt: metadata.updatedAt as string,
-        path: file.replace(ARTIFACTS_DIR + "/", ""),
-        stage: metadata.stage as PipelineStage | undefined,
-        sourceArtifactId: metadata.sourceArtifactId as string | undefined,
-        projectId: metadata.projectId as string | undefined,
-        authorId: metadata.authorId as string | undefined,
-      });
-    }
-
-    return items.sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
+    const records = await storage.listAllArtifacts(module);
+    return records.map((record) => {
+      const meta = record.artifactMetadata as Record<string, unknown>;
+      return {
+        id: record.id,
+        title: (meta.title as string) || record.filename,
+        module: record.module,
+        version: (meta.version as number) || 1,
+        createdAt: (meta.createdAt as string) || record.createdAt.toISOString(),
+        updatedAt: (meta.updatedAt as string) || record.createdAt.toISOString(),
+        path: buildRelativePath(record.module, record.filename),
+        stage: meta.stage as PipelineStage | undefined,
+        sourceArtifactId: record.sourceArtifactId ?? undefined,
+        projectId: record.projectId ?? undefined,
+        authorId: meta.authorId as string | undefined,
+      };
+    });
   }
 
   // List artifacts filtered by project
   async listByProject(projectId: string, module?: string): Promise<ArtifactListItem[]> {
-    const allArtifacts = await this.list(module);
-    return allArtifacts.filter((a) => a.projectId === projectId);
+    const records = await storage.listArtifactsByProject(projectId, module);
+    return records.map((record) => {
+      const meta = record.artifactMetadata as Record<string, unknown>;
+      return {
+        id: record.id,
+        title: (meta.title as string) || record.filename,
+        module: record.module,
+        version: (meta.version as number) || 1,
+        createdAt: (meta.createdAt as string) || record.createdAt.toISOString(),
+        updatedAt: (meta.updatedAt as string) || record.createdAt.toISOString(),
+        path: buildRelativePath(record.module, record.filename),
+        stage: meta.stage as PipelineStage | undefined,
+        sourceArtifactId: record.sourceArtifactId ?? undefined,
+        projectId: record.projectId ?? undefined,
+        authorId: meta.authorId as string | undefined,
+      };
+    });
   }
 
   // Get artefact reference for module passing
   async getReference(id: string): Promise<ArtifactReference | null> {
-    const artifact = await this.getById(id);
-    if (!artifact) return null;
+    const record = await storage.getArtifactById(id);
+    if (!record) return null;
 
-    const slug = slugify(artifact.metadata.title);
-    
+    const meta = parseMarkdown(record.content, "").metadata;
     return {
-      id: artifact.metadata.id,
-      version: artifact.metadata.version,
-      module: artifact.metadata.module,
-      title: artifact.metadata.title,
-      path: getArtifactPath(artifact.metadata.module, slug, artifact.metadata.version),
+      id: meta.id,
+      version: meta.version,
+      module: record.module,
+      title: meta.title,
+      path: buildRelativePath(record.module, record.filename),
     };
   }
 
@@ -488,58 +556,45 @@ export class ArtifactService {
     const artifact = await this.getById(id);
     if (!artifact) return [];
 
-    const downstream: DownstreamArtifact[] = [];
-    const allFiles = await this.getAllFiles();
-
-    // Get the version history for this specific artifact chain
+    // Build the version chain for this artifact
     const versions = await this.getVersionHistory(id);
-    
-    // Build a map of version ID to version number for this chain
     const versionMap = new Map<string, number>();
     for (const v of versions) {
       versionMap.set(v.id, v.version);
     }
-    // Include current artifact if not already in version history
     if (!versionMap.has(id)) {
       versionMap.set(id, artifact.metadata.version);
     }
-    
-    // The latest version is the max in this chain
+
     const latestVersion = Math.max(...Array.from(versionMap.values()));
-    
-    // Collect all IDs in this artifact chain
     const chainIds = Array.from(versionMap.keys());
 
-    for (const file of allFiles) {
-      const content = await fs.readFile(file, "utf-8");
-      const { metadata } = parseFrontmatter(content);
-      const sourceArtifactId = metadata.sourceArtifactId as string | undefined;
-      
-      // Check if this artifact was derived from any version in this chain
-      if (sourceArtifactId && chainIds.includes(sourceArtifactId)) {
-        const derivedArtifact = parseMarkdown(content, file);
-        
-        // Get the source version - prefer the explicit field, fall back to looking up from the referenced artifact
-        let sourceVersion = metadata.sourceArtifactVersion as number | undefined;
-        if (sourceVersion === undefined && versionMap.has(sourceArtifactId)) {
-          sourceVersion = versionMap.get(sourceArtifactId);
+    const downstream: DownstreamArtifact[] = [];
+
+    for (const chainId of chainIds) {
+      const derived = await storage.getArtifactsBySourceId(chainId);
+      for (const record of derived) {
+        const meta = parseMarkdown(record.content, "").metadata;
+        let sourceVersion = meta.sourceArtifactVersion;
+        if (sourceVersion === undefined && versionMap.has(chainId)) {
+          sourceVersion = versionMap.get(chainId);
         }
-        
-        // Determine if outdated (derived from a non-latest version)
         const isOutdated = sourceVersion !== undefined && sourceVersion < latestVersion;
         const derivedFromVersion = sourceVersion ?? artifact.metadata.version;
-        
-        downstream.push({
-          id: derivedArtifact.metadata.id,
-          title: derivedArtifact.metadata.title,
-          module: derivedArtifact.metadata.module,
-          stage: derivedArtifact.metadata.stage as PipelineStage | undefined,
-          derivedFromVersion,
-          isOutdated,
-          outdatedReason: isOutdated 
-            ? `Derived from version ${derivedFromVersion}, but version ${latestVersion} is now available`
-            : undefined,
-        });
+
+        if (!downstream.find((d) => d.id === record.id)) {
+          downstream.push({
+            id: record.id,
+            title: meta.title,
+            module: record.module,
+            stage: meta.stage as PipelineStage | undefined,
+            derivedFromVersion,
+            isOutdated,
+            outdatedReason: isOutdated
+              ? `Derived from version ${derivedFromVersion}, but version ${latestVersion} is now available`
+              : undefined,
+          });
+        }
       }
     }
 
@@ -555,21 +610,15 @@ export class ArtifactService {
   // Check if an artifact is outdated (its source artifact has a newer version)
   async isArtifactOutdated(id: string): Promise<{ outdated: boolean; reason?: string }> {
     const artifact = await this.getById(id);
-    if (!artifact) {
-      return { outdated: false };
-    }
+    if (!artifact) return { outdated: false };
 
     const sourceArtifactId = artifact.metadata.sourceArtifactId;
     const sourceArtifactVersion = artifact.metadata.sourceArtifactVersion;
 
-    if (!sourceArtifactId) {
-      return { outdated: false };
-    }
+    if (!sourceArtifactId) return { outdated: false };
 
     const sourceArtifact = await this.getById(sourceArtifactId);
-    if (!sourceArtifact) {
-      return { outdated: false };
-    }
+    if (!sourceArtifact) return { outdated: false };
 
     const versions = await this.getVersionHistory(sourceArtifactId);
     const latestVersion = Math.max(
@@ -585,31 +634,6 @@ export class ArtifactService {
     }
 
     return { outdated: false };
-  }
-
-  // Get all .md files in artifacts directory
-  private async getAllFiles(module?: string): Promise<string[]> {
-    const searchDir = module ? path.join(ARTIFACTS_DIR, module) : ARTIFACTS_DIR;
-    const files: string[] = [];
-
-    try {
-      const entries = await fs.readdir(searchDir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(searchDir, entry.name);
-        
-        if (entry.isDirectory() && !module) {
-          const subFiles = await this.getAllFiles(entry.name);
-          files.push(...subFiles);
-        } else if (entry.isFile() && entry.name.endsWith(".md")) {
-          files.push(fullPath);
-        }
-      }
-    } catch {
-      // Directory doesn't exist yet
-    }
-
-    return files;
   }
 }
 

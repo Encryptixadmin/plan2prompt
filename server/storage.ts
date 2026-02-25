@@ -5,6 +5,8 @@ import {
   clarificationContracts,
   executionSessions,
   executionSteps,
+  billingUsage,
+  artifacts,
   type User, 
   type UpsertUser,
   type Project,
@@ -21,9 +23,11 @@ import {
   type ExecutionStep,
   type InsertExecutionStep,
   type ExecutionStepStatus,
+  type BillingUsageRecord,
+  type ArtifactRecord,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -72,6 +76,18 @@ export interface IStorage {
   setSuccessHash(id: string, hash: string): Promise<ExecutionStep | undefined>;
   setIntegrityOverride(id: string): Promise<ExecutionStep | undefined>;
   setDuplicateFailureDetected(id: string): Promise<ExecutionStep | undefined>;
+
+  getBillingUsage(userId: string, yearMonth: string): Promise<BillingUsageRecord | undefined>;
+  incrementBillingUsage(userId: string, yearMonth: string, tokens: number): Promise<BillingUsageRecord>;
+  getBillingUsageByPlan(yearMonth: string): Promise<{ planId: string; userCount: number; totalGenerations: number; totalTokens: number }[]>;
+
+  insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }): Promise<ArtifactRecord>;
+  getArtifactById(id: string): Promise<ArtifactRecord | undefined>;
+  listAllArtifacts(module?: string): Promise<ArtifactRecord[]>;
+  listArtifactsByProject(projectId: string, module?: string): Promise<ArtifactRecord[]>;
+  getArtifactsBySourceId(sourceArtifactId: string): Promise<ArtifactRecord[]>;
+  getArtifactsByParentId(parentId: string): Promise<ArtifactRecord[]>;
+  artifactExistsById(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -496,6 +512,109 @@ export class DatabaseStorage implements IStorage {
       .where(eq(executionSteps.id, id))
       .returning();
     return updated;
+  }
+
+  async getBillingUsage(userId: string, yearMonth: string): Promise<BillingUsageRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(billingUsage)
+      .where(and(eq(billingUsage.userId, userId), eq(billingUsage.yearMonth, yearMonth)));
+    return record;
+  }
+
+  async incrementBillingUsage(userId: string, yearMonth: string, tokens: number): Promise<BillingUsageRecord> {
+    const existing = await this.getBillingUsage(userId, yearMonth);
+    if (existing) {
+      const [updated] = await db
+        .update(billingUsage)
+        .set({
+          generationsCount: existing.generationsCount + 1,
+          tokensCount: existing.tokensCount + tokens,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(billingUsage.userId, userId), eq(billingUsage.yearMonth, yearMonth)))
+        .returning();
+      return updated;
+    }
+    const [created] = await db
+      .insert(billingUsage)
+      .values({ userId, yearMonth, generationsCount: 1, tokensCount: tokens })
+      .returning();
+    return created;
+  }
+
+  async getBillingUsageByPlan(yearMonth: string): Promise<{ planId: string; userCount: number; totalGenerations: number; totalTokens: number }[]> {
+    const usageRows = await db
+      .select()
+      .from(billingUsage)
+      .where(eq(billingUsage.yearMonth, yearMonth));
+
+    const userRows = await db.select().from(users);
+    const planMap = new Map<string, { userCount: number; totalGenerations: number; totalTokens: number }>();
+
+    for (const row of usageRows) {
+      const user = userRows.find((u) => u.id === row.userId);
+      const rawPlan = user?.billingPlan ?? "free";
+      const planId = rawPlan === "professional" ? "pro" : rawPlan === "starter" ? "free" : rawPlan;
+      if (!planMap.has(planId)) {
+        planMap.set(planId, { userCount: 0, totalGenerations: 0, totalTokens: 0 });
+      }
+      const entry = planMap.get(planId)!;
+      entry.userCount += 1;
+      entry.totalGenerations += row.generationsCount;
+      entry.totalTokens += row.tokensCount;
+    }
+
+    return Array.from(planMap.entries()).map(([planId, stats]) => ({ planId, ...stats }));
+  }
+
+  async insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }): Promise<ArtifactRecord> {
+    const [inserted] = await db
+      .insert(artifacts)
+      .values({
+        id: record.id,
+        projectId: record.projectId ?? null,
+        module: record.module,
+        filename: record.filename,
+        parentId: record.parentId ?? null,
+        sourceArtifactId: record.sourceArtifactId ?? null,
+        content: record.content,
+        artifactMetadata: record.artifactMetadata,
+      })
+      .returning();
+    return inserted;
+  }
+
+  async getArtifactById(id: string): Promise<ArtifactRecord | undefined> {
+    const [record] = await db.select().from(artifacts).where(eq(artifacts.id, id));
+    return record;
+  }
+
+  async listAllArtifacts(module?: string): Promise<ArtifactRecord[]> {
+    if (module) {
+      return db.select().from(artifacts).where(eq(artifacts.module, module)).orderBy(desc(artifacts.createdAt));
+    }
+    return db.select().from(artifacts).orderBy(desc(artifacts.createdAt));
+  }
+
+  async listArtifactsByProject(projectId: string, module?: string): Promise<ArtifactRecord[]> {
+    if (module) {
+      return db.select().from(artifacts).where(and(eq(artifacts.projectId, projectId), eq(artifacts.module, module))).orderBy(desc(artifacts.createdAt));
+    }
+    return db.select().from(artifacts).where(eq(artifacts.projectId, projectId)).orderBy(desc(artifacts.createdAt));
+  }
+
+  async getArtifactsBySourceId(sourceArtifactId: string): Promise<ArtifactRecord[]> {
+    return db.select().from(artifacts).where(eq(artifacts.sourceArtifactId, sourceArtifactId));
+  }
+
+  async getArtifactsByParentId(parentId: string): Promise<ArtifactRecord[]> {
+    return db.select().from(artifacts).where(eq(artifacts.parentId, parentId));
+  }
+
+  async artifactExistsById(id: string): Promise<boolean> {
+    const [record] = await db.select({ id: artifacts.id }).from(artifacts).where(eq(artifacts.id, id));
+    return !!record;
   }
 }
 

@@ -4,6 +4,7 @@ import { promptsService } from "../services/prompts.service";
 import { artifactService } from "../services/artifact.service";
 import { requireProjectContext, requirePermission } from "../middleware/project-context";
 import { billingService } from "../services/billing.service";
+import { aiGenerationRateLimiter } from "../middleware/rate-limit";
 import { feedbackService } from "../services/feedback.service";
 import { classifierService } from "../services/classifier.service";
 import { feedbackMetricsService } from "../services/feedback-metrics.service";
@@ -64,6 +65,7 @@ router.post(
   "/generate",
   requireProjectContext,
   requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
   async (req: Request, res: Response) => {
     try {
       const validation = generatePromptsSchema.safeParse(req.body);
@@ -124,7 +126,7 @@ router.post(
       );
 
       if (req.userId) {
-        billingService.recordGeneration(req.userId, 500);
+        await billingService.recordGeneration(req.userId, 500);
       }
 
       let clarifications: any[] = [];
@@ -443,7 +445,7 @@ router.post(
 
       if (req.userId) {
         const tokensUsed = result.tokenUsage?.totalTokens || 0;
-        billingService.recordGeneration(req.userId, tokensUsed);
+        await billingService.recordGeneration(req.userId, tokensUsed);
       }
 
       res.json({

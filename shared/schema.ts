@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, real, uniqueIndex, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -83,6 +83,44 @@ export const insertUsageRecordSchema = createInsertSchema(usageRecords).omit({
 
 export type InsertUsageRecord = z.infer<typeof insertUsageRecordSchema>;
 export type UsageRecord = typeof usageRecords.$inferSelect;
+
+// ============================================
+// BILLING USAGE (Monthly generation/token tracking per user)
+// ============================================
+export const billingUsage = pgTable("billing_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  yearMonth: varchar("year_month", { length: 7 }).notNull(),
+  generationsCount: integer("generations_count").notNull().default(0),
+  tokensCount: integer("tokens_count").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("billing_usage_user_month_idx").on(table.userId, table.yearMonth),
+]);
+
+export type BillingUsageRecord = typeof billingUsage.$inferSelect;
+
+// ============================================
+// ARTIFACTS (Pipeline Markdown artifacts stored in DB)
+// ============================================
+export const artifacts = pgTable("artifacts", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id"),
+  module: varchar("module").notNull(),
+  filename: varchar("filename").notNull(),
+  parentId: varchar("parent_id"),
+  sourceArtifactId: varchar("source_artifact_id"),
+  content: text("content").notNull(),
+  artifactMetadata: jsonb("artifact_metadata").notNull().$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("artifacts_project_id_idx").on(table.projectId),
+  index("artifacts_module_idx").on(table.module),
+  index("artifacts_source_artifact_id_idx").on(table.sourceArtifactId),
+  index("artifacts_parent_id_idx").on(table.parentId),
+]);
+
+export type ArtifactRecord = typeof artifacts.$inferSelect;
 
 // ============================================
 // ADMIN ACTION LOG
