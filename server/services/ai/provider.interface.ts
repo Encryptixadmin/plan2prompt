@@ -9,7 +9,7 @@ export interface ProviderConfig {
 
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
   maxRetries: 1,
-  timeoutMs: 30000,
+  timeoutMs: 90000,
   temperature: 0.3,
   maxTokens: 4096,
 };

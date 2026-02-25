@@ -15,6 +15,7 @@ export interface AIPrompt {
   context?: string;
   maxTokens?: number;
   temperature?: number;
+  responseFormat?: "json_object";
 }
 
 // Token usage breakdown
@@ -89,4 +90,5 @@ export interface ConsensusRequest {
   providers?: AIProviderType[]; // Defaults to all
   requireUnanimity?: boolean;
   minimumConfidence?: number;
+  raceMode?: boolean; // Return as soon as the first provider succeeds
 }

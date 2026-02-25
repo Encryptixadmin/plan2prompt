@@ -49,7 +49,11 @@ export class RequirementsService {
         system: this.getSystemPrompt(),
         user: prompt,
         context: JSON.stringify({ artifactId: ideaArtifactId, title: ideaTitle }),
+        maxTokens: 8000,
+        responseFormat: "json_object",
       },
+      providers: ["openai"],
+      raceMode: false,
     }, usageContext);
 
     const requirements = this.parseConsensusToRequirements(
@@ -114,181 +118,34 @@ export class RequirementsService {
   }
 
   private buildRequirementsPrompt(artifact: Artifact): string {
-    let prompt = `Generate comprehensive, structured requirements for the following validated idea.\n\n`;
-    prompt += `# ${artifact.metadata.title}\n\n`;
+    const title = artifact.metadata.title.replace("Ideas Reference: ", "");
+    let prompt = `Generate requirements for: ${title}\n\n`;
 
+    const essentialSections = ["Idea Overview", "Executive Summary", "Technical Profile", "Strengths", "Risks", "Scope Warnings"];
     for (const section of artifact.sections) {
-      prompt += `## ${section.heading}\n${section.content}\n\n`;
+      if (essentialSections.some(k => section.heading.includes(k))) {
+        const truncated = section.content.length > 600 ? section.content.slice(0, 600) + "..." : section.content;
+        prompt += `## ${section.heading}\n${truncated}\n\n`;
+      }
     }
 
-    const analysisContext = this.extractIdeaAnalysisContext(artifact);
-    if (analysisContext) {
-      prompt += `\n# STRUCTURED IDEA ANALYSIS (use this to inform requirements)\n${analysisContext}\n`;
-    }
-
-    prompt += `\nYou MUST respond with ONLY valid JSON matching the schema defined in the system prompt. No narrative text, no markdown formatting, no code fences. Output raw JSON only.`;
-
+    prompt += `Output raw JSON only. No markdown. No explanation.`;
     return prompt;
   }
 
   private getSystemPrompt(): string {
-    return `You are an expert software architect and requirements engineer. Your task is to generate a structured requirements document as valid JSON.
+    return `You are a senior software architect. Output ONLY raw JSON — no markdown, no prose.
 
-CRITICAL RULES:
-1. Output ONLY valid JSON. No markdown, no code fences, no explanation text.
-2. Every field must be populated with idea-specific content derived from the input.
-3. Do NOT use generic placeholders or template content.
-4. Requirements must directly address the described product/idea.
-5. Architecture, data models, and API contracts must be specific to the described system.
+RULES:
+- architecture.pattern: real pattern name (e.g. "REST MVC Monolith"). Never "TBD".
+- functionalRequirements: 8+ items, each with 2 acceptanceCriteria strings.
+- dataModel.entities: 4+ entities, each with 4+ fields (name/type/required/description).
+- apiContracts: 6+ endpoints with method/path/description/authentication(bool).
+- architectureDecisions: 3+ items. securityConsiderations: 4+ items.
+- Use specific technologies (React, PostgreSQL, JWT). Keep all strings concise (≤80 chars each).
 
-OUTPUT SCHEMA (follow exactly):
-{
-  "systemOverview": {
-    "purpose": "What the system does (1-2 sentences)",
-    "coreUser": "Primary user persona",
-    "primaryOutcome": "What success looks like"
-  },
-  "functionalRequirements": [
-    {
-      "id": "FR-001",
-      "category": "string",
-      "title": "string",
-      "description": "string",
-      "priority": "High|Medium|Low",
-      "acceptanceCriteria": ["testable criterion 1", "..."],
-      "dependencies": ["FR-xxx"] 
-    }
-  ],
-  "nonFunctionalRequirements": {
-    "performance": ["specific performance requirement"],
-    "security": ["specific security requirement"],
-    "compliance": ["specific compliance requirement or 'None identified'"],
-    "scalability": ["specific scalability requirement"],
-    "usability": ["specific usability requirement"]
-  },
-  "dataModel": {
-    "entities": [
-      {
-        "name": "EntityName",
-        "description": "what it represents",
-        "fields": [
-          {"name": "fieldName", "type": "String|UUID|Integer|DateTime|Boolean|JSON|Enum", "required": true, "description": "purpose", "constraints": []}
-        ],
-        "relationships": [
-          {"entity": "OtherEntity", "type": "one-to-one|one-to-many|many-to-many", "description": "relationship meaning"}
-        ]
-      }
-    ],
-    "relationships": [
-      {"from": "Entity1", "to": "Entity2", "type": "one-to-many", "description": "relationship description"}
-    ]
-  },
-  "apiContracts": [
-    {
-      "method": "GET|POST|PUT|PATCH|DELETE",
-      "path": "/api/resource",
-      "description": "what it does",
-      "authentication": true,
-      "requestBody": {"contentType": "application/json", "schema": "{ field: type }"},
-      "responseBody": {"contentType": "application/json", "schema": "{ field: type }"},
-      "errorResponses": [{"status": 400, "description": "reason"}]
-    }
-  ],
-  "architectureDecisions": [
-    {
-      "id": "AD-001",
-      "title": "decision title",
-      "decision": "what was decided",
-      "rationale": "why",
-      "alternatives": ["what else was considered"],
-      "tradeoffs": "key tradeoffs"
-    }
-  ],
-  "assumptions": [
-    {
-      "id": "ASM-001",
-      "category": "technical|user|operational|business|integration",
-      "statement": "the assumption",
-      "rationale": "why assumed",
-      "impact": "what happens if wrong"
-    }
-  ],
-  "explicitOutOfScope": [
-    {
-      "id": "OOS-001",
-      "item": "what is excluded",
-      "reason": "why excluded",
-      "futureConsideration": true
-    }
-  ],
-  "riskTraceability": [
-    {
-      "riskId": "RISK-001",
-      "riskDescription": "the risk from idea analysis",
-      "mitigationInRequirementIds": ["FR-001", "NFR-003"],
-      "coverageStatus": "fully-mitigated|partially-mitigated|unmitigated"
-    }
-  ],
-  "architecture": {
-    "pattern": "architectural pattern name",
-    "description": "architecture description",
-    "components": [
-      {
-        "name": "ComponentName",
-        "type": "frontend|backend|database|service|external|infrastructure",
-        "description": "purpose",
-        "technologies": ["tech1"],
-        "responsibilities": ["resp1"],
-        "interfaces": ["interface1"]
-      }
-    ],
-    "dataFlow": "how data moves through system",
-    "deploymentNotes": "deployment approach"
-  },
-  "uiuxPrinciples": {
-    "designSystem": "design approach",
-    "keyPrinciples": [{"principle": "name", "description": "detail"}],
-    "userFlows": [{"name": "flow", "description": "desc", "steps": ["step1"]}],
-    "accessibilityRequirements": ["requirement"]
-  },
-  "securityConsiderations": [
-    {
-      "category": "authentication|authorization|data-protection|input-validation|infrastructure|compliance",
-      "title": "title",
-      "description": "detail",
-      "implementation": "how to implement",
-      "priority": "critical|high|medium|low"
-    }
-  ],
-  "edgeCasesAndFailureModes": [
-    {
-      "id": "ECF-001",
-      "scenario": "what can go wrong",
-      "category": "input|state|integration|resource|timing|user-behavior",
-      "likelihood": "rare|occasional|likely",
-      "expectedBehavior": "how system handles it",
-      "recoveryAction": "how to recover"
-    }
-  ],
-  "confidenceNotes": [
-    {
-      "id": "CN-001",
-      "section": "which section",
-      "concern": "what is uncertain",
-      "confidenceLevel": "high|medium|low",
-      "reason": "why uncertain",
-      "mitigationSuggestion": "how to reduce uncertainty"
-    }
-  ],
-  "summary": "Executive summary of the requirements document (2-3 sentences)"
-}
-
-IMPORTANT:
-- Generate at least 8 functional requirements specific to this idea
-- Generate at least 3 data model entities specific to this idea
-- Generate at least 5 API endpoints specific to this idea
-- All riskTraceability entries must reference actual FR/NFR IDs from the requirements
-- If a risk has no mitigation requirement, set coverageStatus to "unmitigated" and add to explicitOutOfScope with a warning`;
+OUTPUT THIS JSON STRUCTURE (fill all fields):
+{"systemOverview":{"purpose":"string","coreUser":"string","primaryOutcome":"string"},"functionalRequirements":[{"id":"FR-001","category":"string","title":"string","description":"string","priority":"High|Medium|Low","acceptanceCriteria":["string","string"],"dependencies":[]}],"nonFunctionalRequirements":{"performance":["string"],"security":["string"],"scalability":["string"],"compliance":["string"],"usability":["string"]},"dataModel":{"entities":[{"name":"string","description":"string","fields":[{"name":"string","type":"string","required":true,"description":"string"}],"relationships":["string"]}],"relationships":[{"from":"string","to":"string","type":"string","description":"string"}]},"apiContracts":[{"method":"GET|POST|PUT|DELETE|PATCH","path":"string","description":"string","authentication":true,"requestBody":null,"responseBody":{"key":"value"},"errorResponses":["400 Bad Request"]}],"architectureDecisions":[{"id":"AD-001","title":"string","decision":"string","rationale":"string","alternatives":["string"],"tradeoffs":"string"}],"assumptions":[{"id":"AS-001","category":"string","statement":"string","rationale":"string","impact":"string"}],"explicitOutOfScope":[{"id":"OOS-001","item":"string","reason":"string","futureConsideration":false}],"riskTraceability":[{"riskId":"string","riskDescription":"string","mitigationInRequirementIds":["FR-001"],"coverageStatus":"string"}],"architecture":{"pattern":"string","description":"string","components":[{"name":"string","type":"string","description":"string","technologies":["string"],"responsibilities":["string"],"interfaces":["string"]}],"dataFlow":"string","deploymentNotes":"string"},"uiuxPrinciples":{"designSystem":"string","keyPrinciples":["string"],"userFlows":[{"name":"string","description":"string","steps":["string","string","string"]}],"accessibilityRequirements":["string"]},"securityConsiderations":[{"category":"string","title":"string","description":"string","implementation":"string","priority":"High|Medium|Low"}],"edgeCasesAndFailureModes":[{"id":"EC-001","scenario":"string","category":"string","likelihood":"Low|Medium|High","expectedBehavior":"string","recoveryAction":"string"}],"confidenceNotes":[{"id":"CN-001","section":"string","concern":"string","confidenceLevel":"high|medium|low","reason":"string","mitigationSuggestion":"string"}],"summary":"string"}`;
   }
 
   private tryParseJSON(content: string): any | null {

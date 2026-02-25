@@ -19,6 +19,7 @@ import type {
   SecurityConsideration,
 } from "@shared/types/requirements";
 import { artifactService } from "./artifact.service";
+import { consensusService } from "./ai";
 import type { Artifact } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
 
@@ -72,7 +73,8 @@ export class PromptsService {
 
   async generatePrompts(
     requirementsArtifactId: string,
-    ide: IDEType
+    ide: IDEType,
+    clarificationContext?: string
   ): Promise<PromptDocument> {
     const artifact = await artifactService.getById(requirementsArtifactId);
     if (!artifact) {
@@ -82,8 +84,10 @@ export class PromptsService {
     const sourceArtifactVersion = artifact.metadata.version;
     const ideaTitle = this.extractIdeaTitle(artifact);
     const requirementsDoc = this.extractRequirementsFromArtifact(artifact, ideaTitle);
+
     const basePrompts = this.generatePromptsFromRequirements(requirementsDoc);
-    const prompts = basePrompts.map((p) => this.adaptPromptForIDE(p, ide));
+    const enrichedPrompts = await this.enrichPromptsWithAI(basePrompts, requirementsDoc, ide, clarificationContext);
+    const prompts = enrichedPrompts.map((p) => this.adaptPromptForIDE(p, ide));
 
     const document: PromptDocument = {
       id: randomUUID(),
@@ -103,6 +107,170 @@ export class PromptsService {
     document.artifactId = savedArtifact.metadata.id;
 
     return document;
+  }
+
+  private async enrichPromptsWithAI(
+    steps: BuildPrompt[],
+    doc: RequirementsDocument,
+    ide: IDEType,
+    clarificationContext?: string
+  ): Promise<BuildPrompt[]> {
+    const ideName = this.ideNames[ide];
+    const ideNotes = this.getIDENotes(ide);
+
+    const requirementsSummary = this.buildRequirementsSummary(doc);
+
+    const systemPrompt = `You are a senior full-stack engineer who writes exceptionally clear, actionable build prompts for AI coding assistants.
+
+Your job is to take a structured list of build steps and enrich each step's "prompt" field with detailed, specific, copy-paste-ready instructions tailored for ${ideName}.
+
+RULES:
+1. Each prompt must be self-contained — the AI assistant reading it needs no other context.
+2. Reference specific requirement IDs (FR-001 etc), entity names, endpoint paths, and technology choices from the requirements.
+3. Write instructions at the level of a senior developer briefing a junior: precise, unambiguous, no hand-waving.
+4. Include specific code snippets, SQL schemas, or API contracts where relevant.
+5. Each prompt must end with a clear verification instruction.
+6. Do NOT invent features not in the requirements.
+7. Output ONLY valid JSON — an array of objects, one per step.
+
+${ideNotes}`;
+
+    let userPrompt = `Here are the requirements for "${doc.ideaTitle}":\n\n${requirementsSummary}\n\n`;
+
+    if (clarificationContext) {
+      userPrompt += `ADDITIONAL CONSTRAINTS (treat as hard requirements):\n${clarificationContext}\n\n`;
+    }
+
+    userPrompt += `Now enrich each of these ${steps.length} build steps. Return a JSON array with one object per step:\n\n`;
+    userPrompt += `[\n`;
+    for (const step of steps) {
+      userPrompt += `  {\n`;
+      userPrompt += `    "step": ${step.step},\n`;
+      userPrompt += `    "title": ${JSON.stringify(step.title)},\n`;
+      userPrompt += `    "objective": "Rewrite as a precise, specific objective referencing actual requirements",\n`;
+      userPrompt += `    "prompt": "Write a complete, detailed, copy-paste-ready prompt for ${ideName} that covers: ${step.requirementsCovered?.join(', ') || 'this step'}. Requirements covered: ${JSON.stringify(step.requirementsCovered)}",\n`;
+      userPrompt += `    "expectedOutcome": "Concrete, verifiable outcome statement",\n`;
+      userPrompt += `    "estimatedTime": ${JSON.stringify(step.estimatedTime || "15-30 minutes")}\n`;
+      userPrompt += `  }${step.step < steps.length ? ',' : ''}\n`;
+    }
+    userPrompt += `]\n\nIMPORTANT: Output ONLY the JSON array. No markdown, no explanation.`;
+
+    try {
+      const consensus = await consensusService.getConsensus({
+        prompt: {
+          system: systemPrompt,
+          user: userPrompt,
+          context: JSON.stringify({ ideaTitle: doc.ideaTitle, ide, stepCount: steps.length }),
+        },
+        providers: ["anthropic", "openai"],
+        raceMode: true,
+      });
+
+      const sorted = [...consensus.providerResponses].sort((a: any, b: any) => b.confidence - a.confidence);
+      let parsed: any[] | null = null;
+
+      for (const resp of sorted) {
+        const raw = resp.content?.trim();
+        if (!raw) continue;
+        try {
+          const result = JSON.parse(raw);
+          if (Array.isArray(result) && result.length > 0) {
+            parsed = result;
+            break;
+          }
+        } catch {
+          const arrMatch = raw.match(/\[[\s\S]*\]/);
+          if (arrMatch) {
+            try {
+              const result = JSON.parse(arrMatch[0]);
+              if (Array.isArray(result) && result.length > 0) {
+                parsed = result;
+                break;
+              }
+            } catch {}
+          }
+        }
+      }
+
+      if (parsed && parsed.length === steps.length) {
+        return steps.map((step, i) => {
+          const enriched = parsed![i];
+          if (!enriched) return step;
+          return {
+            ...step,
+            objective: enriched.objective || step.objective,
+            prompt: enriched.prompt || step.prompt,
+            expectedOutcome: enriched.expectedOutcome || step.expectedOutcome,
+            estimatedTime: enriched.estimatedTime || step.estimatedTime,
+          };
+        });
+      }
+
+      console.warn(`[PromptsService] AI enrichment returned ${parsed?.length || 0} steps, expected ${steps.length}. Falling back to template prompts.`);
+      return steps;
+    } catch (err) {
+      console.warn("[PromptsService] AI enrichment failed, falling back to template prompts:", err);
+      return steps;
+    }
+  }
+
+  private getIDENotes(ide: IDEType): string {
+    switch (ide) {
+      case "replit":
+        return `IDE CONTEXT: Replit Agent. Prompts should:\n- Reference the Replit packager for dependencies (not npm install)\n- Bind server to 0.0.0.0:5000\n- Use the Replit database integration if PostgreSQL is needed\n- Reference workflow auto-restart behavior`;
+      case "cursor":
+        return `IDE CONTEXT: Cursor AI. Prompts should:\n- Use @codebase references to point to existing files\n- Specify Composer vs inline edit (Cmd+K) for each change\n- Reference Cursor's multi-file editing capability`;
+      case "lovable":
+        return `IDE CONTEXT: Lovable. Prompts should:\n- Focus on UI/component descriptions since Lovable excels at frontend\n- Use visual/descriptive language for layout and components\n- Note when backend services need separate setup`;
+      case "warp":
+        return `IDE CONTEXT: Warp terminal with AI. Prompts should:\n- Be terminal-command focused\n- Include specific shell commands with flags\n- Use Warp block syntax for multi-command sequences`;
+      default:
+        return `IDE CONTEXT: Generic AI coding assistant. Write clear, universal instructions.`;
+    }
+  }
+
+  private buildRequirementsSummary(doc: RequirementsDocument): string {
+    const lines: string[] = [];
+
+    if (doc.systemOverview) {
+      lines.push(`## System Overview\nPurpose: ${doc.systemOverview.purpose}\nCore User: ${doc.systemOverview.coreUser}\nGoal: ${doc.systemOverview.primaryOutcome}`);
+    }
+
+    if (doc.architecture?.pattern) {
+      lines.push(`## Architecture\nPattern: ${doc.architecture.pattern}\n${doc.architecture.description}`);
+      if (doc.architecture.components?.length) {
+        lines.push(`Components: ${doc.architecture.components.map(c => `${c.name} (${c.type}, tech: ${c.technologies?.join(', ')})`).join(', ')}`);
+      }
+    }
+
+    if (doc.functionalRequirements?.length) {
+      lines.push(`## Functional Requirements (${doc.functionalRequirements.length} total)`);
+      for (const fr of doc.functionalRequirements) {
+        lines.push(`- ${fr.id} [${fr.priority}]: ${fr.title} — ${fr.description}`);
+        if (fr.acceptanceCriteria?.length) {
+          lines.push(`  AC: ${fr.acceptanceCriteria.slice(0, 2).join(' | ')}`);
+        }
+      }
+    }
+
+    const entities = doc.dataModels?.length ? doc.dataModels : (doc.dataModel?.entities || []);
+    if (entities.length) {
+      lines.push(`## Data Models\n${entities.map(e => `- ${e.name}: ${e.description} (${e.fields?.length || 0} fields)`).join('\n')}`);
+    }
+
+    if (doc.apiContracts?.endpoints?.length) {
+      lines.push(`## API Endpoints\n${doc.apiContracts.endpoints.map(ep => `- ${ep.method} ${ep.path}: ${ep.description}`).join('\n')}`);
+    }
+
+    if (doc.securityConsiderations?.length) {
+      lines.push(`## Security\n${doc.securityConsiderations.map(s => `- ${s.title} [${s.priority}]: ${s.implementation}`).join('\n')}`);
+    }
+
+    if (doc.architectureDecisions?.length) {
+      lines.push(`## Architecture Decisions\n${doc.architectureDecisions.map(ad => `- ${ad.id}: ${ad.decision} (${ad.rationale})`).join('\n')}`);
+    }
+
+    return lines.join('\n\n');
   }
 
   private extractIdeaTitle(artifact: Artifact): string {

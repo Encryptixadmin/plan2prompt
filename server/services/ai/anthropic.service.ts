@@ -43,7 +43,7 @@ export class AnthropicService extends BaseAIProvider {
         this.withTimeout(
           this.client!.messages.create({
             model: resolvedModel,
-            max_tokens: prompt.maxTokens ?? this.config.maxTokens,
+            max_tokens: Math.min(prompt.maxTokens ?? this.config.maxTokens, 4096),
             system: prompt.system,
             messages: this.buildMessages(prompt),
           })

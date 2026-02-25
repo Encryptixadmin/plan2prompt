@@ -46,6 +46,9 @@ export class OpenAIService extends BaseAIProvider {
             temperature: prompt.temperature ?? this.config.temperature,
             max_tokens: prompt.maxTokens ?? this.config.maxTokens,
             messages: this.buildMessages(prompt),
+            ...(prompt.responseFormat === "json_object"
+              ? { response_format: { type: "json_object" as const } }
+              : {}),
           })
         )
       );

@@ -121,9 +121,11 @@ router.post(
         });
       }
 
+      const { clarificationContext } = validation.data;
       const prompts = await promptsService.generatePrompts(
         requirementsArtifactId,
-        ide
+        ide,
+        clarificationContext
       );
 
       if (req.userId) {

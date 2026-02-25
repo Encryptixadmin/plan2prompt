@@ -12,6 +12,7 @@ import { type IAIProvider } from "./provider.interface";
 import { openaiService } from "./openai.service";
 import { anthropicService } from "./anthropic.service";
 import { geminiService } from "./gemini.service";
+import { anthropicOpusService } from "./anthropic-opus.service";
 import { usageService } from "./usage.service";
 import { billingService } from "../billing.service";
 import { providerValidationService } from "./provider-validation.service";
@@ -30,6 +31,7 @@ export class ConsensusService {
     this.providers.set("openai", openaiService);
     this.providers.set("anthropic", anthropicService);
     this.providers.set("gemini", geminiService);
+    this.providers.set("anthropic-opus", anthropicOpusService);
   }
 
   async getConsensus(
@@ -37,7 +39,7 @@ export class ConsensusService {
     usageContext?: { projectId: string; module: UsageModule; artifactId?: string; artifactVersion?: number; userId?: string }
   ): Promise<AIConsensusResult> {
     const startTime = Date.now();
-    const CONSENSUS_PROVIDERS: AIProviderType[] = ["openai", "anthropic", "gemini"];
+    const CONSENSUS_PROVIDERS: AIProviderType[] = ["openai", "anthropic", "gemini", "anthropic-opus"];
     const requestedProviders = (request.providers || CONSENSUS_PROVIDERS)
       .filter((p) => CONSENSUS_PROVIDERS.includes(p));
     
@@ -56,7 +58,7 @@ export class ConsensusService {
       console.log(`[Consensus] Skipping unvalidated providers: ${skippedProviders.join(", ")}`);
     }
 
-    const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery);
+    const results = await this.queryProvidersWithFallback(request.prompt, providersToQuery, request.raceMode);
 
     if (usageContext) {
       await this.recordUsageForResults(results, usageContext);
@@ -106,8 +108,12 @@ export class ConsensusService {
 
   private async queryProvidersWithFallback(
     prompt: AIPrompt,
-    providers: AIProviderType[]
+    providers: AIProviderType[],
+    raceMode = false
   ): Promise<ProviderQueryResult[]> {
+    if (raceMode) {
+      return this.queryProvidersRace(prompt, providers);
+    }
     const results = await Promise.all(
       providers.map(async (providerType): Promise<ProviderQueryResult> => {
         const provider = this.providers.get(providerType);
@@ -127,6 +133,55 @@ export class ConsensusService {
     );
 
     return results;
+  }
+
+  private async queryProvidersRace(
+    prompt: AIPrompt,
+    providers: AIProviderType[]
+  ): Promise<ProviderQueryResult[]> {
+    const errors: ProviderQueryResult[] = [];
+    return new Promise((resolve) => {
+      let settled = false;
+      const pending = providers.length;
+      let completed = 0;
+
+      providers.forEach((providerType) => {
+        const provider = this.providers.get(providerType);
+        if (!provider) {
+          completed++;
+          errors.push({ provider: providerType, error: `Provider ${providerType} not found` });
+          if (completed === pending && !settled) {
+            settled = true;
+            resolve(errors);
+          }
+          return;
+        }
+
+        provider.generate(prompt).then((response) => {
+          if (!settled && !response.isMock) {
+            settled = true;
+            console.log(`[Consensus] Race won by: ${providerType}`);
+            resolve([{ provider: providerType, response }]);
+          } else if (response.isMock) {
+            completed++;
+            errors.push({ provider: providerType, error: "Mock response (provider unavailable)" });
+            if (completed === pending && !settled) {
+              settled = true;
+              resolve(errors);
+            }
+          }
+        }).catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[Consensus] Race provider ${providerType} failed: ${message}`);
+          completed++;
+          errors.push({ provider: providerType, error: message });
+          if (completed === pending && !settled) {
+            settled = true;
+            resolve(errors);
+          }
+        });
+      });
+    });
   }
 
   private analyzeAgreement(responses: AIProviderResponse[]): {
