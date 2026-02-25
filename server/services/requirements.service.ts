@@ -68,7 +68,7 @@ export class RequirementsService {
     const ideaArtifact = await artifactService.getById(requirements.ideaArtifactId);
     const sourceVersion = ideaArtifact?.metadata.version;
     
-    const artifact = await this.saveAsArtifact(requirements, sourceVersion);
+    const artifact = await this.saveAsArtifact(requirements, sourceVersion, undefined, "LOCKED_REQUIREMENTS");
     requirements.artifactId = artifact.metadata.id;
 
     return requirements;
@@ -837,7 +837,7 @@ IMPORTANT:
     return `Requirements document for "${ideaTitle}" specifies ${frCount} functional requirements, ${entityCount} data entities, and ${endpointCount} API endpoints. Generated with ${Math.round(confidence * 100)}% AI consensus confidence.`;
   }
 
-  private async saveAsArtifact(requirements: RequirementsDocument, sourceVersion?: number, parentArtifactId?: string) {
+  private async saveAsArtifact(requirements: RequirementsDocument, sourceVersion?: number, parentArtifactId?: string, stage?: string) {
     const sections = [
       {
         heading: "Executive Summary",
@@ -987,7 +987,7 @@ IMPORTANT:
       artifact = await artifactService.create({
         title: `Requirements Reference: ${requirements.ideaTitle}`,
         module: "requirements",
-        stage: "REQUIREMENTS_COMPLETE" as PipelineStage,
+        stage: (stage || "REQUIREMENTS_COMPLETE") as PipelineStage,
         sections,
         sourceArtifactId: requirements.ideaArtifactId,
         sourceArtifactVersion: sourceVersion,
