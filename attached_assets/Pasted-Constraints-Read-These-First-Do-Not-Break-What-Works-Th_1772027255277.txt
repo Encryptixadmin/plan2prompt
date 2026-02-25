@@ -1,0 +1,110 @@
+Constraints — Read These First
+Do Not Break What Works
+This platform has been carefully architected. Your job is to add what's missing, not to improve what's already there.
+
+No refactoring of existing code. If something works, leave it alone. Do not reorganise files, rename services, restructure modules, or "clean up" code unless explicitly asked to.
+No changes to existing user flows, UI/UX, or business logic unless a specific gap item requires it. If a feature works today, it must work identically after your changes.
+All 224+ existing invariant tests must pass after every change. If a test breaks, your change is wrong — fix your change, not the test.
+Follow existing patterns. Study how the codebase structures routes, services, components, types, and tests. Match those patterns exactly. Do not introduce new conventions.
+
+Architectural Principles — Non-Negotiable
+
+Platform decides → AI assists → IDE executes → Platform judges.
+No autonomous rewriting of upstream artefacts.
+No silent mutation — every state change is explicit, persisted, and auditable.
+Feedback flows upward only (prompts → requirements → ideas, never downward).
+Determinism over convenience — integrity classification, recommendation rules, failure matching, and delta computation are rule-based. Do not replace any of these with AI.
+State must be persisted, not inferred — no critical state in memory.
+
+Protected Components — Do Not Touch
+
+Pipeline stage enforcement model (dual frontend + backend enforcement)
+IAIProvider interface and ConsensusService
+Clarification contract schema (hash de-duplication, upward-only direction, severity escalation)
+Execution integrity classification (deterministic keyword scanning)
+The invariant test suite
+@shared/* type contracts and Zod validation at API boundaries
+ApiResponse<T> response wrappers
+X-Project-Id header enforcement
+
+Review Process
+Before implementing any gap item, briefly describe your intended approach — what you plan to change, what files you'll touch, and how you'll test it. Wait for confirmation before writing code. This applies to every item, not just the complex ones. Think of it as a quick design check with the architect before you start building.
+General Standards
+
+British English throughout all user-facing text.
+Expand the invariant test suite with every feature — test contracts, not implementation details.
+Use Drizzle ORM for all new database work, ApiResponse<T> for all new endpoints, @shared/* for all new types.
+Minimise new dependencies — prefer what's already in the stack.
+
+
+The Work — Prioritised by Phase
+Work through these phases sequentially. Do not skip ahead — later phases depend on earlier ones.
+Phase 1 — Operational Safety (must be done before production)
+These four gaps make the platform unsafe to run at scale. Fix them first.
+
+Persist billing to PostgreSQL. The BillingService stores plan assignments and usage in JavaScript Maps — everything resets on restart. Move it to the database. Keep the same public API surface so nothing downstream breaks.
+Rate limit AI generation routes. The three generation endpoints (/api/ideas/analyze, /api/requirements/generate, /api/prompts/generate) have no HTTP-level rate limiting. A single user can trigger unlimited parallel requests and run up provider costs. Add per-user rate limiting. Handle 429 responses gracefully on the frontend.
+Move artifact storage to PostgreSQL. Ideas, requirements, and prompts are written as Markdown files to artifacts/ on the local filesystem. This doesn't work for multi-instance deployment or ephemeral hosting. Store artifact content in the database instead. Keep the existing Markdown-with-YAML-frontmatter format — just change where it lives. Migrate existing filesystem artifacts on first run.
+Add structured logging and error monitoring. There's no structured logging, no error tracking, no alerting. Add structured logging (pino) and error capture (Sentry). Make Sentry a no-op when the DSN isn't configured.
+
+Phase 2 — Pre-Revenue Features (must be done before paying users)
+These are the critical and high-severity feature gaps. The platform cannot accept paying users without them.
+Security and accounts:
+
+Password reset flow. There's no "Forgot Password" mechanism at all. Build token-based email reset. Use nodemailer with SMTP config — fall back to console logging in development.
+Email verification at registration. Local auth accounts are created without verifying email ownership. Add verification with a token-based flow. Gate AI generation behind verified email.
+Account lockout after failed logins. No brute-force protection exists. Add progressive lockout after repeated failures.
+Account settings page. Users can't change their name, email, or password after registration. Add a settings page.
+
+Admin:
+
+Plan assignment UI in Admin Console. The BillingService has a setUserPlan() method but there's no UI for it. Admins have to touch the database directly. Add a plan dropdown to the user management view.
+
+Core product gaps — unlocking value that already exists:
+
+Render the signal sharpening fields. The AI generates confidenceAssessment, primaryRiskDrivers, scopeWarnings, assumptionDependencies, and failureModeNarrative during idea analysis — but none of it is shown to the user. This is the platform's most valuable analytical output, being silently discarded. Surface it in the UI with collapsible sections.
+Make ideas editable after submission. Currently, correcting a typo in an idea requires discarding the entire analysis and regenerating. Allow editing without losing the analysis, with a visual indicator that the idea has changed since the last analysis.
+Make requirements editable. Requirements are read-only. If the AI gets one wrong, the user must regenerate everything. Add inline editing, the ability to add and remove requirements, and the ability to override AI-assigned priorities. Preserve traceability.
+Make prompt steps editable. Same problem — prompt steps are read-only. Add inline editing with a visual badge showing which steps have been customised.
+Close the clarification resolution loop. When a user resolves a clarification contract, the platform stores the resolution but does nothing with it. The gap in requirements or prompts persists. After resolution, prompt the user to regenerate the affected artefact (do not auto-regenerate — respect the no-silent-mutation principle). Pass the resolution context into the regeneration call.
+Store failure output text. When an execution step fails, only the SHA256 hash is stored — the actual error text is discarded. Store the raw text (truncated) so users and admins can see what went wrong.
+In-app notifications. There's no notification system at all. Users don't know when analysis completes, when blockers are created, or when clarification is needed unless they're staring at the right page. Add a notification bell with polling.
+
+Phase 3 — Stripe Integration (revenue enablement)
+
+Full Stripe payment integration. The three billing tiers (Free, Pro, Team) exist in the data model but there's no payment processing. Add Stripe Checkout for upgrades, webhook handling for subscription lifecycle events, Customer Portal for self-service management, and a billing page showing plan, usage, and limits.
+
+Phase 4 — Market Polish (competitive quality)
+These make the platform feel like a finished product rather than a technical demo. Work through them after Phases 1–3 are solid.
+
+Project deletion with cascade and confirmation
+Requirements and prompts download/export (the pipeline definitions list "download" as an allowed action but no button exists)
+IDE switch without full regeneration (IDE adaptation is formatting-only — it should be a local transformation)
+Show the research brief to users (generated by ResearchService but currently hidden)
+Allow multiple workshop rounds (currently capped at one)
+Idea archiving as an alternative to permanent discard
+Session abandonment and session history
+Dashboard improvements — fix the hardcoded prompts count, add per-idea pipeline indicators, show execution progress and pending blockers
+Admin improvements — project browser, read-only project access for support, audit log filtering
+Email notifications for blocker clarification contracts
+Global search (PostgreSQL full-text search)
+Empty states with clear CTAs for Requirements and Prompts pages
+Contextual tooltips for specialist terminology
+Session timeout configuration
+Security hardening — helmet, CSRF protection, input sanitisation, env validation on startup
+Onboarding tutorial for first-time users
+Graceful shutdown handling
+
+Phase 5 — Quality of Life
+Not blocking, but makes the product feel complete.
+
+Back-links from Requirements/Prompts to source idea
+Step time tracking (startedAt/completedAt)
+Step notes and annotations during execution
+Side-by-side idea comparison
+Usage history trend chart on billing page
+Saved context templates for repeat idea types
+Project activity feed/timeline
+Theme preference persisted to account
+Loading skeletons on dashboard stats
+Archive as default alternative to permanent discard
