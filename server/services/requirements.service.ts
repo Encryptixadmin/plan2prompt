@@ -23,9 +23,12 @@ import { artifactService } from "./artifact.service";
 import type { Artifact } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
 import type { UsageModule } from "@shared/schema";
+import type { ProgressCallback } from "./ideas.service";
 
 export class RequirementsService {
-  async generateRequirements(ideaArtifactId: string, projectId?: string, userId?: string, clarificationContext?: string): Promise<RequirementsDocument> {
+  async generateRequirements(ideaArtifactId: string, projectId?: string, userId?: string, clarificationContext?: string, onProgress?: ProgressCallback): Promise<RequirementsDocument> {
+    onProgress?.("loading_idea", "Loading validated idea...", 10);
+
     const ideaArtifact = await artifactService.getById(ideaArtifactId);
     if (!ideaArtifact) {
       throw new Error(`Idea artifact not found: ${ideaArtifactId}`);
@@ -44,6 +47,8 @@ export class RequirementsService {
       ? { projectId, module: "requirements" as UsageModule, artifactId: ideaArtifactId, userId }
       : undefined;
 
+    onProgress?.("generating", "Generating requirements with AI...", 30);
+
     const consensus = await consensusService.getConsensus({
       prompt: {
         system: this.getSystemPrompt(),
@@ -56,6 +61,8 @@ export class RequirementsService {
       raceMode: false,
     }, usageContext);
 
+    onProgress?.("parsing", "Parsing AI response...", 70);
+
     const requirements = this.parseConsensusToRequirements(
       ideaArtifactId,
       ideaTitle,
@@ -64,6 +71,9 @@ export class RequirementsService {
       consensus.confidence,
       ideaArtifact
     );
+
+    onProgress?.("validating", "Validating requirements structure...", 90);
+    onProgress?.("complete", "Requirements generated", 100);
 
     return requirements;
   }

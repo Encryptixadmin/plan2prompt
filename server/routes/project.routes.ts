@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { projectService } from "../services/project.service";
+import { artifactService } from "../services/artifact.service";
+import { storage } from "../storage";
 import type { CreateProjectInput, UpdateProjectInput } from "@shared/types/project";
 import { getRolePermissions } from "@shared/types/project";
 import { isAuthenticated } from "../replit_integrations/auth";
@@ -290,6 +292,83 @@ router.post("/ensure-default", isAuthenticated, async (req, res) => {
       error: {
         code: "ENSURE_ERROR",
         message: error instanceof Error ? error.message : "Failed to ensure default project",
+      },
+    });
+  }
+});
+
+router.get("/:id/pipeline", isAuthenticated, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const ideaArtifacts = await artifactService.listByProject(projectId, "ideas");
+
+    const pipeline = await Promise.all(
+      ideaArtifacts.map(async (idea) => {
+        const requirementsRecords = await storage.getArtifactsBySourceId(idea.id);
+        const requirementArtifacts = requirementsRecords.filter(
+          (r) => r.module === "requirements"
+        );
+
+        let promptsCount = 0;
+        let latestPromptsId: string | null = null;
+
+        let latestPromptsDate = 0;
+        for (const reqArt of requirementArtifacts) {
+          const promptRecords = await storage.getArtifactsBySourceId(reqArt.id);
+          const prompts = promptRecords.filter((r) => r.module === "prompts");
+          promptsCount += prompts.length;
+          if (prompts.length > 0) {
+            const sorted = prompts.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            const newestTime = new Date(sorted[0].createdAt).getTime();
+            if (newestTime > latestPromptsDate) {
+              latestPromptsDate = newestTime;
+              latestPromptsId = sorted[0].id;
+            }
+          }
+        }
+
+        const latestRequirementsId =
+          requirementArtifacts.length > 0
+            ? requirementArtifacts.sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              )[0].id
+            : null;
+
+        let stage: string = "idea_submitted";
+        if (promptsCount > 0) {
+          stage = "prompts_generated";
+        } else if (requirementArtifacts.length > 0) {
+          stage = "requirements_generated";
+        } else if (idea.stage) {
+          stage = idea.stage;
+        }
+
+        return {
+          id: idea.id,
+          title: idea.title,
+          stage,
+          createdAt: idea.createdAt,
+          requirementsCount: requirementArtifacts.length,
+          promptsCount,
+          latestRequirementsId,
+          latestPromptsId,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: pipeline,
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "PIPELINE_ERROR",
+        message: error instanceof Error ? error.message : "Failed to get pipeline data",
       },
     });
   }

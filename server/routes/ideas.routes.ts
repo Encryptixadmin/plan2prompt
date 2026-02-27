@@ -151,6 +151,62 @@ router.post(
   }
 );
 
+// SSE streaming version of analyze (streams progress events)
+router.post(
+  "/analyze-stream",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
+  async (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    try {
+      const request = req.body as AnalyzeIdeaRequest & { previousAnalysis?: IdeaAnalysis };
+
+      if (!request.idea?.title || !request.idea?.description) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "VALIDATION_ERROR", message: "Missing required fields: idea.title and idea.description" })}\n\n`);
+        return res.end();
+      }
+
+      const validPurposes = ["commercial", "developer_tool", "internal", "open_source", "learning"];
+      if (request.idea.purpose && !validPurposes.includes(request.idea.purpose)) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "VALIDATION_ERROR", message: `Invalid purpose. Must be one of: ${validPurposes.join(", ")}` })}\n\n`);
+        return res.end();
+      }
+
+      const projectId = req.headers["x-project-id"] as string | undefined;
+      const userId = req.userId;
+
+      const onProgress = (stage: string, message: string, percent: number) => {
+        res.write(`event: progress\ndata: ${JSON.stringify({ stage, message, percent })}\n\n`);
+      };
+
+      let analysis = await ideasService.analyzeIdea(request.idea, projectId, userId, onProgress);
+
+      if (request.idea.context?.workshopRefinement && request.previousAnalysis) {
+        const deltas = computeRiskDeltas(request.previousAnalysis, analysis);
+        if (deltas.length > 0) {
+          analysis = applyDeltasToAnalysis(analysis, deltas);
+          const scoreBonus = computeDeltaScoreAdjustment(deltas);
+          if (scoreBonus > 0) {
+            analysis.overallScore = Math.min(100, analysis.overallScore + scoreBonus);
+          }
+        }
+      }
+
+      res.write(`event: result\ndata: ${JSON.stringify({ success: true, data: { analysis }, metadata: { timestamp: new Date().toISOString() } })}\n\n`);
+      res.end();
+    } catch (error) {
+      res.write(`event: error\ndata: ${JSON.stringify({ code: "ANALYSIS_ERROR", message: error instanceof Error ? error.message : "Failed to analyze idea" })}\n\n`);
+      res.end();
+    }
+  }
+);
+
 // Accept a validated idea (saves as artifact - conscious decision point)
 // Requires project context and generate permission
 router.post(

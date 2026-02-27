@@ -43,13 +43,17 @@ const PURPOSE_LABELS: Record<string, string> = {
   learning: "Learning/Experiment (skill-building, prototype — knowledge-focused)",
 };
 
+export type ProgressCallback = (stage: string, message: string, percent: number) => void;
+
 export class IdeasService {
-  async analyzeIdea(input: IdeaInput, projectId?: string, userId?: string): Promise<IdeaAnalysis> {
+  async analyzeIdea(input: IdeaInput, projectId?: string, userId?: string, onProgress?: ProgressCallback): Promise<IdeaAnalysis> {
     const isRefinement = !!(input.context?.workshopRefinement);
 
     if (!input.context) {
       input.context = {};
     }
+
+    onProgress?.("researching", "Researching domain and market context...", 10);
 
     let researchBrief = input.context.researchBrief || "";
     if (!researchBrief) {
@@ -63,6 +67,8 @@ export class IdeasService {
       }
     }
 
+    onProgress?.("analyzing", "Building analysis prompts...", 25);
+
     const prompt = this.buildAnalysisPrompt(input);
     const systemPrompt = isRefinement
       ? this.getRefinementSystemPrompt(input.purpose)
@@ -70,6 +76,8 @@ export class IdeasService {
     const usageContext = projectId
       ? { projectId, module: "ideas" as UsageModule, userId }
       : undefined;
+
+    onProgress?.("building_consensus", "Querying AI providers for consensus...", 40);
 
     const consensus = await consensusService.getConsensus({
       prompt: {
@@ -79,7 +87,12 @@ export class IdeasService {
       },
     }, usageContext);
 
+    onProgress?.("synthesizing", "Synthesizing analysis results...", 80);
+
     const analysis = this.parseConsensusToAnalysis(input, consensus);
+
+    onProgress?.("complete", "Analysis complete", 100);
+
     return analysis;
   }
 

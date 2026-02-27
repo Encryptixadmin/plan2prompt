@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { artifactService } from "../services/artifact.service";
 import type { CreateArtifactInput, UpdateArtifactInput } from "@shared/types/artifact";
+import { requireProjectContext } from "../middleware/project-context";
 
 const router = Router();
 
@@ -51,6 +52,49 @@ router.get("/:id", async (req, res) => {
       error: {
         code: "GET_ERROR",
         message: error instanceof Error ? error.message : "Failed to get artefact",
+      },
+    });
+  }
+});
+
+// Export artefact as downloadable file
+router.get("/:id/export", requireProjectContext, async (req, res) => {
+  try {
+    const artifact = await artifactService.getById(req.params.id);
+
+    if (!artifact) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Artefact not found",
+        },
+      });
+    }
+
+    if (artifact.metadata.projectId && artifact.metadata.projectId !== req.projectId) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Artefact not found",
+        },
+      });
+    }
+
+    const title = artifact.metadata.title || "artifact";
+    const safeFilename = title.replace(/[^a-zA-Z0-9_\-\s]/g, "").replace(/\s+/g, "-").substring(0, 100);
+    const filename = `${safeFilename}.md`;
+
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(artifact.rawContent);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "EXPORT_ERROR",
+        message: error instanceof Error ? error.message : "Failed to export artefact",
       },
     });
   }

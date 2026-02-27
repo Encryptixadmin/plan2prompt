@@ -193,6 +193,85 @@ router.post(
   }
 );
 
+// SSE streaming version of generate (streams progress events)
+router.post(
+  "/generate-stream",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
+  async (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    try {
+      const request: GenerateRequirementsRequest = req.body;
+
+      if (!request.ideaArtifactId) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "VALIDATION_ERROR", message: "Missing required field: ideaArtifactId" })}\n\n`);
+        return res.end();
+      }
+
+      const ideaArtifact = await artifactService.getById(request.ideaArtifactId);
+      if (!ideaArtifact) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "NOT_FOUND", message: "Idea artifact not found" })}\n\n`);
+        return res.end();
+      }
+
+      if (ideaArtifact.metadata.projectId && ideaArtifact.metadata.projectId !== req.projectId) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "PROJECT_ISOLATION_VIOLATION", message: "This artifact belongs to a different project." })}\n\n`);
+        return res.end();
+      }
+
+      const stageValidation = validateRequirementsGenerationStage(ideaArtifact.metadata.stage);
+      if (!stageValidation.valid) {
+        res.write(`event: error\ndata: ${JSON.stringify(stageValidation.error)}\n\n`);
+        return res.end();
+      }
+
+      const projectId = req.headers["x-project-id"] as string | undefined;
+      const userId = req.userId;
+
+      const onProgress = (stage: string, message: string, percent: number) => {
+        res.write(`event: progress\ndata: ${JSON.stringify({ stage, message, percent })}\n\n`);
+      };
+
+      const requirements = await requirementsService.generateRequirements(
+        request.ideaArtifactId,
+        projectId,
+        userId,
+        request.clarificationContext,
+        onProgress
+      );
+
+      let clarifications: any[] = [];
+      if (projectId) {
+        try {
+          const detectionResult = clarificationDetectionService.detectRequirementsGaps(
+            requirements,
+            request.ideaArtifactId,
+            projectId
+          );
+          if (detectionResult.contracts.length > 0) {
+            clarifications = await clarificationService.processDetectionResult(detectionResult);
+          }
+        } catch (err) {
+          console.warn("[Requirements] Clarification detection failed (non-blocking):", err);
+        }
+      }
+
+      res.write(`event: result\ndata: ${JSON.stringify({ success: true, data: { requirements, clarifications }, metadata: { timestamp: new Date().toISOString() } })}\n\n`);
+      res.end();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate requirements";
+      res.write(`event: error\ndata: ${JSON.stringify({ code: "GENERATION_ERROR", message })}\n\n`);
+      res.end();
+    }
+  }
+);
+
 // Accept requirements (saves as artifact - commitment point)
 // Requires project context and generate permission
 router.post(

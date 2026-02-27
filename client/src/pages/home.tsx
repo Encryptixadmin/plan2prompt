@@ -2,71 +2,124 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, FileText, Terminal, ArrowRight, Sparkles, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Lightbulb, FileText, Terminal, ArrowRight, Sparkles, TrendingUp, CheckCircle2, Circle, ChevronRight } from "lucide-react";
 import { BillingStatus } from "@/components/billing-status";
 import { useProject } from "@/contexts/project-context";
 
-interface ArtifactSummary {
+interface PipelineItem {
   id: string;
   title: string;
-  version: number;
+  stage: string;
   createdAt: string;
-  stage?: string;
+  requirementsCount: number;
+  promptsCount: number;
+  latestRequirementsId: string | null;
+  latestPromptsId: string | null;
+}
+
+function getStageBadge(stage: string) {
+  switch (stage) {
+    case "prompts_generated":
+      return { label: "Complete", variant: "default" as const, className: "bg-emerald-600 dark:bg-emerald-500 text-white border-emerald-600 dark:border-emerald-500" };
+    case "requirements_generated":
+      return { label: "Requirements Ready", variant: "default" as const, className: "bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500" };
+    case "idea_validated":
+    case "idea_submitted":
+    default:
+      return { label: "Idea Validated", variant: "default" as const, className: "bg-amber-600 dark:bg-amber-500 text-white border-amber-600 dark:border-amber-500" };
+  }
+}
+
+function getNextAction(item: PipelineItem): { label: string; href: string; testId: string } {
+  if (item.promptsCount > 0) {
+    return { label: "View Prompts", href: "/prompts", testId: `button-view-prompts-${item.id}` };
+  }
+  if (item.requirementsCount > 0) {
+    return { label: "Generate Prompts", href: "/prompts", testId: `button-generate-prompts-${item.id}` };
+  }
+  return { label: "Generate Requirements", href: "/requirements", testId: `button-generate-requirements-${item.id}` };
+}
+
+function PipelineStepIndicator({ stage }: { stage: string }) {
+  const ideaDone = true;
+  const reqDone = stage === "requirements_generated" || stage === "prompts_generated";
+  const promptsDone = stage === "prompts_generated";
+
+  const steps = [
+    { label: "Idea", done: ideaDone, icon: Lightbulb },
+    { label: "Requirements", done: reqDone, icon: FileText },
+    { label: "Prompts", done: promptsDone, icon: Terminal },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {steps.map((step, i) => (
+        <div key={step.label} className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {step.done ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Circle className="h-4 w-4 text-muted-foreground/40" />
+            )}
+            <span className={`text-xs ${step.done ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+              {step.label}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <ChevronRight className="h-3 w-3 text-muted-foreground/40 mx-0.5" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PipelineRow({ item }: { item: PipelineItem }) {
+  const stageBadge = getStageBadge(item.stage);
+  const nextAction = getNextAction(item);
+
+  return (
+    <Card data-testid={`card-pipeline-item-${item.id}`}>
+      <CardContent className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <span className="text-sm font-medium truncate" data-testid={`text-pipeline-title-${item.id}`}>
+                {item.title}
+              </span>
+              <Badge className={stageBadge.className} data-testid={`badge-pipeline-stage-${item.id}`}>
+                {stageBadge.label}
+              </Badge>
+            </div>
+            <PipelineStepIndicator stage={item.stage} />
+          </div>
+          <Link href={nextAction.href}>
+            <Button variant="outline" size="sm" data-testid={nextAction.testId}>
+              {nextAction.label}
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Home() {
   const { activeProject } = useProject();
 
-  const { data: ideasData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
-    queryKey: ["/api/ideas"],
-    enabled: !!activeProject,
+  const { data: pipelineData, isLoading: pipelineLoading } = useQuery<{ success: boolean; data: PipelineItem[] }>({
+    queryKey: ["/api/projects", activeProject?.id, "pipeline"],
+    enabled: !!activeProject?.id,
   });
 
-  const { data: requirementsData } = useQuery<{ success: boolean; data: ArtifactSummary[] }>({
-    queryKey: ["/api/requirements/ideas"],
-    enabled: !!activeProject,
-  });
-
-  const ideaCount = ideasData?.data?.length || 0;
-  const reqCount = requirementsData?.data?.length || 0;
-
-  const hasValidatedIdea = ideaCount > 0;
-
-  const pipelineSteps = [
-    {
-      title: "Ideas",
-      description: "Validate your concepts with AI consensus analysis before committing to building",
-      href: "/ideas",
-      icon: Lightbulb,
-      count: ideaCount,
-      countLabel: "validated",
-      accentClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      testId: "link-ideas-module",
-      disabled: false,
-    },
-    {
-      title: "Requirements",
-      description: "Convert validated ideas into comprehensive technical requirements documents",
-      href: "/requirements",
-      icon: FileText,
-      count: reqCount,
-      countLabel: "generated",
-      accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-      testId: "link-requirements-module",
-      disabled: !hasValidatedIdea,
-    },
-    {
-      title: "Prompts",
-      description: "Generate sequential, IDE-specific build instructions from your requirements",
-      href: "/prompts",
-      icon: Terminal,
-      count: 0,
-      countLabel: "generated",
-      accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      testId: "link-prompts-module",
-      disabled: !hasValidatedIdea,
-    },
-  ];
+  const pipeline = pipelineData?.data || [];
+  const ideaCount = pipeline.length;
+  const reqCount = pipeline.reduce((sum, item) => sum + item.requirementsCount, 0);
+  const promptsCount = pipeline.reduce((sum, item) => sum + item.promptsCount, 0);
 
   return (
     <div className="p-6 lg:p-10">
@@ -83,7 +136,7 @@ export default function Home() {
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ideas</p>
-                <p className="text-2xl font-semibold">{ideaCount}</p>
+                <p className="text-2xl font-semibold" data-testid="text-metric-ideas">{ideaCount}</p>
               </div>
               <div className="h-10 w-10 rounded-md bg-amber-500/10 flex items-center justify-center">
                 <Lightbulb className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -94,7 +147,7 @@ export default function Home() {
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Requirements</p>
-                <p className="text-2xl font-semibold">{reqCount}</p>
+                <p className="text-2xl font-semibold" data-testid="text-metric-requirements">{reqCount}</p>
               </div>
               <div className="h-10 w-10 rounded-md bg-blue-500/10 flex items-center justify-center">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -105,7 +158,7 @@ export default function Home() {
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Build Prompts</p>
-                <p className="text-2xl font-semibold">0</p>
+                <p className="text-2xl font-semibold" data-testid="text-metric-prompts">{promptsCount}</p>
               </div>
               <div className="h-10 w-10 rounded-md bg-emerald-500/10 flex items-center justify-center">
                 <Terminal className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -116,7 +169,7 @@ export default function Home() {
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pipeline</p>
-                <p className="text-2xl font-semibold">{ideaCount > 0 ? "Active" : "Ready"}</p>
+                <p className="text-2xl font-semibold" data-testid="text-metric-pipeline">{ideaCount > 0 ? "Active" : "Ready"}</p>
               </div>
               <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
                 {ideaCount > 0 ? (
@@ -130,40 +183,44 @@ export default function Home() {
         </div>
 
         <div className="space-y-5">
-          <h2 className="text-lg font-semibold tracking-tight">Build Pipeline</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {pipelineSteps.map((step, index) => (
-              <Card key={step.title} className="group relative">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className={`h-10 w-10 rounded-md flex items-center justify-center ${step.accentClass}`}>
-                      <step.icon className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground tabular-nums">Step {index + 1}</span>
+          <h2 className="text-lg font-semibold tracking-tight">Pipeline Tracker</h2>
+          {pipelineLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-4">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-4 rounded-full" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-5 w-24 rounded-md ml-auto" />
                   </div>
-                  <CardTitle className="text-base mt-3">{step.title}</CardTitle>
-                  <CardDescription className="text-sm leading-relaxed mt-1">
-                    {step.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {step.disabled ? (
-                    <Button variant="outline" className="w-full" disabled data-testid={step.testId}>
-                      {`Start ${step.title}`}
-                      <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                    </Button>
-                  ) : (
-                    <Link href={step.href}>
-                      <Button variant="outline" className="w-full" data-testid={step.testId}>
-                        {step.count > 0 ? `View ${step.title}` : `Start ${step.title}`}
-                        <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          ) : pipeline.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="mx-auto h-12 w-12 rounded-md bg-amber-500/10 flex items-center justify-center mb-4">
+                  <Lightbulb className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p className="text-sm font-medium mb-1" data-testid="text-pipeline-empty">Submit your first idea to see it here</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Each idea flows through the pipeline: Idea → Requirements → Build Prompts
+                </p>
+                <Link href="/ideas">
+                  <Button variant="outline" data-testid="link-start-first-idea">
+                    Go to Ideas
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3" data-testid="list-pipeline-items">
+              {pipeline.map((item) => (
+                <PipelineRow key={item.id} item={item} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

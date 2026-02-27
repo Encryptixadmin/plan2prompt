@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, downloadArtifactExport } from "@/lib/queryClient";
+import { useSSEGeneration } from "@/hooks/use-sse-generation";
+import { GenerationProgress } from "@/components/generation-progress";
 import { useToast } from "@/hooks/use-toast";
 import { mapBackendError } from "@/lib/error-messages";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -57,6 +59,8 @@ import {
   Trash2,
   X,
   Save,
+  History,
+  Download,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -68,6 +72,15 @@ import { ArtifactPreview } from "@/components/artifact-preview";
 import { ClarificationPanel } from "@/components/clarification-panel";
 import { ConfidenceCopy } from "@/components/commitment-confirmation";
 import { useRequireProject } from "@/components/require-project-guard";
+import { VersionHistoryPanel, VersionComparePanel } from "@/components/version-history-panel";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import type { ArtifactVersion } from "@shared/types/artifact";
 
 interface IdeaOption {
   id: string;
@@ -134,6 +147,8 @@ function RequirementsResults({
   const [localDoc, setLocalDoc] = useState<RequirementsDocument>(requirements);
   const [editingSection, setEditingSection] = useState<EditableSectionKey | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, unknown>>({});
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<{ v1: ArtifactVersion; v2: ArtifactVersion } | null>(null);
 
   const editMutation = useMutation({
     mutationFn: async (updatedDoc: RequirementsDocument) => {
@@ -215,6 +230,28 @@ function RequirementsResults({
               <CardDescription className="max-w-2xl">{localDoc.summary}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {isAccepted && localDoc.artifactId && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadArtifactExport(localDoc.artifactId!)}
+                    data-testid="button-export-requirements"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVersionHistoryOpen(true)}
+                    data-testid="button-version-history"
+                  >
+                    <History className="mr-2 h-4 w-4" />
+                    Version History
+                  </Button>
+                </>
+              )}
               <Badge variant="outline">v{localDoc.version}</Badge>
               {isAccepted && (
                 <Badge className="gap-1 bg-green-500">
@@ -226,6 +263,35 @@ function RequirementsResults({
           </div>
         </CardHeader>
       </Card>
+
+      {isAccepted && localDoc.artifactId && (
+        <Sheet open={versionHistoryOpen} onOpenChange={setVersionHistoryOpen}>
+          <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Version History</SheetTitle>
+              <SheetDescription>
+                View all versions of this requirements document
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              {compareVersions ? (
+                <VersionComparePanel
+                  version1={{ version: compareVersions.v1.version, content: `Version ${compareVersions.v1.version} content` }}
+                  version2={{ version: compareVersions.v2.version, content: `Version ${compareVersions.v2.version} content` }}
+                  onClose={() => setCompareVersions(null)}
+                />
+              ) : (
+                <VersionHistoryPanel
+                  artifactId={localDoc.artifactId!}
+                  currentVersion={Number(localDoc.version) || 1}
+                  onSelectVersion={() => {}}
+                  onCompareVersions={(v1, v2) => setCompareVersions({ v1, v2 })}
+                />
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {!isAccepted && (
         <Card className="border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/20">
@@ -1114,33 +1180,41 @@ export default function RequirementsPage() {
     },
   });
 
-  const generateMutation = useMutation({
-    mutationFn: async ({ ideaArtifactId, clarificationContext: ctx }: { ideaArtifactId: string; clarificationContext?: string }) => {
-      const response = await apiRequest("POST", "/api/requirements/generate", {
-        ideaArtifactId,
-        ...(ctx ? { clarificationContext: ctx } : {}),
-      });
-      return response.json() as Promise<{ success: boolean; data: GenerateRequirementsResponse }>;
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        setRequirements(data.data.requirements);
-        setIsAccepted(false);
-        if (data.data.clarifications && data.data.clarifications.length > 0) {
-          setInlineClarifications(data.data.clarifications);
-        } else {
-          setInlineClarifications([]);
-        }
+  const sseGeneration = useSSEGeneration<{ success: boolean; data: GenerateRequirementsResponse }>("requirements");
+
+  useEffect(() => {
+    if (sseGeneration.result && sseGeneration.result.success) {
+      setRequirements(sseGeneration.result.data.requirements);
+      setIsAccepted(false);
+      if (sseGeneration.result.data.clarifications && sseGeneration.result.data.clarifications.length > 0) {
+        setInlineClarifications(sseGeneration.result.data.clarifications);
+      } else {
+        setInlineClarifications([]);
       }
-    },
-    onError: (error: Error) => {
+    }
+  }, [sseGeneration.result]);
+
+  useEffect(() => {
+    if (sseGeneration.error) {
       toast({
         variant: "destructive",
         title: "Generation failed",
-        description: mapBackendError(error),
+        description: sseGeneration.error,
+      });
+    }
+  }, [sseGeneration.error]);
+
+  const generateMutation = {
+    isPending: sseGeneration.isGenerating,
+    isError: !!sseGeneration.error,
+    error: sseGeneration.error ? new Error(sseGeneration.error) : null,
+    mutate: ({ ideaArtifactId, clarificationContext: ctx }: { ideaArtifactId: string; clarificationContext?: string }) => {
+      sseGeneration.startGeneration("/api/requirements/generate-stream", {
+        ideaArtifactId,
+        ...(ctx ? { clarificationContext: ctx } : {}),
       });
     },
-  });
+  };
 
   const acceptMutation = useMutation({
     mutationFn: async (reqs: RequirementsDocument) => {
@@ -1348,9 +1422,20 @@ export default function RequirementsPage() {
               </Card>
             )}
 
-            {generateMutation.isError && (
+            {sseGeneration.isGenerating && (
+              <GenerationProgress
+                stages={sseGeneration.stages}
+                currentStage={sseGeneration.currentStage}
+                isGenerating={sseGeneration.isGenerating}
+                startTime={sseGeneration.startTime}
+                error={sseGeneration.error}
+                module="requirements"
+              />
+            )}
+
+            {generateMutation.isError && !sseGeneration.isGenerating && (
               <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                Something went wrong while generating requirements. Please try again in a moment.
+                {sseGeneration.error || "Something went wrong while generating requirements. Please try again in a moment."}
               </div>
             )}
           </div>

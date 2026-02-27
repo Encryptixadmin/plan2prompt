@@ -22,6 +22,7 @@ import { artifactService } from "./artifact.service";
 import { consensusService } from "./ai";
 import type { Artifact } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
+import type { ProgressCallback } from "./ideas.service";
 
 const CRITICAL_KEYWORDS = [
   "drop",
@@ -74,8 +75,11 @@ export class PromptsService {
   async generatePrompts(
     requirementsArtifactId: string,
     ide: IDEType,
-    clarificationContext?: string
+    clarificationContext?: string,
+    onProgress?: ProgressCallback
   ): Promise<PromptDocument> {
+    onProgress?.("loading_requirements", "Loading requirements document...", 10);
+
     const artifact = await artifactService.getById(requirementsArtifactId);
     if (!artifact) {
       throw new Error(`Requirements artifact not found: ${requirementsArtifactId}`);
@@ -85,9 +89,16 @@ export class PromptsService {
     const ideaTitle = this.extractIdeaTitle(artifact);
     const requirementsDoc = this.extractRequirementsFromArtifact(artifact, ideaTitle);
 
+    onProgress?.("generating", "Generating build prompts from requirements...", 30);
+
     const basePrompts = this.generatePromptsFromRequirements(requirementsDoc);
+
+    onProgress?.("enriching", "Enriching prompts with AI guidance...", 50);
+
     const enrichedPrompts = await this.enrichPromptsWithAI(basePrompts, requirementsDoc, ide, clarificationContext);
     const prompts = enrichedPrompts.map((p) => this.adaptPromptForIDE(p, ide));
+
+    onProgress?.("structuring", "Structuring final prompt document...", 85);
 
     const document: PromptDocument = {
       id: randomUUID(),
@@ -105,6 +116,8 @@ export class PromptsService {
 
     const savedArtifact = await this.saveAsArtifact(document);
     document.artifactId = savedArtifact.metadata.id;
+
+    onProgress?.("complete", "Prompts generated", 100);
 
     return document;
   }

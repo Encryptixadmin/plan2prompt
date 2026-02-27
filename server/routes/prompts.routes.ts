@@ -172,6 +172,97 @@ router.post(
 );
 
 /**
+ * POST /api/prompts/generate-stream
+ * SSE streaming version of generate (streams progress events)
+ */
+router.post(
+  "/generate-stream",
+  requireProjectContext,
+  requirePermission("canGenerate"),
+  aiGenerationRateLimiter,
+  async (req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    try {
+      const validation = generatePromptsSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "VALIDATION_ERROR", message: "Invalid request", details: validation.error.flatten() })}\n\n`);
+        return res.end();
+      }
+
+      const { requirementsArtifactId, ide } = validation.data;
+
+      const requirementsArtifact = await artifactService.getById(requirementsArtifactId);
+      if (!requirementsArtifact) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "NOT_FOUND", message: "Requirements artifact not found" })}\n\n`);
+        return res.end();
+      }
+
+      if (requirementsArtifact.metadata.projectId && requirementsArtifact.metadata.projectId !== req.projectId) {
+        res.write(`event: error\ndata: ${JSON.stringify({ code: "PROJECT_ISOLATION_VIOLATION", message: "This artifact belongs to a different project." })}\n\n`);
+        return res.end();
+      }
+
+      const stageValidation = validatePromptGenerationStage(requirementsArtifact.metadata.stage);
+      if (!stageValidation.valid) {
+        res.write(`event: error\ndata: ${JSON.stringify(stageValidation.error)}\n\n`);
+        return res.end();
+      }
+
+      const isOutdated = await artifactService.isArtifactOutdated(requirementsArtifactId);
+      const outdatedValidation = validateNotOutdated(isOutdated.outdated, isOutdated.reason);
+      if (!outdatedValidation.valid) {
+        res.write(`event: error\ndata: ${JSON.stringify({ ...outdatedValidation.error, sourceArtifactId: requirementsArtifact.metadata.sourceArtifactId })}\n\n`);
+        return res.end();
+      }
+
+      const onProgress = (stage: string, message: string, percent: number) => {
+        res.write(`event: progress\ndata: ${JSON.stringify({ stage, message, percent })}\n\n`);
+      };
+
+      const { clarificationContext } = validation.data;
+      const prompts = await promptsService.generatePrompts(
+        requirementsArtifactId,
+        ide,
+        clarificationContext,
+        onProgress
+      );
+
+      if (req.userId) {
+        await billingService.recordGeneration(req.userId, 500);
+      }
+
+      let clarifications: any[] = [];
+      if (req.projectId) {
+        try {
+          const detectionResult = clarificationDetectionService.detectPromptGaps(
+            prompts,
+            requirementsArtifactId,
+            req.projectId
+          );
+          if (detectionResult.contracts.length > 0) {
+            clarifications = await clarificationService.processDetectionResult(detectionResult);
+          }
+        } catch (err) {
+          console.warn("[Prompts] Clarification detection failed (non-blocking):", err);
+        }
+      }
+
+      res.write(`event: result\ndata: ${JSON.stringify({ success: true, data: { ...prompts, clarifications } })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Error generating prompts (stream):", error);
+      res.write(`event: error\ndata: ${JSON.stringify({ code: "GENERATION_ERROR", message: error instanceof Error ? error.message : "Failed to generate prompts" })}\n\n`);
+      res.end();
+    }
+  }
+);
+
+/**
  * GET /api/prompts/artifacts
  * List all prompt artifacts
  */

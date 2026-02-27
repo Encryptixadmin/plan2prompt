@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadArtifactExport } from "@/lib/queryClient";
+import { useSSEGeneration } from "@/hooks/use-sse-generation";
+import { GenerationProgress } from "@/components/generation-progress";
 import {
   ArrowLeft,
   Sparkles,
@@ -120,31 +122,37 @@ export default function Prompts() {
     enabled: !!activeProject,
   });
 
-  const generateMutation = useMutation({
-    mutationFn: async (data: { requirementsArtifactId: string; ide: IDEType; clarificationContext?: string }) => {
-      const response = await apiRequest("POST", "/api/prompts/generate", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        setGeneratedPrompts(data.data);
-        setFlowStep("view-prompts");
-        toast({
-          title: "Prompts Generated",
-          description: `Created ${data.data.totalSteps} build prompts for ${data.data.ideName}`,
-        });
-      } else {
-        throw new Error(data.error || "Failed to generate prompts");
-      }
-    },
-    onError: () => {
+  const sseGeneration = useSSEGeneration<{ success: boolean; data: any }>("prompts");
+
+  useEffect(() => {
+    if (sseGeneration.result && sseGeneration.result.success) {
+      setGeneratedPrompts(sseGeneration.result.data);
+      setFlowStep("view-prompts");
+      toast({
+        title: "Prompts Generated",
+        description: `Created ${sseGeneration.result.data.totalSteps} build prompts for ${sseGeneration.result.data.ideName}`,
+      });
+    }
+  }, [sseGeneration.result]);
+
+  useEffect(() => {
+    if (sseGeneration.error) {
       toast({
         title: "Something went wrong",
-        description: "Could not generate prompts. Please try again in a moment.",
+        description: sseGeneration.error || "Could not generate prompts. Please try again in a moment.",
         variant: "destructive",
       });
+    }
+  }, [sseGeneration.error]);
+
+  const generateMutation = {
+    isPending: sseGeneration.isGenerating,
+    isError: !!sseGeneration.error,
+    error: sseGeneration.error ? new Error(sseGeneration.error) : null,
+    mutate: (data: { requirementsArtifactId: string; ide: IDEType; clarificationContext?: string }) => {
+      sseGeneration.startGeneration("/api/prompts/generate-stream", data);
     },
-  });
+  };
 
   const initSessionMutation = useMutation({
     mutationFn: async (data: { promptArtifactId: string; totalSteps: number }) => {
@@ -589,6 +597,17 @@ export default function Prompts() {
                 </CardContent>
               </Card>
             )}
+
+            {sseGeneration.isGenerating && (
+              <GenerationProgress
+                stages={sseGeneration.stages}
+                currentStage={sseGeneration.currentStage}
+                isGenerating={sseGeneration.isGenerating}
+                startTime={sseGeneration.startTime}
+                error={sseGeneration.error}
+                module="prompts"
+              />
+            )}
           </div>
         )}
 
@@ -707,6 +726,17 @@ export default function Prompts() {
                     <Download className="h-4 w-4" />
                     Export as Markdown
                   </Button>
+                  {generatedPrompts.artifactId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => downloadArtifactExport(generatedPrompts.artifactId!)}
+                      className="gap-2"
+                      data-testid="button-export-prompts"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

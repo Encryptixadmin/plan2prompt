@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, timedApiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, timedApiRequest, queryClient, downloadArtifactExport } from "@/lib/queryClient";
+import { useSSEGeneration } from "@/hooks/use-sse-generation";
+import { GenerationProgress } from "@/components/generation-progress";
 import { Link } from "wouter";
 import { useProject } from "@/contexts/project-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -56,6 +58,8 @@ import {
   Play,
   Clock,
   ArrowLeft,
+  History,
+  Download,
 } from "lucide-react";
 import type { IdeaAnalysis, AnalyzeIdeaResponse, TechnicalProfile, CommercialProfile, ExecutionProfile, ViabilityAssessment } from "@shared/types/ideas";
 import { StageCard } from "@/components/stage-indicator";
@@ -68,6 +72,15 @@ import { WorkshopConversation } from "@/components/workshop-conversation";
 import { WorkshopComparison } from "@/components/workshop-comparison";
 import { buildConversationFindings } from "@/lib/workshop-resolution";
 import type { WorkshopResolutionResult } from "@shared/types/workshop";
+import { VersionHistoryPanel, VersionComparePanel } from "@/components/version-history-panel";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import type { ArtifactVersion } from "@shared/types/artifact";
 
 const ideaFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -164,6 +177,9 @@ function AnalysisResults({
   isAccepted,
   previousAnalysis,
 }: AnalysisResultsProps) {
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<{ v1: ArtifactVersion; v2: ArtifactVersion } | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<ArtifactVersion | null>(null);
   const needsRefinement = analysis.recommendation === "revise" || analysis.recommendation === "stop";
   const getRecommendation = () => {
     if (analysis.overallScore >= 75) {
@@ -212,6 +228,28 @@ function AnalysisResults({
               <CardDescription className="max-w-2xl">{analysis.summary}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {isAccepted && analysis.artifactId && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadArtifactExport(analysis.artifactId!)}
+                    data-testid="button-export-idea"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVersionHistoryOpen(true)}
+                    data-testid="button-version-history"
+                  >
+                    <History className="mr-2 h-4 w-4" />
+                    Version History
+                  </Button>
+                </>
+              )}
               <Badge variant="outline" className="text-lg px-3 py-1">
                 Score: {analysis.overallScore}/100
               </Badge>
@@ -452,6 +490,35 @@ function AnalysisResults({
         />
       )}
 
+      {isAccepted && analysis.artifactId && (
+        <Sheet open={versionHistoryOpen} onOpenChange={setVersionHistoryOpen}>
+          <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Version History</SheetTitle>
+              <SheetDescription>
+                View all versions of this idea analysis
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              {compareVersions ? (
+                <VersionComparePanel
+                  version1={{ version: compareVersions.v1.version, content: `Version ${compareVersions.v1.version} content` }}
+                  version2={{ version: compareVersions.v2.version, content: `Version ${compareVersions.v2.version} content` }}
+                  onClose={() => setCompareVersions(null)}
+                />
+              ) : (
+                <VersionHistoryPanel
+                  artifactId={analysis.artifactId!}
+                  currentVersion={1}
+                  onSelectVersion={(version) => setSelectedVersion(version)}
+                  onCompareVersions={(v1, v2) => setCompareVersions({ v1, v2 })}
+                />
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
       {!isAccepted && (
         <Card className="border-2 border-primary/20">
           <CardHeader>
@@ -631,6 +698,9 @@ interface SavedIdeaViewProps {
 }
 
 function SavedIdeaView({ idea, isLoading, onBack }: SavedIdeaViewProps) {
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<{ v1: ArtifactVersion; v2: ArtifactVersion } | null>(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -662,6 +732,15 @@ function SavedIdeaView({ idea, isLoading, onBack }: SavedIdeaViewProps) {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVersionHistoryOpen(true)}
+                data-testid="button-version-history"
+              >
+                <History className="mr-2 h-4 w-4" />
+                Version History
+              </Button>
               <Badge variant="default">Validated</Badge>
               {idea.score != null && (
                 <Badge variant="outline">Score: {idea.score}/100</Badge>
@@ -670,6 +749,33 @@ function SavedIdeaView({ idea, isLoading, onBack }: SavedIdeaViewProps) {
           </div>
         </CardHeader>
       </Card>
+
+      <Sheet open={versionHistoryOpen} onOpenChange={setVersionHistoryOpen}>
+        <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Version History</SheetTitle>
+            <SheetDescription>
+              View all versions of this idea
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">
+            {compareVersions ? (
+              <VersionComparePanel
+                version1={{ version: compareVersions.v1.version, content: `Version ${compareVersions.v1.version} content` }}
+                version2={{ version: compareVersions.v2.version, content: `Version ${compareVersions.v2.version} content` }}
+                onClose={() => setCompareVersions(null)}
+              />
+            ) : (
+              <VersionHistoryPanel
+                artifactId={idea.id}
+                currentVersion={idea.version}
+                onSelectVersion={() => {}}
+                onCompareVersions={(v1, v2) => setCompareVersions({ v1, v2 })}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {idea.sections && idea.sections.length > 0 && (
         <Card>
@@ -754,14 +860,41 @@ export default function IdeasPage() {
     }
   };
 
-  const analyzeMutation = useMutation({
-    mutationFn: async (values: IdeaFormValues) => {
+  const sseGeneration = useSSEGeneration<{ success: boolean; data: AnalyzeIdeaResponse }>("ideas");
+
+  useEffect(() => {
+    if (sseGeneration.result && sseGeneration.result.success) {
+      setAnalysis(sseGeneration.result.data.analysis);
+      setIsAccepted(false);
+    }
+  }, [sseGeneration.result]);
+
+  useEffect(() => {
+    if (sseGeneration.error) {
+      toast({
+        variant: "destructive",
+        title: "Analysis failed",
+        description: sseGeneration.error,
+      });
+    }
+  }, [sseGeneration.error]);
+
+  const analyzeMutation = {
+    isPending: sseGeneration.isGenerating,
+    isError: !!sseGeneration.error,
+    error: sseGeneration.error ? new Error(sseGeneration.error) : null,
+    mutate: async (values: IdeaFormValues) => {
       const isReady = await checkProviderReadiness();
       if (!isReady) {
-        throw new Error("Idea analysis is unavailable due to configuration issues.");
+        toast({
+          variant: "destructive",
+          title: "Analysis failed",
+          description: "Idea analysis is unavailable due to configuration issues.",
+        });
+        return;
       }
-      
-      const response = await timedApiRequest("POST", "/api/ideas/analyze", {
+
+      sseGeneration.startGeneration("/api/ideas/analyze-stream", {
         idea: {
           title: values.title,
           description: values.description,
@@ -775,23 +908,8 @@ export default function IdeasPage() {
           },
         },
       });
-      return response.json() as Promise<{ success: boolean; data: AnalyzeIdeaResponse }>;
     },
-    onSuccess: (data) => {
-      if (data.success) {
-        setAnalysis(data.data.analysis);
-        setIsAccepted(false);
-      }
-    },
-    onError: (error: Error) => {
-      const isTimeout = error instanceof AnalysisTimeoutError || error.name === "AnalysisTimeoutError";
-      toast({
-        variant: "destructive",
-        title: isTimeout ? "Analysis is taking longer than expected" : "Analysis failed",
-        description: mapBackendError(error),
-      });
-    },
-  });
+  };
 
   const acceptMutation = useMutation({
     mutationFn: async (analysisData: IdeaAnalysis) => {
@@ -1264,15 +1382,26 @@ export default function IdeasPage() {
                       )}
                     </Button>
 
-                    {analyzeMutation.isError && (
+                    {analyzeMutation.isError && !sseGeneration.isGenerating && (
                       <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="alert-analyze-error">
-                        {mapBackendError(analyzeMutation.error)}
+                        {sseGeneration.error || "Analysis failed"}
                       </div>
                     )}
                   </form>
                 </Form>
               </CardContent>
             </Card>
+
+            {sseGeneration.isGenerating && (
+              <GenerationProgress
+                stages={sseGeneration.stages}
+                currentStage={sseGeneration.currentStage}
+                isGenerating={sseGeneration.isGenerating}
+                startTime={sseGeneration.startTime}
+                error={sseGeneration.error}
+                module="ideas"
+              />
+            )}
 
             <div className="text-center text-sm text-muted-foreground">
               <p>You will review the analysis before making any commitment.</p>

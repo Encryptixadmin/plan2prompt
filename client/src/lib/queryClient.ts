@@ -92,6 +92,41 @@ export async function apiRequest(
   return res;
 }
 
+export async function downloadArtifactExport(artifactId: string, fallbackFilename = "artifact.md") {
+  const projectHeaders = getProjectHeaders("/api/artifacts");
+
+  const res = await fetch(`/api/artifacts/${artifactId}/export?format=markdown`, {
+    credentials: "include",
+    headers: projectHeaders,
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Export failed (${res.status})`;
+    try {
+      const errorBody = await res.json();
+      errorMessage = errorBody?.error?.message || errorBody?.message || errorMessage;
+    } catch { /* not JSON */ }
+    throw new Error(errorMessage);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = fallbackFilename;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) filename = match[1];
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 const ANALYSIS_TIMEOUT_MS = 45000;
 
 export async function timedApiRequest(
