@@ -5,10 +5,17 @@ import { requireProjectContext } from "../middleware/project-context";
 
 const router = Router();
 
+function parsePagination(query: Record<string, any>): { limit: number; offset: number } {
+  const limit = Math.min(Math.max(parseInt(query.limit as string, 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(query.offset as string, 10) || 0, 0);
+  return { limit, offset };
+}
+
 router.get("/", requireProjectContext, async (req: Request, res: Response) => {
   try {
-    const contracts = await clarificationService.listAllByProject(req.projectId!);
-    res.json({ success: true, data: contracts });
+    const { limit, offset } = parsePagination(req.query);
+    const contracts = await clarificationService.listAllByProject(req.projectId!, limit, offset);
+    res.json({ success: true, data: contracts, pagination: { limit, offset } });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -19,16 +26,18 @@ router.get("/", requireProjectContext, async (req: Request, res: Response) => {
 
 router.get("/pending", requireProjectContext, async (req: Request, res: Response) => {
   try {
+    const { limit, offset } = parsePagination(req.query);
     const module = req.query.module as string | undefined;
     const contracts = module
-      ? await clarificationService.listPendingByModule(req.projectId!, module)
-      : await clarificationService.listPendingByProject(req.projectId!);
+      ? await clarificationService.listPendingByModule(req.projectId!, module, limit, offset)
+      : await clarificationService.listPendingByProject(req.projectId!, limit, offset);
     
     const hasBlockers = contracts.some(c => c.severity === "blocker");
     
     res.json({
       success: true,
       data: { contracts, hasBlockers },
+      pagination: { limit, offset },
     });
   } catch (error) {
     res.status(500).json({

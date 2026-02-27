@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { pool } from "./db";
 import type { HealthCheckResponse } from "@shared/types";
 import artifactRoutes from "./routes/artifact.routes";
 import aiRoutes from "./routes/ai.routes";
@@ -17,15 +18,21 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Health check endpoint
-  app.get("/api/health", (_req, res) => {
+  app.get("/api/health", async (_req, res) => {
+    let dbStatus: "connected" | "error" = "error";
+    try {
+      await pool.query("SELECT 1");
+      dbStatus = "connected";
+    } catch {}
+
     const response: HealthCheckResponse = {
-      status: "healthy",
+      status: dbStatus === "connected" ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
-      service: "backend",
-      version: "1.0.0",
+      uptime: process.uptime(),
+      database: dbStatus,
     };
-    res.json(response);
+    const statusCode = dbStatus === "connected" ? 200 : 503;
+    res.status(statusCode).json(response);
   });
 
   // Artifact management routes

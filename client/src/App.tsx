@@ -19,6 +19,7 @@ import { useTrackNonAdminRoute } from "@/hooks/use-admin-navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppShell } from "@/components/app-shell";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
 
 interface OnboardingContextType {
@@ -149,7 +150,9 @@ function App() {
       <ThemeProvider>
         <TooltipProvider>
           <Toaster />
-          <AppContent />
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

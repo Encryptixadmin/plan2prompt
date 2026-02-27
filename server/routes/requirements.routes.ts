@@ -14,13 +14,15 @@ const router = Router();
 // Requires project context to enforce isolation
 router.get("/ideas", requireProjectContext, async (req, res) => {
   try {
-    // ADVERSARIAL FIX: Only list ideas from the current project
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset as string, 10) || 0, 0);
+
     const artifacts = await artifactService.listByProject(req.projectId!, "ideas");
 
-    // Only return ideas with VALIDATED_IDEA stage
     const validatedIdeas = artifacts.filter((a) => a.stage === "VALIDATED_IDEA");
+    const paginated = validatedIdeas.slice(offset, offset + limit);
 
-    const ideas = validatedIdeas.map((a) => ({
+    const ideas = paginated.map((a) => ({
       id: a.id,
       title: a.title.replace("Ideas Reference: ", ""),
       version: a.version,
@@ -32,6 +34,7 @@ router.get("/ideas", requireProjectContext, async (req, res) => {
       success: true,
       data: ideas,
       metadata: { timestamp: new Date().toISOString() },
+      pagination: { limit, offset },
     });
   } catch (error) {
     res.status(500).json({

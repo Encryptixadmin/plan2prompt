@@ -27,13 +27,19 @@ Preferred communication style: Simple, everyday language.
 - **AI Service Integration**: Unified `IAIProvider` interface supporting OpenAI, Anthropic, and Gemini. `ConsensusService` orchestrates multiple providers, handles retries, and tracks usage.
 - **Artifact System**: Markdown files with YAML frontmatter, immutable versioning, stored in PostgreSQL. Idempotent filesystem migration runs on startup.
 - **Shared Contracts**: TypeScript interfaces in `shared/types/` with `@shared/*` aliases.
-- **Security & Isolation**: `X-Project-Id` enforcement, role-based access control, pipeline sequencing enforcement. User authentication via Replit Auth (OpenID Connect) with PostgreSQL-backed sessions.
+- **Security & Isolation**: `X-Project-Id` enforcement, role-based access control, pipeline sequencing enforcement. User authentication via Replit Auth (OpenID Connect) with PostgreSQL-backed sessions. Helmet middleware for security headers (X-Frame-Options, X-Content-Type-Options, HSTS in production). CSRF protection via JSON content-type enforcement on state-changing routes + `sameSite: lax` cookies.
 - **Project Context**: Middleware and hooks ensure project isolation and guide users through project creation.
 - **Auditing & Feedback**: Persistence of admin audit logs and prompt feedback events to PostgreSQL.
-- **Structured Logging**: Pino-based JSON structured logging. Sentry integration for error capture.
+- **Structured Logging**: Pino-based JSON structured logging with per-request correlation IDs (`X-Request-Id` header). Sentry integration for error capture.
 - **Rate Limiting**: `express-rate-limit` with PostgreSQL-backed store applied to AI generation routes (5 req/min per user).
 - **Billing Persistence**: `billing_usage` table in PostgreSQL tracks per-user monthly generation/token usage. `BillingService` manages plan mapping.
-- **Invariant Testing**: Vitest-based test harness for core platform behaviors, covering pipeline sequencing, permissions, usage tracking, clarification contracts, and traceability.
+- **Graceful Shutdown**: SIGTERM/SIGINT handlers close HTTP server, drain DB pool, flush Sentry, with 10-second force-exit timeout.
+- **Health Check**: `GET /api/health` (unauthenticated) returns status, uptime, timestamp, and database connectivity via `SELECT 1` ping.
+- **Error Boundaries**: React ErrorBoundary component wraps authenticated app routes to prevent full-page crashes.
+- **Database Transactions**: Artifact create/update operations wrapped in `db.transaction()` for atomic writes.
+- **Pagination**: List endpoints (clarifications, requirements/ideas, prompts/requirements) support `?limit=N&offset=M` query params (default 50, max 200).
+- **Standardized Error Format**: All API error responses use `{ success: false, error: { code: string, message: string } }`.
+- **Testing**: Vitest-based test harness — 249 invariant tests (pipeline sequencing, permissions, usage tracking, clarification contracts, traceability) + 7 integration tests (health check, auth, CSRF, error format, security headers).
 - **Cross-Module Clarification Contracts**: Upward-only clarification system for downstream modules to request upstream clarification. Uses SHA256-based deterministic contract hashing, with categories like missing_information, contradiction, and execution_failure. Severity levels are advisory and blocker, with automatic escalation.
 
 ### Feature Specifications

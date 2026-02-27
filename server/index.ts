@@ -6,7 +6,10 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { providerValidationService } from "./services/ai/provider-validation.service";
 import { migrateFilesystemArtifacts } from "./services/artifact.service";
 import { logger } from "./logger";
+import { pool } from "./db";
 import * as Sentry from "@sentry/node";
+import helmet from "helmet";
+import crypto from "crypto";
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -23,8 +26,45 @@ const httpServer = createServer(app);
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
+    requestId: string;
   }
 }
+
+app.use(
+  helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+    hsts: process.env.NODE_ENV === "production" ? { maxAge: 31536000, includeSubDomains: true } : false,
+  })
+);
+
+app.use((req, _res, next) => {
+  req.requestId = req.headers["x-request-id"] as string || crypto.randomUUID();
+  next();
+});
+
+app.use((_req, res, next) => {
+  const requestId = (_req as any).requestId;
+  if (requestId) {
+    res.setHeader("X-Request-Id", requestId);
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  if (
+    ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
+    req.path.startsWith("/api/") &&
+    req.path !== "/api/health" &&
+    !req.headers["content-type"]?.includes("application/json") &&
+    !req.headers["content-type"]?.includes("multipart/form-data")
+  ) {
+    return res.status(415).json({
+      success: false,
+      error: { code: "UNSUPPORTED_MEDIA_TYPE", message: "Content-Type must be application/json" },
+    });
+  }
+  next();
+});
 
 app.use(
   express.json({
@@ -43,6 +83,7 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+  const requestId = req.requestId;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -56,6 +97,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       logger.info(
         {
+          requestId,
           method: req.method,
           path,
           status: res.statusCode,
@@ -88,13 +130,13 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     if (status >= 500) {
-      logger.error({ err, method: req.method, url: req.url, status }, "Unhandled server error");
+      logger.error({ err, requestId: req.requestId, method: req.method, url: req.url, status }, "Unhandled server error");
       if (process.env.SENTRY_DSN) {
         Sentry.captureException(err);
       }
     }
 
-    res.status(status).json({ message });
+    res.status(status).json({ success: false, error: { code: "INTERNAL_ERROR", message } });
   });
 
   // importantly only setup vite in development and after
@@ -122,4 +164,35 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  const shutdown = async (signal: string) => {
+    logger.info({ signal }, "Shutting down gracefully...");
+
+    const forceTimeout = setTimeout(() => {
+      logger.error("Graceful shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 10_000);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        httpServer.close((err) => (err ? reject(err) : resolve()));
+      });
+      logger.info("HTTP server closed");
+
+      await pool.end();
+      logger.info("Database pool drained");
+
+      if (process.env.SENTRY_DSN) {
+        await Sentry.flush(2000);
+      }
+    } catch (err) {
+      logger.error({ err }, "Error during graceful shutdown");
+    } finally {
+      clearTimeout(forceTimeout);
+      process.exit(0);
+    }
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 })();

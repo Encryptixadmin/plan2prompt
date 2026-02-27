@@ -32,27 +32,30 @@ const generatePromptsSchema = z.object({
  */
 router.get("/requirements", requireProjectContext, async (req: Request, res: Response) => {
   try {
-    // ADVERSARIAL FIX: Only list requirements from the current project
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset as string, 10) || 0, 0);
+
     const artifacts = await artifactService.listByProject(req.projectId!, "requirements");
     
-    // Only return requirements with LOCKED_REQUIREMENTS stage
     const lockedRequirements = artifacts.filter((a) => a.stage === "LOCKED_REQUIREMENTS");
+    const paginated = lockedRequirements.slice(offset, offset + limit);
     
     res.json({
       success: true,
-      data: lockedRequirements.map((a) => ({
+      data: paginated.map((a) => ({
         id: a.id,
         title: a.title,
         version: a.version,
         createdAt: a.createdAt,
         stage: a.stage,
       })),
+      pagination: { limit, offset },
     });
   } catch (error) {
     console.error("Error listing requirements:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to list requirements",
+      error: { code: "LIST_ERROR", message: "Failed to list requirements" },
     });
   }
 });
@@ -73,8 +76,11 @@ router.post(
       if (!validation.success) {
         return res.status(400).json({
           success: false,
-          error: "Invalid request",
-          details: validation.error.flatten(),
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid request",
+            details: validation.error.flatten(),
+          },
         });
       }
 
@@ -85,7 +91,7 @@ router.post(
       if (!requirementsArtifact) {
         return res.status(404).json({
           success: false,
-          error: "Requirements artifact not found",
+          error: { code: "NOT_FOUND", message: "Requirements artifact not found" },
         });
       }
 
@@ -156,7 +162,10 @@ router.post(
       console.error("Error generating prompts:", error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "Failed to generate prompts",
+        error: {
+          code: "GENERATION_ERROR",
+          message: error instanceof Error ? error.message : "Failed to generate prompts",
+        },
       });
     }
   }
@@ -182,7 +191,7 @@ router.get("/artifacts", async (req: Request, res: Response) => {
     console.error("Error listing prompt artifacts:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to list prompt artifacts",
+      error: { code: "LIST_ERROR", message: "Failed to list prompt artifacts" },
     });
   }
 });

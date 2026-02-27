@@ -15,6 +15,7 @@ import type {
 } from "@shared/types/artifact";
 import type { PipelineStage } from "@shared/types/pipeline";
 import { storage } from "../storage";
+import { db } from "../db";
 
 const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts");
 
@@ -326,7 +327,6 @@ export class ArtifactService {
       sourceArtifactVersion: input.sourceArtifactVersion,
       projectId: input.projectId,
       authorId: input.authorId,
-      // STOP recommendation acknowledgement
       stopAcknowledged: input.stopAcknowledged,
       stopAcknowledgedAt: input.stopAcknowledgedAt,
     };
@@ -352,15 +352,17 @@ export class ArtifactService {
     artifact.rawContent = buildMarkdown(artifact);
     const filename = `${slug}_v1.md`;
 
-    await storage.insertArtifact({
-      id,
-      projectId: input.projectId,
-      module: input.module,
-      filename,
-      parentId: undefined,
-      sourceArtifactId: input.sourceArtifactId,
-      content: artifact.rawContent,
-      artifactMetadata: metadata as unknown as Record<string, unknown>,
+    await db.transaction(async (tx) => {
+      await storage.insertArtifact({
+        id,
+        projectId: input.projectId,
+        module: input.module,
+        filename,
+        parentId: undefined,
+        sourceArtifactId: input.sourceArtifactId,
+        content: artifact.rawContent,
+        artifactMetadata: metadata as unknown as Record<string, unknown>,
+      }, tx);
     });
 
     return artifact;
@@ -439,15 +441,17 @@ export class ArtifactService {
     artifact.rawContent = buildMarkdown(artifact);
     const filename = `${slug}_v${newVersion}.md`;
 
-    await storage.insertArtifact({
-      id: newId,
-      projectId: existing.metadata.projectId,
-      module: existing.metadata.module,
-      filename,
-      parentId: id,
-      sourceArtifactId: existing.metadata.sourceArtifactId,
-      content: artifact.rawContent,
-      artifactMetadata: metadata as unknown as Record<string, unknown>,
+    await db.transaction(async (tx) => {
+      await storage.insertArtifact({
+        id: newId,
+        projectId: existing.metadata.projectId,
+        module: existing.metadata.module,
+        filename,
+        parentId: id,
+        sourceArtifactId: existing.metadata.sourceArtifactId,
+        content: artifact.rawContent,
+        artifactMetadata: metadata as unknown as Record<string, unknown>,
+      }, tx);
     });
 
     return artifact;

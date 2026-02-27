@@ -21,7 +21,7 @@ router.post(
       if (!validation.success) {
         return res.status(400).json({
           success: false,
-          error: { code: "VALIDATION_ERROR", details: validation.error.flatten() },
+          error: { code: "VALIDATION_ERROR", message: "Invalid request", details: validation.error.flatten() },
         });
       }
 
@@ -173,7 +173,7 @@ router.patch(
       if (!validation.success) {
         return res.status(400).json({
           success: false,
-          error: { code: "VALIDATION_ERROR", details: validation.error.flatten() },
+          error: { code: "VALIDATION_ERROR", message: "Invalid request", details: validation.error.flatten() },
         });
       }
 

@@ -67,13 +67,13 @@ export class ClarificationService {
     return this.recordToContract(record);
   }
 
-  async listPendingByProject(projectId: string): Promise<ClarificationContract[]> {
-    const records = await storage.listPendingClarificationsByProject(projectId);
+  async listPendingByProject(projectId: string, limit?: number, offset?: number): Promise<ClarificationContract[]> {
+    const records = await storage.listPendingClarificationsByProject(projectId, limit, offset);
     return records.map(r => this.recordToContract(r));
   }
 
-  async listPendingByModule(projectId: string, module: string): Promise<ClarificationContract[]> {
-    const records = await storage.listPendingClarificationsByModule(projectId, module);
+  async listPendingByModule(projectId: string, module: string, limit?: number, offset?: number): Promise<ClarificationContract[]> {
+    const records = await storage.listPendingClarificationsByModule(projectId, module, limit, offset);
     return records.map(r => this.recordToContract(r));
   }
 
@@ -82,8 +82,8 @@ export class ClarificationService {
     return records.map(r => this.recordToContract(r));
   }
 
-  async listAllByProject(projectId: string): Promise<ClarificationContract[]> {
-    const records = await storage.listClarificationsByProject(projectId);
+  async listAllByProject(projectId: string, limit?: number, offset?: number): Promise<ClarificationContract[]> {
+    const records = await storage.listClarificationsByProject(projectId, limit, offset);
     return records.map(r => this.recordToContract(r));
   }
 

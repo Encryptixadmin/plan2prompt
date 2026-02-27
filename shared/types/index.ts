@@ -23,10 +23,10 @@ export * from "./prompts";
 
 // Health check response type
 export interface HealthCheckResponse {
-  status: "healthy" | "degraded" | "unhealthy";
+  status: "ok" | "degraded";
   timestamp: string;
-  service: string;
-  version: string;
+  uptime: number;
+  database: "connected" | "error";
 }
 
 // API response wrapper for consistent responses

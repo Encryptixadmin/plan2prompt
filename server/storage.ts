@@ -52,9 +52,9 @@ export interface IStorage {
 
   createClarificationContract(contract: InsertClarificationContract): Promise<ClarificationContractRecord>;
   getClarificationContract(id: string): Promise<ClarificationContractRecord | undefined>;
-  listClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]>;
-  listPendingClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]>;
-  listPendingClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]>;
+  listClarificationsByProject(projectId: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]>;
+  listPendingClarificationsByProject(projectId: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]>;
+  listPendingClarificationsByModule(projectId: string, module: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]>;
   listResolvedClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]>;
   getClarificationByHash(projectId: string, hash: string): Promise<ClarificationContractRecord | undefined>;
   updateClarificationStatus(id: string, status: ClarificationResolutionStatus, resolutionData?: string): Promise<ClarificationContractRecord | undefined>;
@@ -82,7 +82,7 @@ export interface IStorage {
   incrementBillingUsage(userId: string, yearMonth: string, tokens: number): Promise<BillingUsageRecord>;
   getBillingUsageByPlan(yearMonth: string): Promise<{ planId: string; userCount: number; totalGenerations: number; totalTokens: number }[]>;
 
-  insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }): Promise<ArtifactRecord>;
+  insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }, tx?: any): Promise<ArtifactRecord>;
   getArtifactById(id: string): Promise<ArtifactRecord | undefined>;
   listAllArtifacts(module?: string): Promise<ArtifactRecord[]>;
   listArtifactsByProject(projectId: string, module?: string): Promise<ArtifactRecord[]>;
@@ -274,16 +274,20 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async listClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]> {
-    return db
+  async listClarificationsByProject(projectId: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]> {
+    let query = db
       .select()
       .from(clarificationContracts)
       .where(eq(clarificationContracts.projectId, projectId))
-      .orderBy(desc(clarificationContracts.timestamp));
+      .orderBy(desc(clarificationContracts.timestamp))
+      .$dynamic();
+    if (paginationLimit !== undefined) query = query.limit(paginationLimit);
+    if (paginationOffset !== undefined) query = query.offset(paginationOffset);
+    return query;
   }
 
-  async listPendingClarificationsByProject(projectId: string): Promise<ClarificationContractRecord[]> {
-    return db
+  async listPendingClarificationsByProject(projectId: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]> {
+    let query = db
       .select()
       .from(clarificationContracts)
       .where(
@@ -292,11 +296,15 @@ export class DatabaseStorage implements IStorage {
           eq(clarificationContracts.resolutionStatus, "pending")
         )
       )
-      .orderBy(desc(clarificationContracts.timestamp));
+      .orderBy(desc(clarificationContracts.timestamp))
+      .$dynamic();
+    if (paginationLimit !== undefined) query = query.limit(paginationLimit);
+    if (paginationOffset !== undefined) query = query.offset(paginationOffset);
+    return query;
   }
 
-  async listPendingClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]> {
-    return db
+  async listPendingClarificationsByModule(projectId: string, module: string, paginationLimit?: number, paginationOffset?: number): Promise<ClarificationContractRecord[]> {
+    let query = db
       .select()
       .from(clarificationContracts)
       .where(
@@ -306,7 +314,11 @@ export class DatabaseStorage implements IStorage {
           eq(clarificationContracts.resolutionStatus, "pending")
         )
       )
-      .orderBy(desc(clarificationContracts.timestamp));
+      .orderBy(desc(clarificationContracts.timestamp))
+      .$dynamic();
+    if (paginationLimit !== undefined) query = query.limit(paginationLimit);
+    if (paginationOffset !== undefined) query = query.offset(paginationOffset);
+    return query;
   }
 
   async listResolvedClarificationsByModule(projectId: string, module: string): Promise<ClarificationContractRecord[]> {
@@ -583,8 +595,9 @@ export class DatabaseStorage implements IStorage {
     return Array.from(planMap.entries()).map(([planId, stats]) => ({ planId, ...stats }));
   }
 
-  async insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }): Promise<ArtifactRecord> {
-    const [inserted] = await db
+  async insertArtifact(record: { id: string; projectId?: string; module: string; filename: string; parentId?: string; sourceArtifactId?: string; content: string; artifactMetadata: Record<string, unknown> }, tx?: any): Promise<ArtifactRecord> {
+    const executor = tx || db;
+    const [inserted] = await executor
       .insert(artifacts)
       .values({
         id: record.id,
