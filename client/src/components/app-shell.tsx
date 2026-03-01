@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Sun, Moon, Lightbulb, FileText, Terminal, LayoutDashboard, Shield, LogOut, HelpCircle, BookOpen } from "lucide-react";
+import { Sun, Moon, Lightbulb, FileText, Terminal, LayoutDashboard, Shield, LogOut, HelpCircle, BookOpen, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -78,11 +78,21 @@ function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium">Administration</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium">Settings</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setLocation("/account")}
+                  data-active={location.startsWith("/account")}
+                  data-testid="nav-account"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Account</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => setLocation("/admin")}
@@ -93,10 +103,10 @@ function AppSidebar() {
                     <span>Admin Console</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-3">
         <div className="text-[11px] text-sidebar-foreground/50 text-center">

@@ -297,3 +297,27 @@ export const insertExecutionStepSchema = createInsertSchema(executionSteps).omit
 
 export type InsertExecutionStep = z.infer<typeof insertExecutionStepSchema>;
 export type ExecutionStep = typeof executionSteps.$inferSelect;
+
+// ============================================
+// API KEYS (MCP Server authentication)
+// ============================================
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  keyHash: text("key_hash").notNull(),
+  keyPrefix: varchar("key_prefix", { length: 12 }).notNull(),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  createdAt: true,
+  lastUsedAt: true,
+  revokedAt: true,
+});
+
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKeyRecord = typeof apiKeys.$inferSelect;

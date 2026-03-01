@@ -7,6 +7,7 @@ import {
   executionSteps,
   billingUsage,
   artifacts,
+  apiKeys,
   type User, 
   type UpsertUser,
   type Project,
@@ -25,9 +26,11 @@ import {
   type ExecutionStepStatus,
   type BillingUsageRecord,
   type ArtifactRecord,
+  type InsertApiKey,
+  type ApiKeyRecord,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, isNull } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -89,6 +92,12 @@ export interface IStorage {
   getArtifactsBySourceId(sourceArtifactId: string): Promise<ArtifactRecord[]>;
   getArtifactsByParentId(parentId: string): Promise<ArtifactRecord[]>;
   artifactExistsById(id: string): Promise<boolean>;
+
+  createApiKey(key: InsertApiKey): Promise<ApiKeyRecord>;
+  getApiKeyByHash(keyHash: string): Promise<ApiKeyRecord | undefined>;
+  listApiKeysByUser(userId: string): Promise<ApiKeyRecord[]>;
+  revokeApiKey(id: string): Promise<ApiKeyRecord | undefined>;
+  updateApiKeyLastUsed(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -643,6 +652,31 @@ export class DatabaseStorage implements IStorage {
   async artifactExistsById(id: string): Promise<boolean> {
     const [record] = await db.select({ id: artifacts.id }).from(artifacts).where(eq(artifacts.id, id));
     return !!record;
+  }
+
+  async createApiKey(key: InsertApiKey): Promise<ApiKeyRecord> {
+    const [record] = await db.insert(apiKeys).values(key).returning();
+    return record;
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<ApiKeyRecord | undefined> {
+    const [record] = await db.select().from(apiKeys).where(
+      and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt))
+    );
+    return record;
+  }
+
+  async listApiKeysByUser(userId: string): Promise<ApiKeyRecord[]> {
+    return db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async revokeApiKey(id: string): Promise<ApiKeyRecord | undefined> {
+    const [record] = await db.update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, id)).returning();
+    return record;
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {
+    await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, id));
   }
 }
 

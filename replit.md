@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Frontend Framework**: React 19 with TypeScript and Vite.
 - **Styling**: Tailwind CSS with shadcn/ui (New York style) on Radix UI, using Inter and JetBrains Mono fonts.
 - **Design System**: Indigo primary palette, sophisticated neutral scale, refined shadows, and full dark mode support via ThemeProvider.
-- **Layout**: AppShell for authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/Admin) and a top bar.
+- **Layout**: AppShell for authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/Account/Admin) and a top bar.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.
 - **Form Handling**: React Hook Form with Zod validation.
@@ -39,12 +39,14 @@ Preferred communication style: Simple, everyday language.
 - **Database Transactions**: Artifact create/update operations wrapped in `db.transaction()` for atomic writes.
 - **Pagination**: List endpoints (clarifications, requirements/ideas, prompts/requirements) support `?limit=N&offset=M` query params (default 50, max 200).
 - **Standardized Error Format**: All API error responses use `{ success: false, error: { code: string, message: string } }`.
-- **Testing**: Vitest-based test harness — 249 invariant tests (pipeline sequencing, permissions, usage tracking, clarification contracts, traceability) + 7 integration tests (health check, auth, CSRF, error format, security headers).
+- **Testing**: Vitest-based test harness — 266 invariant tests (pipeline sequencing, permissions, usage tracking, clarification contracts, traceability, MCP API key management) + 7 integration tests (health check, auth, CSRF, error format, security headers).
 - **Cross-Module Clarification Contracts**: Upward-only clarification system for downstream modules to request upstream clarification. Uses SHA256-based deterministic contract hashing, with categories like missing_information, contradiction, and execution_failure. Severity levels are advisory and blocker, with automatic escalation.
 - **SSE Generation Progress**: All three generation endpoints (`/analyze-stream`, `/generate-stream`) support Server-Sent Events streaming with progress callbacks. Frontend uses `useSSEGeneration` hook and `GenerationProgress` component to show real-time stage updates during AI generation.
 - **Artifact Export**: `GET /api/artifacts/:id/export?format=markdown` returns downloadable Markdown files with proper Content-Disposition headers. Export buttons available on accepted Ideas, locked Requirements, and generated Prompts.
 - **Pipeline Dashboard**: `GET /api/projects/:id/pipeline` returns idea-centric pipeline status with downstream artifact counts. Dashboard shows each idea's journey through the pipeline with contextual next-action buttons.
 - **Version History UI**: `VersionHistoryPanel` and `VersionComparePanel` integrated into Ideas and Requirements pages via Sheet overlays, accessible via "Version History" buttons on accepted/locked artifacts.
+- **MCP Server (v1.1)**: Model Context Protocol server at `/mcp` route enabling IDE AI assistants (Cursor, Windsurf, Claude Code, etc.) to interact with Plan2Prompt. Uses `@modelcontextprotocol/sdk` with Streamable HTTP transport. Authenticates via API keys (`api_keys` table, SHA-256 hashed). Exposes 10 tools (start_session, get_session_status, get_current_step, complete_step, report_failure, skip_to_step, classify_failure, list_clarifications, get_clarification, resolve_clarification) and 5 resources (project://requirements, project://idea-analysis, project://prompt-steps, project://session-state, project://execution-progress). Shares the same database records and business logic as the web UI — no duplication.
+- **API Key Management**: `api_keys` table with SHA-256 hashed keys, `p2p_` prefix. Account settings page at `/account` with key generation, listing, and revocation. Generated keys shown once with copy button.
 
 ### Feature Specifications
 - **Ideas Module**: Validates and refines application ideas using AI consensus, producing versioned Markdown artifacts. AI-driven analysis returns structured JSON with strengths, weaknesses, risks, feasibility, and structured profiles (Technical, Commercial, Execution, Viability). Includes weighted scoring, compliance/effort-based recommendations, and a guided refinement workshop with purpose-adaptive questions. Incorporates domain research covering competitors and market signals. Features a Risk Resolution Delta Model for deterministic post-workshop risk transparency.
@@ -67,6 +69,9 @@ Preferred communication style: Simple, everyday language.
     - `@replit/vite-plugin-runtime-error-modal`
     - `@replit/vite-plugin-cartographer`
     - `@replit/vite-plugin-dev-banner`
+- **MCP Integration**:
+    - `@modelcontextprotocol/sdk` (Streamable HTTP transport for IDE connectivity)
 - **Authentication**:
     - Replit Auth (OpenID Connect)
     - Email/password local auth (bcryptjs, express-session)
+    - API key auth for MCP (SHA-256 hashed, `p2p_` prefix)

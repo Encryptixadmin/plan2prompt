@@ -13,6 +13,8 @@ import adminRoutes from "./routes/admin.routes";
 import billingRoutes from "./routes/billing.routes";
 import clarificationRoutes from "./routes/clarification.routes";
 import executionRoutes from "./routes/execution.routes";
+import accountRoutes from "./routes/account.routes";
+import mcpRoutes from "./mcp/server";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -64,6 +66,12 @@ export async function registerRoutes(
 
   // Execution state tracking routes
   app.use("/api/execution", executionRoutes);
+
+  // Account management routes (API keys)
+  app.use("/api/account", accountRoutes);
+
+  // MCP server routes (IDE integration)
+  app.use("/mcp", mcpRoutes);
 
   return httpServer;
 }
