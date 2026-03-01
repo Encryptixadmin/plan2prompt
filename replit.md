@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 - **Frontend Framework**: React 19 with TypeScript and Vite.
 - **Styling**: Tailwind CSS with shadcn/ui (New York style) on Radix UI, using Inter and JetBrains Mono fonts.
-- **Design System**: Indigo primary palette, sophisticated neutral scale, refined shadows, and full dark mode support via ThemeProvider.
+- **Design System**: Indigo primary palette (238 76% 60%), warm-tinted neutral scale (blue-slate backgrounds, off-white cards), warm beige accent (32 30% 93%), refined shadows, dot pattern and gradient glow utilities, and full dark mode support via ThemeProvider. Landing page uses `bg-secondary/50` for alternating section backgrounds. CSS utilities: `text-gradient-primary`, `bg-dot-pattern`, `bg-hero-glow`, `bg-gradient-cta`, `bg-auth-brand`.
 - **Layout**: AppShell for authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/MCP Setup/Account/Admin) and a top bar.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.

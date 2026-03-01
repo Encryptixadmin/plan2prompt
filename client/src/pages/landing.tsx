@@ -246,7 +246,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="pipeline" className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-pipeline">
+        <section id="pipeline" className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/50 border-b" data-testid="section-pipeline">
           <div className="max-w-6xl mx-auto">
             <div className="mb-14 space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight" data-testid="text-how-it-works-heading">How It Works</h2>
@@ -395,7 +395,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-discipline">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/50 border-b" data-testid="section-discipline">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16">
               <div className="space-y-4">
@@ -539,7 +539,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-governance">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/50 border-b" data-testid="section-governance">
           <div className="max-w-6xl mx-auto">
             <div className="mb-12 space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight">Security and Control</h2>
