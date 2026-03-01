@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, downloadArtifactExport } from "@/lib/queryClient";
 import { useSSEGeneration } from "@/hooks/use-sse-generation";
@@ -1150,6 +1151,7 @@ function RequirementsResults({
 }
 
 export default function RequirementsPage() {
+  usePageTitle("Requirements");
   const { toast } = useToast();
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);

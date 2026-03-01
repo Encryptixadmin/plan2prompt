@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -164,6 +165,7 @@ function HeroMockStep() {
 }
 
 export default function Landing() {
+  usePageTitle(undefined, "Plan2Prompt validates your app idea with multi-AI consensus, generates comprehensive requirements, and produces step-by-step build instructions that connect directly to your IDE via MCP.");
   const { theme, toggleTheme } = useTheme();
 
   return (

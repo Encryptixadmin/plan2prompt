@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /mcp/
+Disallow: /admin
+
+Sitemap: https://plan2prompt.replit.app/sitemap.xml

@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +110,7 @@ function PipelineRow({ item }: { item: PipelineItem }) {
 }
 
 export default function Home() {
+  usePageTitle("Dashboard");
   const { activeProject } = useProject();
 
   const { data: pipelineData, isLoading: pipelineLoading } = useQuery<{ success: boolean; data: PipelineItem[] }>({

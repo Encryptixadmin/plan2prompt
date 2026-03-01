@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -806,6 +807,7 @@ function SavedIdeaView({ idea, isLoading, onBack }: SavedIdeaViewProps) {
 }
 
 export default function IdeasPage() {
+  usePageTitle("Ideas");
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const { activeProject } = useProject();
   const { hasValidatedProviders, isLoading: isLoadingProviders, isError: isProviderError } = useAIProviderStatus();

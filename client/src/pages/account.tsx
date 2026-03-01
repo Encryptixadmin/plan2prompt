@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +59,7 @@ interface CreateKeyResponse {
 }
 
 export default function Account() {
+  usePageTitle("Account Settings");
   const { toast } = useToast();
   const [newKeyLabel, setNewKeyLabel] = useState("");
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);

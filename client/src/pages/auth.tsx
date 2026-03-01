@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 type AuthMode = "login" | "register";
 
 export default function AuthPage() {
+  usePageTitle("Sign In", "Sign in to Plan2Prompt to validate your app ideas, generate requirements, and produce IDE-ready build instructions.");
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

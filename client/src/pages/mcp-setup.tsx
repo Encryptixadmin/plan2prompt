@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +132,7 @@ function ResourceCard({
 }
 
 export default function McpSetup() {
+  usePageTitle("MCP Setup");
   const [, setLocation] = useLocation();
   const { activeProject } = useProject();
 

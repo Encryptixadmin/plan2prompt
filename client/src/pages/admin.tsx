@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -869,6 +870,7 @@ function ActionLogPanel() {
 }
 
 export default function Admin() {
+  usePageTitle("Admin Console");
   const [hasActiveAction, setHasActiveAction] = useState(false);
   
   const { data: healthData, isError } = useQuery<{ success: boolean }>({

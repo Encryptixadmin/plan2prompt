@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,6 +101,7 @@ interface RequirementOption {
 type FlowStep = "select-requirements" | "select-ide" | "view-prompts";
 
 export default function Prompts() {
+  usePageTitle("Build Prompts");
   const { requireProject, ProjectRequiredDialog } = useRequireProject();
   const [flowStep, setFlowStep] = useState<FlowStep>("select-requirements");
   const [selectedRequirements, setSelectedRequirements] = useState<string>("");
