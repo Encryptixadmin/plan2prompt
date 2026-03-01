@@ -25,21 +25,35 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
+  BarChart3,
   CheckCircle,
   Clock,
   CreditCard,
   DollarSign,
   FileText,
+  FolderKanban,
+  LayoutDashboard,
   Power,
   PowerOff,
   RefreshCw,
+  Search,
   Shield,
+  TrendingUp,
+  UserPlus,
   Users,
 } from "lucide-react";
 
@@ -107,6 +121,18 @@ interface UserSummary {
   createdAt: string;
 }
 
+interface ProjectSummary {
+  id: string;
+  name: string;
+  description?: string;
+  ownerName?: string;
+  memberCount: number;
+  generationDisabled: boolean;
+  generationDisabledReason?: string;
+  artifactCount: number;
+  createdAt: string;
+}
+
 interface BillingPlan {
   id: string;
   name: string;
@@ -122,6 +148,267 @@ interface PlanUsage {
   userCount: number;
   totalGenerations: number;
   totalTokens: number;
+}
+
+interface DashboardStats {
+  totalUsers: number;
+  newUsersThisWeek: number;
+  newUsersThisMonth: number;
+  totalProjects: number;
+  totalArtifacts: number;
+  totalGenerations: number;
+  recentSignups: Array<{
+    id: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    billingPlan: string;
+    createdAt: string;
+  }>;
+  userGrowth: Array<{
+    month: string;
+    count: number;
+  }>;
+  planDistribution: Array<{
+    plan: string;
+    count: number;
+  }>;
+}
+
+function StatCard({ title, value, subtitle, icon: Icon, trend }: {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ElementType;
+  trend?: { value: number; label: string };
+}) {
+  return (
+    <Card data-testid={`stat-${title.toLowerCase().replace(/\s+/g, "-")}`}>
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold tracking-tight">{value}</p>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+          <div className="rounded-lg bg-primary/10 p-2.5">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+        </div>
+        {trend && (
+          <div className="mt-3 flex items-center gap-1 text-xs">
+            <TrendingUp className="h-3 w-3 text-green-600" />
+            <span className="font-medium text-green-600">+{trend.value}</span>
+            <span className="text-muted-foreground">{trend.label}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GrowthChart({ data }: { data: Array<{ month: string; count: number }> }) {
+  if (!data || data.length === 0) return null;
+  const maxCount = Math.max(...data.map(d => d.count), 1);
+  const recent = data.slice(-12);
+
+  return (
+    <Card data-testid="chart-user-growth">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">User Growth</CardTitle>
+        <CardDescription>Monthly signups over time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-1.5 h-32">
+          {recent.map((d) => (
+            <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
+              <span className="text-[10px] font-medium text-muted-foreground">{d.count}</span>
+              <div
+                className="w-full bg-primary/80 rounded-t transition-all hover:bg-primary"
+                style={{ height: `${Math.max((d.count / maxCount) * 100, 4)}%` }}
+                title={`${d.month}: ${d.count} users`}
+              />
+              <span className="text-[9px] text-muted-foreground truncate w-full text-center">
+                {d.month.slice(5)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlanDistributionChart({ data }: { data: Array<{ plan: string; count: number }> }) {
+  if (!data || data.length === 0) return null;
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const colors: Record<string, string> = {
+    free: "bg-slate-400",
+    starter: "bg-blue-400",
+    professional: "bg-indigo-500",
+    pro: "bg-indigo-500",
+    team: "bg-purple-500",
+  };
+  const labels: Record<string, string> = {
+    free: "Free",
+    starter: "Starter",
+    professional: "Pro",
+    pro: "Pro",
+    team: "Team",
+  };
+
+  return (
+    <Card data-testid="chart-plan-distribution">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Plan Distribution</CardTitle>
+        <CardDescription>{total} total users</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+          {data.map((d) => (
+            <div
+              key={d.plan}
+              className={`${colors[d.plan] || "bg-gray-400"} transition-all`}
+              style={{ width: `${(d.count / total) * 100}%` }}
+              title={`${labels[d.plan] || d.plan}: ${d.count}`}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {data.map((d) => (
+            <div key={d.plan} className="flex items-center gap-1.5 text-xs">
+              <div className={`h-2.5 w-2.5 rounded-full ${colors[d.plan] || "bg-gray-400"}`} />
+              <span className="text-muted-foreground">{labels[d.plan] || d.plan}</span>
+              <span className="font-medium">{d.count}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewPanel() {
+  const { data, isLoading } = useQuery<{ success: boolean; data: DashboardStats }>({
+    queryKey: ["/api/admin/dashboard/stats"],
+  });
+
+  const stats = data?.data;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="animate-pulse h-28 bg-muted rounded-lg" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="animate-pulse h-48 bg-muted rounded-lg" />
+          <div className="animate-pulse h-48 bg-muted rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
+
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="space-y-6" data-testid="panel-overview-content">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Users"
+          value={stats.totalUsers}
+          icon={Users}
+          trend={stats.newUsersThisWeek > 0 ? { value: stats.newUsersThisWeek, label: "this week" } : undefined}
+        />
+        <StatCard
+          title="New This Month"
+          value={stats.newUsersThisMonth}
+          icon={UserPlus}
+          subtitle="Last 30 days"
+        />
+        <StatCard
+          title="Active Projects"
+          value={stats.totalProjects}
+          icon={FolderKanban}
+        />
+        <StatCard
+          title="Total Generations"
+          value={stats.totalGenerations}
+          icon={BarChart3}
+          subtitle={`${stats.totalArtifacts} artifacts`}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <GrowthChart data={stats.userGrowth} />
+        <PlanDistributionChart data={stats.planDistribution} />
+      </div>
+
+      <Card data-testid="card-recent-signups">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Recent Signups</CardTitle>
+              <CardDescription>Latest users who joined the platform</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              <UserPlus className="h-3 w-3 mr-1" />
+              {stats.recentSignups.length}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {stats.recentSignups.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No signups yet</p>
+          ) : (
+            <div className="space-y-3">
+              {stats.recentSignups.map((user) => (
+                <div key={user.id} className="flex items-center justify-between py-2 border-b last:border-0" data-testid={`signup-${user.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-medium text-primary">
+                        {(user.firstName?.[0] || user.email?.[0] || "?").toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {[user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Anonymous"}
+                      </p>
+                      {user.email && (
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="text-xs capitalize">{user.billingPlan}</Badge>
+                    <span className="text-xs text-muted-foreground">{formatTimeAgo(user.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 interface ProviderHealthPanelProps {
@@ -193,7 +480,7 @@ function ProviderHealthPanel({ onActionStateChange }: ProviderHealthPanelProps) 
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {providers.map((provider) => (
           <Card key={provider.provider} data-testid={`card-provider-${provider.provider}`}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
@@ -468,6 +755,8 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
   const { toast } = useToast();
   const [disableReason, setDisableReason] = useState("");
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [planFilter, setPlanFilter] = useState<string>("all");
 
   useEffect(() => {
     onActionStateChange?.(hasOpenDialog);
@@ -485,6 +774,7 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard/stats"] });
       toast({ title: "Generation disabled", description: "The user can no longer generate new content." });
     },
     onError: (error) => {
@@ -500,6 +790,7 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard/stats"] });
       toast({ title: "Generation enabled", description: "The user can now generate content again." });
     },
     onError: (error) => {
@@ -507,13 +798,37 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
     },
   });
 
-  const users = data?.data?.users || [];
+  const changePlan = useMutation({
+    mutationFn: async ({ userId, planId }: { userId: string; planId: string }) => {
+      const response = await apiRequest("POST", `/api/admin/users/${userId}/plan`, { planId, confirm: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/billing/usage-by-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard/stats"] });
+      toast({ title: "Plan updated", description: "The user's subscription plan has been changed." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const allUsers = data?.data?.users || [];
+
+  const filteredUsers = allUsers.filter(user => {
+    const matchesSearch = !searchQuery || 
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesPlan = planFilter === "all" || user.billingPlan === planFilter;
+    return matchesSearch && matchesPlan;
+  });
 
   if (isLoading) {
     return <div className="animate-pulse h-40 bg-muted rounded-lg" data-testid="loading-users" />;
   }
 
-  if (users.length === 0) {
+  if (allUsers.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground" data-testid="empty-users">
         <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -547,19 +862,54 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
     return date.toLocaleDateString();
   };
 
+  const planDisplayName = (plan: string) => {
+    const names: Record<string, string> = { free: "Free", starter: "Starter", professional: "Pro", team: "Team" };
+    return names[plan] || plan;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-lg font-semibold">User Management</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] })}
-          data-testid="button-refresh-users"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            {filteredUsers.length} of {allUsers.length} users
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] })}
+            data-testid="button-refresh-users"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-users"
+          />
+        </div>
+        <Select value={planFilter} onValueChange={setPlanFilter}>
+          <SelectTrigger className="w-36" data-testid="select-plan-filter">
+            <SelectValue placeholder="All plans" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Plans</SelectItem>
+            <SelectItem value="free">Free</SelectItem>
+            <SelectItem value="starter">Starter</SelectItem>
+            <SelectItem value="professional">Pro</SelectItem>
+            <SelectItem value="team">Team</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card data-testid="card-users-list">
@@ -567,42 +917,56 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User ID</TableHead>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Projects</TableHead>
-                <TableHead>Last Activity</TableHead>
+                <TableHead>Joined</TableHead>
                 <TableHead className="text-right">Usage</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {user.id.slice(0, 12)}...
-                  </TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{user.username}</div>
-                      {user.email && (
-                        <div className="text-xs text-muted-foreground">
-                          {user.email}
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[10px] font-semibold text-primary">
+                          {(user.username?.[0] || "?").toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{user.username}</div>
+                        {user.email && (
+                          <div className="text-xs text-muted-foreground">
+                            {user.email}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
+                    <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize text-xs">
                       {user.role}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize text-xs">
-                      {user.billingPlan}
-                    </Badge>
+                    <Select
+                      value={user.billingPlan}
+                      onValueChange={(newPlan) => changePlan.mutate({ userId: user.id, planId: newPlan })}
+                    >
+                      <SelectTrigger className="h-7 w-24 text-xs" data-testid={`select-plan-${user.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="free">Free</SelectItem>
+                        <SelectItem value="starter">Starter</SelectItem>
+                        <SelectItem value="professional">Pro</SelectItem>
+                        <SelectItem value="team">Team</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     {user.generationDisabled ? (
@@ -619,12 +983,12 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
                   </TableCell>
                   <TableCell className="text-right">{user.projectCount}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {formatLastActivity(user.lastActivityAt)}
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="text-xs">
-                      <div>{user.usageSummary.totalRequests} requests</div>
-                      <div className="text-muted-foreground">${user.usageSummary.estimatedCost.toFixed(4)}</div>
+                      <div>{user.usageSummary.totalRequests} req</div>
+                      <div className="text-muted-foreground">${user.usageSummary.estimatedCost.toFixed(2)}</div>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -703,6 +1067,193 @@ function UsersPanel({ onActionStateChange }: UsersPanelProps) {
                                 setDisableReason("");
                               }}
                               data-testid="button-confirm-disable-user"
+                            >
+                              Disable
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProjectsPanel() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [disableReason, setDisableReason] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data, isLoading } = useQuery<{ success: boolean; data: { projects: ProjectSummary[] } }>({
+    queryKey: ["/api/admin/projects"],
+  });
+
+  const disableGeneration = useMutation({
+    mutationFn: async ({ projectId, reason }: { projectId: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/admin/projects/${projectId}/disable-generation`, { reason, confirm: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      toast({ title: "Generation disabled", description: "Project generation has been disabled." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const enableGeneration = useMutation({
+    mutationFn: async (projectId: string) => {
+      const response = await apiRequest("POST", `/api/admin/projects/${projectId}/enable-generation`, { confirm: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/actions"] });
+      toast({ title: "Generation enabled", description: "Project generation has been enabled." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const allProjects = data?.data?.projects || [];
+  const filteredProjects = allProjects.filter(p =>
+    !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (isLoading) {
+    return <div className="animate-pulse h-40 bg-muted rounded-lg" data-testid="loading-projects" />;
+  }
+
+  if (allProjects.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground" data-testid="empty-projects">
+        <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <p>No projects found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold">All Projects</h3>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">{allProjects.length} projects</Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] })}
+            data-testid="button-refresh-projects"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search projects..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+          data-testid="input-search-projects"
+        />
+      </div>
+
+      <Card data-testid="card-projects-list">
+        <CardContent className="pt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Project</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead className="text-right">Members</TableHead>
+                <TableHead className="text-right">Artifacts</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProjects.map((project) => (
+                <TableRow key={project.id} data-testid={`row-project-${project.id}`}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium text-sm">{project.name}</div>
+                      {project.description && (
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">{project.description}</div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{project.ownerName || "—"}</TableCell>
+                  <TableCell className="text-right">{project.memberCount}</TableCell>
+                  <TableCell className="text-right">{project.artifactCount}</TableCell>
+                  <TableCell>
+                    {project.generationDisabled ? (
+                      <Badge variant="destructive" className="text-xs">Disabled</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-green-600 border-green-600">Active</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(project.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {project.generationDisabled ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => enableGeneration.mutate(project.id)}
+                        data-testid={`button-enable-project-${project.id}`}
+                      >
+                        <Power className="h-4 w-4 mr-1" />
+                        Enable
+                      </Button>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid={`button-disable-project-${project.id}`}>
+                            <PowerOff className="h-4 w-4 mr-1" />
+                            Disable
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Disable generation for "{project.name}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will prevent new content generation in this project. Existing content remains accessible.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-4">
+                            <Label htmlFor="project-disable-reason">Reason (required)</Label>
+                            <Input
+                              id="project-disable-reason"
+                              value={disableReason}
+                              onChange={(e) => setDisableReason(e.target.value)}
+                              placeholder="Enter reason..."
+                              data-testid="input-disable-project-reason"
+                            />
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setDisableReason("")}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              disabled={!disableReason.trim()}
+                              onClick={() => {
+                                disableGeneration.mutate({ projectId: project.id, reason: disableReason });
+                                setDisableReason("");
+                              }}
                             >
                               Disable
                             </AlertDialogAction>
@@ -855,7 +1406,7 @@ function ActionLogPanel() {
                   <TableCell className="font-mono text-xs">
                     {action.targetType}: {action.targetId.slice(0, 8)}...
                   </TableCell>
-                  <TableCell className="text-xs">{action.adminUserId}</TableCell>
+                  <TableCell className="text-xs">{action.adminUserId.slice(0, 8)}...</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {action.reason || "-"}
                   </TableCell>
@@ -899,23 +1450,33 @@ export default function Admin() {
   }
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8" data-testid="page-admin">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-admin-title">Admin Console</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage providers, users, usage, and platform integrity.
-        </p>
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6" data-testid="page-admin">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-admin-title">Admin Console</h1>
+          <p className="text-sm text-muted-foreground">
+            Platform overview, user management, and system health.
+          </p>
+        </div>
       </div>
 
-      <Tabs defaultValue="providers" className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full max-w-4xl">
-          <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
-            <Activity className="h-4 w-4" />
-            Providers
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="flex w-full max-w-5xl overflow-x-auto">
+          <TabsTrigger value="overview" className="flex items-center gap-2" data-testid="tab-overview">
+            <LayoutDashboard className="h-4 w-4" />
+            Overview
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2" data-testid="tab-users">
             <Users className="h-4 w-4" />
             Users
+          </TabsTrigger>
+          <TabsTrigger value="projects" className="flex items-center gap-2" data-testid="tab-projects">
+            <FolderKanban className="h-4 w-4" />
+            Projects
+          </TabsTrigger>
+          <TabsTrigger value="providers" className="flex items-center gap-2" data-testid="tab-providers">
+            <Activity className="h-4 w-4" />
+            Health
           </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-2" data-testid="tab-billing">
             <CreditCard className="h-4 w-4" />
@@ -931,16 +1492,24 @@ export default function Admin() {
           </TabsTrigger>
           <TabsTrigger value="actions" className="flex items-center gap-2" data-testid="tab-actions">
             <Clock className="h-4 w-4" />
-            Actions
+            Audit Log
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
-          <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
+        <TabsContent value="overview" className="space-y-6" data-testid="panel-overview">
+          <OverviewPanel />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-6" data-testid="panel-users">
           <UsersPanel onActionStateChange={setHasActiveAction} />
+        </TabsContent>
+
+        <TabsContent value="projects" className="space-y-6" data-testid="panel-projects">
+          <ProjectsPanel />
+        </TabsContent>
+
+        <TabsContent value="providers" className="space-y-6" data-testid="panel-providers">
+          <ProviderHealthPanel onActionStateChange={setHasActiveAction} />
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-6" data-testid="panel-billing">

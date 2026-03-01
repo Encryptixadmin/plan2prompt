@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.
 - **Form Handling**: React Hook Form with Zod validation.
-- **Admin Console**: `/admin` route for managing providers, usage, users, projects, and auditing.
+- **Admin Console**: `/admin` route with 8-tab dashboard: Overview (KPI stat cards, user growth chart, plan distribution, recent signups), Users (search, filter by plan, inline plan changes, enable/disable generation), Projects (search, member/artifact counts, enable/disable), Health (AI provider status), Billing (plan usage), Usage (token/cost tracking), Artifacts (pipeline integrity), Audit Log (admin action history). All data queries from PostgreSQL (not in-memory).
 
 ### Technical Implementations
 - **Backend Runtime**: Node.js with Express.
@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **Database Transactions**: Artifact create/update operations wrapped in `db.transaction()` for atomic writes.
 - **Pagination**: List endpoints (clarifications, requirements/ideas, prompts/requirements) support `?limit=N&offset=M` query params (default 50, max 200).
 - **Standardized Error Format**: All API error responses use `{ success: false, error: { code: string, message: string } }`.
-- **Testing**: Vitest-based test harness — 266 invariant tests (pipeline sequencing, permissions, usage tracking, clarification contracts, traceability, MCP API key management) + 7 integration tests (health check, auth, CSRF, error format, security headers).
+- **Testing**: Vitest-based test harness — 273 tests across 14 test files: invariant tests (pipeline sequencing, permissions, usage tracking, clarification contracts, traceability, MCP API key management, execution integrity, risk delta, failure classification) + integration tests (health check, auth, CSRF, error format, security headers).
 - **Cross-Module Clarification Contracts**: Upward-only clarification system for downstream modules to request upstream clarification. Uses SHA256-based deterministic contract hashing, with categories like missing_information, contradiction, and execution_failure. Severity levels are advisory and blocker, with automatic escalation.
 - **SSE Generation Progress**: All three generation endpoints (`/analyze-stream`, `/generate-stream`) support Server-Sent Events streaming with progress callbacks. Frontend uses `useSSEGeneration` hook and `GenerationProgress` component to show real-time stage updates during AI generation.
 - **Artifact Export**: `GET /api/artifacts/:id/export?format=markdown` returns downloadable Markdown files with proper Content-Disposition headers. Export buttons available on accepted Ideas, locked Requirements, and generated Prompts.

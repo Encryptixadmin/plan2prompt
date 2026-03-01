@@ -133,6 +133,7 @@ export const adminActionTypes = [
   "project_generation_disabled",
   "project_generation_enabled",
   "stop_recommendation_override",
+  "user_plan_changed",
 ] as const;
 export type AdminActionType = typeof adminActionTypes[number];
 

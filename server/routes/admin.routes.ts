@@ -304,6 +304,67 @@ router.post("/projects/:projectId/enable-generation", async (req, res) => {
   }
 });
 
+router.get("/dashboard/stats", async (_req, res) => {
+  try {
+    const stats = await adminService.getDashboardStats();
+    res.json({
+      success: true,
+      data: stats,
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "DASHBOARD_ERROR",
+        message: error instanceof Error ? error.message : "Failed to get dashboard stats",
+      },
+    });
+  }
+});
+
+router.post("/users/:userId/plan", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { planId, confirm } = req.body as { planId: string; confirm?: boolean };
+
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "planId is required.",
+        },
+      });
+    }
+
+    if (!confirm) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "CONFIRMATION_REQUIRED",
+          message: "Admin action requires confirmation. Set confirm: true in request body.",
+        },
+      });
+    }
+
+    await adminService.updateUserPlan(userId, planId, req.adminUserId!);
+    res.json({
+      success: true,
+      data: { userId, planId },
+      metadata: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "PLAN_UPDATE_ERROR",
+        message: error instanceof Error ? error.message : "Failed to update user plan",
+      },
+    });
+  }
+});
+
 router.get("/artifacts/integrity", async (_req, res) => {
   try {
     const artifacts = await artifactService.list();
