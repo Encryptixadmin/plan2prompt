@@ -182,16 +182,17 @@ export default function Landing() {
         <section id="pipeline" className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-pipeline">
           <div className="max-w-6xl mx-auto">
             <div className="mb-14 space-y-2">
-              <h2 className="text-2xl font-semibold tracking-tight">How It Works</h2>
+              <h2 className="text-2xl font-semibold tracking-tight" data-testid="text-how-it-works-heading">How It Works</h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                You describe your idea and refine the requirements. The platform handles everything else.
+                You describe your idea. The platform validates it, generates requirements and build steps,
+                then feeds them directly into your IDE through MCP.
               </p>
             </div>
 
             <div className="mb-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">You</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-foreground" data-testid="text-phase-plan">Plan</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[15px] mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-[15px] mb-10">
               <PipelineStage
                 number={1}
                 title="Describe Your Idea"
@@ -206,44 +207,70 @@ export default function Landing() {
                 description="Review the generated spec. Answer clarifying questions to sharpen the technical plan."
                 capability="Guided Refinement"
                 icon={FileText}
+              />
+              <PipelineStage
+                number={3}
+                title="Generate Build Steps"
+                description="Ordered, IDE-specific instructions are generated from your requirements with full traceability."
+                capability="Linked to Requirements"
+                icon={Zap}
                 isLast
               />
             </div>
 
             <div className="mb-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">The Platform</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-foreground" data-testid="text-phase-build">Build</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-[15px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[15px] mb-10">
               <PipelineStage
-                number={3}
-                title="Build Steps"
-                description="Ordered, IDE-specific instructions are generated from your requirements."
-                capability="Linked to Requirements"
-                icon={Zap}
+                number={4}
+                title="Connect Your IDE"
+                description="Your IDE's AI assistant connects to Plan2Prompt via MCP. Steps are pulled directly — no copy-paste."
+                capability="MCP Protocol"
+                icon={Plug}
                 isFirst
               />
               <PipelineStage
-                number={4}
-                title="Execution Tracking"
-                description="Each step is tracked with progress state and safety classification."
+                number={5}
+                title="Execute With Tracking"
+                description="Each step is tracked with progress state, safety classification, and integrity controls."
                 capability="Flags Risky Actions"
                 icon={Terminal}
               />
               <PipelineStage
-                number={5}
-                title="Error Detection"
-                description="Failures are classified automatically. Repeated errors are flagged."
+                number={6}
+                title="Classify Errors"
+                description="Failures are classified automatically. Repeated errors and duplicate patterns are detected."
                 capability="Detects Repeat Errors"
                 icon={RefreshCw}
               />
               <PipelineStage
-                number={6}
-                title="Auto-Refinement"
-                description="Unresolved problems are routed back to the right stage for resolution."
+                number={7}
+                title="Auto-Resolve"
+                description="Unresolved problems are routed back to the right stage. Nothing moves forward until the issue is fixed."
                 capability="Upstream Resolution"
                 icon={GitBranch}
                 isLast
               />
+            </div>
+
+            <div className="rounded-lg border bg-background/50 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-testid="pipeline-mcp-callout">
+              <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <Plug className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Your IDE stays connected throughout</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Cursor, Windsurf, Claude Code, and other MCP-compatible editors pull steps, report errors,
+                  and resolve blockers without you switching between the browser and your editor.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" asChild data-testid="link-pipeline-get-started">
+                <a href="/auth">
+                  Get Started
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </a>
+              </Button>
             </div>
           </div>
         </section>
