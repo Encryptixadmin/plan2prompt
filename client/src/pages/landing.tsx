@@ -73,20 +73,22 @@ function CapabilityCard({
   description,
   icon: Icon,
   testId,
+  featured,
 }: {
   title: string;
   description: string;
   icon: React.ElementType;
   testId: string;
+  featured?: boolean;
 }) {
   return (
-    <Card data-testid={testId}>
-      <CardContent className="p-5 space-y-2.5">
-        <div className="h-9 w-9 rounded-md bg-primary/8 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
+    <Card className={featured ? "sm:col-span-1" : ""} data-testid={testId}>
+      <CardContent className={`${featured ? "p-6" : "p-5"} space-y-2.5`}>
+        <div className={`${featured ? "h-10 w-10" : "h-9 w-9"} rounded-md bg-primary/10 flex items-center justify-center`}>
+          <Icon className={`${featured ? "h-5 w-5" : "h-4 w-4"} text-primary`} />
         </div>
-        <h3 className="font-semibold text-sm">{title}</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+        <h3 className={`font-semibold ${featured ? "text-base" : "text-sm"}`}>{title}</h3>
+        <p className={`${featured ? "text-sm" : "text-xs"} text-muted-foreground leading-relaxed`}>{description}</p>
       </CardContent>
     </Card>
   );
@@ -94,11 +96,69 @@ function CapabilityCard({
 
 function DisciplineItem({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="h-7 w-7 rounded-md bg-primary/8 flex items-center justify-center shrink-0 mt-0.5">
+    <div className="flex items-start gap-3 pl-4 border-l-2 border-primary/20">
+      <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
         <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
       <span className="text-sm text-muted-foreground leading-relaxed">{text}</span>
+    </div>
+  );
+}
+
+function HeroMockStep() {
+  return (
+    <div className="relative" data-testid="hero-mock-step">
+      <div className="absolute -inset-4 bg-primary/5 rounded-2xl blur-xl" />
+      <Card className="relative shadow-lg">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">
+                3
+              </div>
+              <span className="text-sm font-semibold">Set Up Database Schema</span>
+            </div>
+            <span className="text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md">
+              caution
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Create the PostgreSQL schema with users, projects, and artifacts tables. Add indexes for userId and projectId lookups.
+          </p>
+          <div className="flex items-center gap-3 pt-1">
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <FileText className="h-3 w-3" />
+              REQ-004, REQ-005
+            </span>
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Non-idempotent
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="relative mt-2 opacity-60">
+        <CardContent className="p-4 flex items-center gap-3">
+          <div className="h-6 w-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-semibold">
+            4
+          </div>
+          <span className="text-sm text-muted-foreground">Implement Authentication Flow</span>
+          <span className="ml-auto text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-md">
+            safe
+          </span>
+        </CardContent>
+      </Card>
+      <Card className="relative mt-2 opacity-40">
+        <CardContent className="p-4 flex items-center gap-3">
+          <div className="h-6 w-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-semibold">
+            5
+          </div>
+          <span className="text-sm text-muted-foreground">Build API Endpoints</span>
+          <span className="ml-auto text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-md">
+            safe
+          </span>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -136,44 +196,51 @@ export default function Landing() {
       </nav>
 
       <main className="pt-14">
-        <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 border-b" data-testid="section-hero">
-          <div className="max-w-6xl mx-auto">
-            <div className="max-w-2xl space-y-6">
-              <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/8 px-3 py-1.5 rounded-md">
-                <Layers className="h-3 w-3" />
-                Structured Build Planning
+        <section className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 border-b overflow-hidden" data-testid="section-hero">
+          <div className="absolute inset-0 bg-hero-glow" />
+          <div className="absolute inset-0 bg-dot-pattern opacity-40" />
+          <div className="relative max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-md">
+                  <Layers className="h-3 w-3" />
+                  Structured Build Planning
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
+                  From Idea to Execution
+                  <br />
+                  <span className="text-gradient-primary">With Control at Every Step</span>
+                </h1>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
+                  Multiple AI models independently review your idea, shape it into clear requirements,
+                  and produce step-by-step build instructions you can follow in your favourite IDE.
+                  Nothing gets skipped. Every step is accounted for.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <Button size="lg" asChild data-testid="button-get-started-hero">
+                    <a href="/auth">
+                      Start a Structured Build
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-2">
+                  <span className="flex items-center gap-1.5">
+                    <Brain className="h-3.5 w-3.5" />
+                    Multi-AI Review
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Target className="h-3.5 w-3.5" />
+                    Clear Requirements
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" />
+                    Safe Execution
+                  </span>
+                </div>
               </div>
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
-                From Idea to Execution
-                <br />
-                <span className="text-primary">With Control at Every Step</span>
-              </h1>
-              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
-                Multiple AI models independently review your idea, shape it into clear requirements,
-                and produce step-by-step build instructions you can follow in your favourite IDE.
-                Nothing gets skipped. Every step is accounted for.
-              </p>
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button size="lg" asChild data-testid="button-get-started-hero">
-                  <a href="/auth">
-                    Start a Structured Build
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-2">
-                <span className="flex items-center gap-1.5">
-                  <Brain className="h-3.5 w-3.5" />
-                  Multi-AI Review
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  Clear Requirements
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5" />
-                  Safe Execution
-                </span>
+              <div className="hidden lg:block">
+                <HeroMockStep />
               </div>
             </div>
           </div>
@@ -283,40 +350,44 @@ export default function Landing() {
                 Every stage uses structured analysis, not open-ended AI generation. The system reasons about your project methodically.
               </p>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
               <CapabilityCard
                 title="Independent AI Review"
                 description="Multiple AI models evaluate your idea separately, then results are combined. You get a balanced assessment, not a single opinion."
                 icon={Brain}
                 testId="card-consensus"
-              />
-              <CapabilityCard
-                title="Viability Assessment"
-                description="Your idea is scored across technical feasibility, market potential, and execution effort. Different project types get tailored criteria."
-                icon={BarChart3}
-                testId="card-viability"
-              />
-              <CapabilityCard
-                title="Automatic Requirements"
-                description="Once your idea is validated, the system generates a complete technical specification including architecture, features, and data design."
-                icon={FileText}
-                testId="card-requirements"
+                featured
               />
               <CapabilityCard
                 title="Full Traceability"
                 description="Every build instruction links back to a specific requirement. Every requirement links back to the original idea. You can always see why a step exists."
                 icon={Search}
                 testId="card-traceability"
+                featured
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <CapabilityCard
+                title="Viability Assessment"
+                description="Your idea is scored across technical feasibility, market potential, and execution effort."
+                icon={BarChart3}
+                testId="card-viability"
+              />
+              <CapabilityCard
+                title="Automatic Requirements"
+                description="A complete technical specification including architecture, features, and data design."
+                icon={FileText}
+                testId="card-requirements"
               />
               <CapabilityCard
                 title="Safety Checks"
-                description="Each step is automatically classified as safe, cautious, or critical. Dangerous operations like database changes are flagged before you run them."
+                description="Each step is classified as safe, cautious, or critical. Dangerous operations are flagged."
                 icon={ShieldCheck}
                 testId="card-integrity"
               />
               <CapabilityCard
-                title="Automatic Error Handling"
-                description="When a step fails, the system recognises repeated errors and escalates them. No AI guesswork involved — the rules are fixed and predictable."
+                title="Error Handling"
+                description="Repeated errors are recognised and escalated. The rules are fixed and predictable."
                 icon={AlertTriangle}
                 testId="card-escalation"
               />
@@ -363,64 +434,16 @@ export default function Landing() {
         <section className="py-20 px-4 sm:px-6 lg:px-8 border-b" data-testid="section-ide">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-semibold tracking-tight">Works With Your IDE</h2>
+              <div className="space-y-5">
+                <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-md">
+                  <Plug className="h-3 w-3" />
+                  MCP Server Built In
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight" data-testid="text-mcp-heading">Works With Your IDE</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
                   Plan2Prompt plans the build. Your IDE does the building.
-                  You get clear, step-by-step instructions formatted for the tool you already use.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
-                        <Terminal className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-sm">Structured Instructions, Not Suggestions</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Each build step includes what to do, which requirements it covers,
-                          what order to follow, and what to watch out for. No guessing.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
-                        <Layers className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-sm">Supported Environments</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDE.
-                          The same plan adapts its output to match your development environment.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-mcp">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/8 px-3 py-1.5 rounded-md">
-                  <Plug className="h-3 w-3" />
-                  MCP Server
-                </div>
-                <h2 className="text-2xl font-semibold tracking-tight" data-testid="text-mcp-heading">Direct IDE Connection</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                  Plan2Prompt includes a built-in MCP server. Your IDE's AI assistant can connect directly
-                  to pull build steps, track progress, report errors, and resolve issues — all without
-                  leaving your editor.
+                  Connect your IDE's AI assistant directly via MCP — steps are pulled, progress is tracked,
+                  and errors are resolved without switching between browser and editor.
                 </p>
                 <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-1" data-testid="text-mcp-ide-list">
                   <span className="flex items-center gap-1.5" data-testid="text-mcp-ide-cursor">
@@ -440,12 +463,33 @@ export default function Landing() {
                     Any MCP Client
                   </span>
                 </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2.5 py-1 rounded-md">10 Tools</span>
+                  <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2.5 py-1 rounded-md">5 Resources</span>
+                  <span className="text-[11px] font-medium text-primary/80 bg-primary/5 px-2.5 py-1 rounded-md">API Key Auth</span>
+                </div>
               </div>
               <div className="space-y-3">
                 <Card>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
+                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                        <Terminal className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm">Structured Instructions, Not Suggestions</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Each build step includes what to do, which requirements it covers,
+                          what order to follow, and what to watch out for. No guessing.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                         <Zap className="h-4 w-4 text-primary" />
                       </div>
                       <div className="space-y-1">
@@ -461,14 +505,14 @@ export default function Landing() {
                 <Card>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
-                        <Activity className="h-4 w-4 text-primary" />
+                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                        <Layers className="h-4 w-4 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-sm" data-testid="text-mcp-tools-resources">10 Tools, 5 Resources</h3>
+                        <h3 className="font-semibold text-sm">Supported Environments</h3>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Session management, step progression, failure classification, clarification handling,
-                          plus full access to requirements, prompts, and execution state.
+                          Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDE.
+                          The same plan adapts its output to match your development environment.
                         </p>
                       </div>
                     </div>
@@ -477,7 +521,7 @@ export default function Landing() {
                 <Card>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
+                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                         <Shield className="h-4 w-4 text-primary" />
                       </div>
                       <div className="space-y-1">
@@ -505,8 +549,10 @@ export default function Landing() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Lock className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">Project Separation</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Each project is completely isolated. Data from one project is never
@@ -515,8 +561,10 @@ export default function Landing() {
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">Roles and Permissions</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Admin and user roles with plan-based access levels. Admins get a dedicated
@@ -525,8 +573,10 @@ export default function Landing() {
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Activity className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">Usage Monitoring</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     AI usage is tracked per provider across all operations.
@@ -535,8 +585,10 @@ export default function Landing() {
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <Eye className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Eye className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">Audit Trail</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Every admin action, feedback event, and resolution is logged
@@ -545,8 +597,10 @@ export default function Landing() {
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">AI Health Checks</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     AI providers are tested automatically when the system starts.
@@ -555,8 +609,10 @@ export default function Landing() {
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-5 space-y-2">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardContent className="p-5 space-y-2.5">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-sm">Secure Authentication</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Sign in securely with Replit Auth or email and password.
@@ -568,21 +624,38 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8" data-testid="section-final-cta">
-          <div className="max-w-6xl mx-auto text-center">
-            <div className="max-w-md mx-auto space-y-5">
-              <h2 className="text-2xl font-semibold tracking-tight">Build With Confidence</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+        <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden" data-testid="section-final-cta">
+          <div className="absolute inset-0 bg-gradient-cta" />
+          <div className="absolute inset-0 bg-dot-pattern opacity-30" />
+          <div className="relative max-w-6xl mx-auto text-center">
+            <div className="max-w-lg mx-auto space-y-5">
+              <h2 className="text-3xl font-bold tracking-tight">Build With Confidence</h2>
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                 Stop guessing whether your idea will work. Get a clear assessment,
-                a proper plan, and step-by-step instructions to build it.
+                a proper plan, and step-by-step instructions to build it —
+                with your IDE connected every step of the way.
               </p>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
                 <Button size="lg" asChild data-testid="button-get-started-cta">
                   <a href="/auth">
                     Start a Build
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
+              </div>
+              <div className="flex flex-wrap justify-center items-center gap-5 text-xs text-muted-foreground pt-3">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  Free to start
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  No credit card required
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  IDE-ready in minutes
+                </span>
               </div>
             </div>
           </div>
