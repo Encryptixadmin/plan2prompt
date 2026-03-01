@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Sun, Moon, Lightbulb, FileText, Terminal, LayoutDashboard, Shield, LogOut, HelpCircle, BookOpen, Settings } from "lucide-react";
+import { Sun, Moon, Lightbulb, FileText, Terminal, LayoutDashboard, Shield, LogOut, HelpCircle, BookOpen, Settings, Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -82,6 +82,16 @@ function AppSidebar() {
           <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium">Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setLocation("/mcp-setup")}
+                  data-active={location.startsWith("/mcp-setup")}
+                  data-testid="nav-mcp-setup"
+                >
+                  <Plug className="h-4 w-4" />
+                  <span>MCP Setup</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => setLocation("/account")}

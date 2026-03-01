@@ -24,6 +24,7 @@ import {
   Activity,
   Eye,
   ServerCrash,
+  Plug,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
@@ -370,6 +371,93 @@ export default function Landing() {
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           Replit, Cursor, Lovable, Antigravity, Warp, and Generic IDE.
                           The same plan adapts its output to match your development environment.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-b" data-testid="section-mcp">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/8 px-3 py-1.5 rounded-md">
+                  <Plug className="h-3 w-3" />
+                  MCP Server
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight" data-testid="text-mcp-heading">Direct IDE Connection</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                  Plan2Prompt includes a built-in MCP server. Your IDE's AI assistant can connect directly
+                  to pull build steps, track progress, report errors, and resolve issues — all without
+                  leaving your editor.
+                </p>
+                <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-1" data-testid="text-mcp-ide-list">
+                  <span className="flex items-center gap-1.5" data-testid="text-mcp-ide-cursor">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    Cursor
+                  </span>
+                  <span className="flex items-center gap-1.5" data-testid="text-mcp-ide-windsurf">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    Windsurf
+                  </span>
+                  <span className="flex items-center gap-1.5" data-testid="text-mcp-ide-claude-code">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    Claude Code
+                  </span>
+                  <span className="flex items-center gap-1.5" data-testid="text-mcp-ide-any">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    Any MCP Client
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Card>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
+                        <Zap className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm" data-testid="text-mcp-no-copy-paste">No Copy-Paste</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Your IDE pulls build steps directly from Plan2Prompt. Start a session, get steps,
+                          mark them complete, and report errors — all through the MCP protocol.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
+                        <Activity className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm" data-testid="text-mcp-tools-resources">10 Tools, 5 Resources</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Session management, step progression, failure classification, clarification handling,
+                          plus full access to requirements, prompts, and execution state.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-md bg-primary/8 flex items-center justify-center shrink-0">
+                        <Shield className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm" data-testid="text-mcp-secure-auth">Secure API Key Auth</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Generate API keys from your account, connect your IDE, and everything
+                          stays scoped to your project. Keys are hashed, revocable, and auditable.
                         </p>
                       </div>
                     </div>

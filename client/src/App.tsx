@@ -11,6 +11,7 @@ import Requirements from "@/pages/requirements";
 import Prompts from "@/pages/prompts";
 import Admin from "@/pages/admin";
 import Account from "@/pages/account";
+import McpSetup from "@/pages/mcp-setup";
 import Landing from "@/pages/landing";
 import AuthPage from "@/pages/auth";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding-modal";
@@ -45,6 +46,7 @@ function AuthenticatedRouter() {
         <Route path="/prompts" component={Prompts} />
         <Route path="/admin" component={Admin} />
         <Route path="/account" component={Account} />
+        <Route path="/mcp-setup" component={McpSetup} />
         <Route path="/auth" component={AuthRedirect} />
         <Route component={NotFound} />
       </Switch>

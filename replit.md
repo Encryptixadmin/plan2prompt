@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Frontend Framework**: React 19 with TypeScript and Vite.
 - **Styling**: Tailwind CSS with shadcn/ui (New York style) on Radix UI, using Inter and JetBrains Mono fonts.
 - **Design System**: Indigo primary palette, sophisticated neutral scale, refined shadows, and full dark mode support via ThemeProvider.
-- **Layout**: AppShell for authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/Account/Admin) and a top bar.
+- **Layout**: AppShell for authenticated pages with Shadcn Sidebar navigation (Dashboard/Ideas/Requirements/Prompts/MCP Setup/Account/Admin) and a top bar.
 - **State Management**: TanStack Query for server state.
 - **Routing**: Wouter for client-side routing.
 - **Form Handling**: React Hook Form with Zod validation.
