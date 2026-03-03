@@ -80,6 +80,8 @@ export interface IStorage {
   setSuccessHash(id: string, hash: string): Promise<ExecutionStep | undefined>;
   setIntegrityOverride(id: string): Promise<ExecutionStep | undefined>;
   setDuplicateFailureDetected(id: string): Promise<ExecutionStep | undefined>;
+  setStepStartedAt(id: string): Promise<ExecutionStep | undefined>;
+  batchCompleteSteps(sessionId: string, completions: { stepNumber: number; completedAt?: string }[]): Promise<ExecutionStep[]>;
 
   getBillingUsage(userId: string, yearMonth: string): Promise<BillingUsageRecord | undefined>;
   incrementBillingUsage(userId: string, yearMonth: string, tokens: number): Promise<BillingUsageRecord>;
@@ -475,12 +477,29 @@ export class DatabaseStorage implements IStorage {
 
   async updateExecutionStepStatus(id: string, status: ExecutionStepStatus): Promise<ExecutionStep | undefined> {
     const updateData: Record<string, unknown> = { status };
+    if (status === "in_progress") {
+      const existing = await db.select().from(executionSteps).where(eq(executionSteps.id, id));
+      if (existing[0] && !existing[0].startedAt) {
+        updateData.startedAt = new Date();
+      }
+    }
     if (status === "completed") {
       updateData.completedAt = new Date();
     }
     const [updated] = await db
       .update(executionSteps)
       .set(updateData)
+      .where(eq(executionSteps.id, id))
+      .returning();
+    return updated;
+  }
+
+  async setStepStartedAt(id: string): Promise<ExecutionStep | undefined> {
+    const existing = await db.select().from(executionSteps).where(eq(executionSteps.id, id));
+    if (existing[0] && existing[0].startedAt) return existing[0];
+    const [updated] = await db
+      .update(executionSteps)
+      .set({ startedAt: new Date() })
       .where(eq(executionSteps.id, id))
       .returning();
     return updated;
@@ -548,6 +567,51 @@ export class DatabaseStorage implements IStorage {
       .where(eq(executionSteps.id, id))
       .returning();
     return updated;
+  }
+
+  async batchCompleteSteps(sessionId: string, completions: { stepNumber: number; completedAt?: string }[]): Promise<ExecutionStep[]> {
+    const results: ExecutionStep[] = [];
+    await db.transaction(async (tx) => {
+      const allSteps = await tx
+        .select()
+        .from(executionSteps)
+        .where(eq(executionSteps.sessionId, sessionId))
+        .orderBy(asc(executionSteps.stepNumber));
+
+      for (const completion of completions) {
+        const step = allSteps.find(s => s.stepNumber === completion.stepNumber);
+        if (!step) throw new Error(`Step ${completion.stepNumber} not found`);
+
+        if (step.status === "completed") continue;
+
+        for (let i = 1; i < completion.stepNumber; i++) {
+          const prior = allSteps.find(s => s.stepNumber === i);
+          const alreadyCompleting = completions.some(c => c.stepNumber === i);
+          const priorResult = results.find(r => r.stepNumber === i);
+          if (prior && prior.status !== "completed" && !priorResult && !alreadyCompleting) {
+            throw new Error(`Step ${i} must be completed before step ${completion.stepNumber}`);
+          }
+        }
+
+        const now = new Date();
+        const completedAt = completion.completedAt ? new Date(completion.completedAt) : now;
+        const updateData: Record<string, unknown> = {
+          status: "completed",
+          completedAt,
+        };
+        if (!step.startedAt) {
+          updateData.startedAt = now;
+        }
+
+        const [updated] = await tx
+          .update(executionSteps)
+          .set(updateData)
+          .where(eq(executionSteps.id, step.id))
+          .returning();
+        results.push(updated);
+      }
+    });
+    return results;
   }
 
   async getBillingUsage(userId: string, yearMonth: string): Promise<BillingUsageRecord | undefined> {

@@ -284,6 +284,7 @@ export const executionSteps = pgTable("execution_steps", {
   attempts: integer("attempts").notNull().default(0),
   lastFailureHash: text("last_failure_hash"),
   escalationLevel: integer("escalation_level").notNull().default(0),
+  startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   reexecutionCount: integer("reexecution_count").notNull().default(0),
   successHash: text("success_hash"),
@@ -293,6 +294,7 @@ export const executionSteps = pgTable("execution_steps", {
 
 export const insertExecutionStepSchema = createInsertSchema(executionSteps).omit({
   id: true,
+  startedAt: true,
   completedAt: true,
 });
 

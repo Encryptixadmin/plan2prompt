@@ -19,17 +19,48 @@ interface SessionEntry {
 
 const sessions = new Map<string, SessionEntry>();
 
+const projectOverrides = new Map<string, string>();
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+const rateLimitMap = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 60;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap) {
+    if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS * 2) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 60_000);
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 export function getSessionAuth(sessionId: string): { userId: string; projectId: string } | null {
   const entry = sessions.get(sessionId);
   if (!entry) return null;
-  return { userId: entry.userId, projectId: entry.projectId };
+  const override = projectOverrides.get(sessionId);
+  return { userId: entry.userId, projectId: override || entry.projectId };
 }
 
 function createMcpServerInstance(): McpServer {
   const server = new McpServer(
     {
       name: "plan2prompt",
-      version: "1.1.0",
+      version: "1.2.0",
     },
     {
       capabilities: {
@@ -71,12 +102,43 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
+    if (!checkRateLimit(authResult.auth.userId)) {
+      return res.status(429).json({
+        jsonrpc: "2.0",
+        error: { code: -32029, message: "Rate limit exceeded. Maximum 60 requests per minute. Please wait before retrying." },
+        id: null,
+      });
+    }
+
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (sessionId && sessions.has(sessionId)) {
       const entry = sessions.get(sessionId)!;
+      const requestProjectId = req.headers["x-project-id"] as string;
+      if (requestProjectId && requestProjectId !== entry.projectId) {
+        const member = await storage.getProjectMember(requestProjectId, authResult.auth.userId);
+        if (member) {
+          projectOverrides.set(sessionId, requestProjectId);
+        }
+      } else {
+        projectOverrides.delete(sessionId);
+      }
       await entry.transport.handleRequest(req, res, req.body);
       return;
+    }
+
+    if (sessionId && !sessions.has(sessionId)) {
+      const isInitialize = Array.isArray(req.body)
+        ? req.body.some((m: any) => m.method === "initialize")
+        : req.body?.method === "initialize";
+
+      if (!isInitialize) {
+        return res.status(409).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Session expired or server restarted. Send a new initialize request to reconnect." },
+          id: null,
+        });
+      }
     }
 
     const isInitialize = Array.isArray(req.body)
@@ -93,6 +155,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       transport.onclose = () => {
         sessions.delete(newSessionId);
+        projectOverrides.delete(newSessionId);
       };
 
       await mcpServer.connect(transport);
@@ -110,7 +173,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     res.status(400).json({
       jsonrpc: "2.0",
-      error: { code: -32000, message: "No valid session. Send an initialize request first." },
+      error: { code: -32000, message: "No valid session. Send an initialize request with a valid Authorization and X-Project-Id header to start." },
       id: null,
     });
   } catch (error) {
@@ -125,10 +188,17 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.get("/", async (req: Request, res: Response) => {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
-  if (!sessionId || !sessions.has(sessionId)) {
+  if (!sessionId) {
     return res.status(400).json({
       jsonrpc: "2.0",
-      error: { code: -32000, message: "No valid session." },
+      error: { code: -32000, message: "No session ID provided." },
+      id: null,
+    });
+  }
+  if (!sessions.has(sessionId)) {
+    return res.status(409).json({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Session expired or server restarted. Send a new initialize request to reconnect." },
       id: null,
     });
   }
@@ -143,6 +213,7 @@ router.delete("/", async (req: Request, res: Response) => {
     const entry = sessions.get(sessionId)!;
     await entry.transport.handleRequest(req, res);
     sessions.delete(sessionId);
+    projectOverrides.delete(sessionId);
     return;
   }
   res.status(200).end();

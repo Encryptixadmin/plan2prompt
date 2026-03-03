@@ -97,7 +97,11 @@ export function registerExecutionTools(server: McpServer) {
           type: "text" as const,
           text: JSON.stringify({
             session,
-            steps,
+            steps: steps.map(s => ({
+              ...s,
+              startedAt: s.startedAt || null,
+              completedAt: s.completedAt || null,
+            })),
             upstreamChanged,
             progress: {
               total: steps.length,
@@ -209,6 +213,9 @@ export function registerExecutionTools(server: McpServer) {
         .digest("hex")
         .substring(0, 16);
 
+      if (!step.startedAt) {
+        await storage.setStepStartedAt(step.id);
+      }
       await storage.updateExecutionStepStatus(step.id, "completed");
       await storage.setSuccessHash(step.id, completionHash);
 
@@ -234,6 +241,65 @@ export function registerExecutionTools(server: McpServer) {
           }),
         }],
       };
+    }
+  );
+
+  server.tool(
+    "batch_complete_steps",
+    "Mark multiple steps as completed atomically. All steps must be in sequential order with prior steps already completed.",
+    {
+      sessionId: z.string().describe("The execution session ID"),
+      completions: z.array(z.object({
+        stepNumber: z.number().int().min(1).describe("The step number to complete"),
+        completedAt: z.string().optional().describe("Optional ISO 8601 timestamp for when the step was completed"),
+      })).min(1).describe("Array of step completions in sequential order"),
+    },
+    async (args, extra) => {
+      const { projectId } = getAuth(extra);
+
+      const session = await storage.getExecutionSession(args.sessionId);
+      if (!session || session.projectId !== projectId) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }) }] };
+      }
+
+      if (session.status === "blocked") {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ error: "Session is blocked due to upstream artifact changes" }) }] };
+      }
+
+      if (session.status === "completed") {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ error: "Session is already completed" }) }] };
+      }
+
+      const sorted = [...args.completions].sort((a, b) => a.stepNumber - b.stepNumber);
+
+      try {
+        const completedSteps = await storage.batchCompleteSteps(args.sessionId, sorted);
+
+        const allSteps = await storage.listExecutionSteps(args.sessionId);
+        const allCompleted = allSteps.every(s => s.status === "completed");
+        if (allCompleted) {
+          await storage.updateExecutionSessionStatus(args.sessionId, "completed");
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              completed: true,
+              stepsCompleted: completedSteps.map(s => s.stepNumber),
+              sessionCompleted: allCompleted,
+              steps: allSteps,
+            }),
+          }],
+        };
+      } catch (error: any) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ error: error.message || "Batch completion failed" }),
+          }],
+        };
+      }
     }
   );
 

@@ -116,9 +116,52 @@ export function registerContextResources(server: McpServer) {
   );
 
   server.resource(
+    "prompt-steps-structured",
+    "project://prompt-steps-structured",
+    { description: "All prompt steps as structured JSON with stepNumber, title, body, integrityLevel, isIdempotent, requirementsCovered, and dependencies" },
+    async (_uri, extra) => {
+      const { projectId } = getAuth(extra);
+
+      const artifacts = await storage.listArtifactsByProject(projectId, "prompts");
+      const latest = artifacts[0];
+
+      if (!latest) {
+        return {
+          contents: [{
+            uri: "project://prompt-steps-structured",
+            mimeType: "application/json",
+            text: JSON.stringify({ error: "No prompts found for this project." }),
+          }],
+        };
+      }
+
+      const metadata = latest.artifactMetadata || {};
+      const steps = (metadata as any).steps || [];
+
+      const structured = steps.map((step: any, idx: number) => ({
+        stepNumber: step.stepNumber || step.order || idx + 1,
+        title: step.title || "Untitled",
+        body: step.body || step.content || "",
+        integrityLevel: step.integrityLevel || "safe",
+        isIdempotent: step.isIdempotent !== false,
+        requirementsCovered: step.requirementsCovered || step.traceability || [],
+        dependencies: step.dependencies || [],
+      }));
+
+      return {
+        contents: [{
+          uri: "project://prompt-steps-structured",
+          mimeType: "application/json",
+          text: JSON.stringify({ artifactId: latest.id, steps: structured }, null, 2),
+        }],
+      };
+    }
+  );
+
+  server.resource(
     "session-state",
     "project://session-state",
-    { description: "Current execution session state (progress, active step, failure history)" },
+    { description: "Current execution session state (progress, active step, failure history, timing)" },
     async (_uri, extra) => {
       const { projectId } = getAuth(extra);
 
@@ -166,6 +209,14 @@ export function registerContextResources(server: McpServer) {
           percentComplete: steps.length > 0 ? Math.round((completed / steps.length) * 100) : 0,
         },
         activeStep: steps.find(s => s.status === "in_progress")?.stepNumber || null,
+        stepTimings: steps.map(s => ({
+          stepNumber: s.stepNumber,
+          startedAt: s.startedAt || null,
+          completedAt: s.completedAt || null,
+          durationMs: s.startedAt && s.completedAt
+            ? new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()
+            : null,
+        })),
         failureHistory,
       };
 
