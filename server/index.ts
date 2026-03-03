@@ -20,6 +20,23 @@ if (process.env.SENTRY_DSN) {
   logger.info("Sentry initialized");
 }
 
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error({ reason, promise: String(promise) }, "Unhandled promise rejection");
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+  }
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error({ err: error }, "Uncaught exception — process will exit");
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(error);
+    Sentry.flush(2000).finally(() => process.exit(1));
+  } else {
+    process.exit(1);
+  }
+});
+
 const app = express();
 const httpServer = createServer(app);
 

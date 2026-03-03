@@ -100,6 +100,9 @@ export interface IStorage {
   listApiKeysByUser(userId: string): Promise<ApiKeyRecord[]>;
   revokeApiKey(id: string): Promise<ApiKeyRecord | undefined>;
   updateApiKeyLastUsed(id: string): Promise<void>;
+
+  exportUserData(userId: string): Promise<Record<string, unknown>>;
+  deleteUserData(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -741,6 +744,93 @@ export class DatabaseStorage implements IStorage {
 
   async updateApiKeyLastUsed(id: string): Promise<void> {
     await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, id));
+  }
+
+  async exportUserData(userId: string): Promise<Record<string, unknown>> {
+    const user = await this.getUser(userId);
+
+    const userProjects = await this.listUserProjects(userId);
+
+    const userApiKeys = await this.listApiKeysByUser(userId);
+
+    const userBillingUsage = await db
+      .select()
+      .from(billingUsage)
+      .where(eq(billingUsage.userId, userId));
+
+    const projectIds = userProjects.map(p => p.project.id);
+    let userArtifacts: ArtifactRecord[] = [];
+    for (const pid of projectIds) {
+      const arts = await this.listArtifactsByProject(pid);
+      userArtifacts = userArtifacts.concat(arts);
+    }
+
+    let userExecutionSessions: ExecutionSession[] = [];
+    for (const pid of projectIds) {
+      const sessions = await this.listExecutionSessionsByProject(pid);
+      userExecutionSessions = userExecutionSessions.concat(sessions);
+    }
+
+    return {
+      user: user ? {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+        authProvider: user.authProvider,
+        role: user.role,
+        billingPlan: user.billingPlan,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      } : null,
+      projects: userProjects.map(p => ({
+        ...p.project,
+        role: p.role,
+      })),
+      apiKeys: userApiKeys.map(k => ({
+        id: k.id,
+        keyPrefix: k.keyPrefix,
+        label: k.label,
+        createdAt: k.createdAt,
+        lastUsedAt: k.lastUsedAt,
+        revokedAt: k.revokedAt,
+      })),
+      billingUsage: userBillingUsage,
+      artifacts: userArtifacts,
+      executionSessions: userExecutionSessions,
+    };
+  }
+
+  async deleteUserData(userId: string): Promise<void> {
+    await db
+      .update(apiKeys)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)));
+
+    const memberships = await db
+      .select()
+      .from(projectMembers)
+      .where(eq(projectMembers.userId, userId));
+
+    for (const m of memberships) {
+      await db
+        .delete(projectMembers)
+        .where(and(eq(projectMembers.projectId, m.projectId), eq(projectMembers.userId, userId)));
+    }
+
+    await db
+      .update(users)
+      .set({
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+        passwordHash: null,
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 }
 

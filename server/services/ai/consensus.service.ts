@@ -16,6 +16,7 @@ import { anthropicOpusService } from "./anthropic-opus.service";
 import { usageService } from "./usage.service";
 import { billingService } from "../billing.service";
 import { providerValidationService } from "./provider-validation.service";
+import { circuitBreaker, type CircuitState } from "./circuit-breaker";
 
 interface ProviderQueryResult {
   response?: AIProviderResponse;
@@ -363,14 +364,27 @@ export class ConsensusService {
     return available;
   }
 
-  async getProviderStatus(): Promise<{ provider: AIProviderType; available: boolean; model: string }[]> {
+  async getProviderStatus(): Promise<{
+    provider: AIProviderType;
+    available: boolean;
+    model: string;
+    circuitState: CircuitState;
+    consecutiveFailures: number;
+    lastFailureTime: number | null;
+  }[]> {
     const entries = Array.from(this.providers.entries());
     const status = await Promise.all(
-      entries.map(async ([type, provider]) => ({
-        provider: type,
-        available: await provider.isAvailable(),
-        model: provider.model,
-      }))
+      entries.map(async ([type, provider]) => {
+        const cbStatus = circuitBreaker.getStatus(type);
+        return {
+          provider: type,
+          available: await provider.isAvailable() && cbStatus.state !== "OPEN",
+          model: provider.model,
+          circuitState: cbStatus.state,
+          consecutiveFailures: cbStatus.consecutiveFailures,
+          lastFailureTime: cbStatus.lastFailureTime,
+        };
+      })
     );
     return status;
   }

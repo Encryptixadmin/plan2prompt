@@ -1,4 +1,5 @@
 import type { AIPrompt, AIProviderResponse, AIProviderType, AITokenUsage } from "@shared/types/ai";
+import { circuitBreaker } from "./circuit-breaker";
 
 export interface ProviderConfig {
   maxRetries: number;
@@ -65,14 +66,28 @@ export abstract class BaseAIProvider implements IAIProvider {
     fn: () => Promise<T>,
     retries: number = this.config.maxRetries
   ): Promise<T> {
+    if (!circuitBreaker.canExecute(this.provider)) {
+      const state = circuitBreaker.getState(this.provider);
+      throw new Error(
+        `[${this.provider}] Circuit breaker is ${state} — provider temporarily unavailable`
+      );
+    }
+
     let lastError: Error | undefined;
     const baseDelayMs = 500;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await fn();
+        const result = await fn();
+        circuitBreaker.recordSuccess(this.provider);
+        return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        circuitBreaker.recordFailure(this.provider);
         if (attempt < retries) {
+          if (!circuitBreaker.canExecute(this.provider)) {
+            console.warn(`[${this.provider}] Circuit breaker opened during retries — aborting`);
+            break;
+          }
           const delayMs = baseDelayMs * Math.pow(2, attempt);
           console.warn(`[${this.provider}] Retry ${attempt + 1}/${retries} after error: ${lastError.message} (waiting ${delayMs}ms)`);
           await this.delay(delayMs);

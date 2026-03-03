@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Key, Plus, Copy, Check, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Key, Plus, Copy, Check, Trash2, AlertTriangle, Loader2, Download, UserX } from "lucide-react";
 
 interface ApiKeyItem {
   id: string;
@@ -65,6 +65,8 @@ export default function Account() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const { data: keysData, isLoading } = useQuery<{ success: boolean; data: ApiKeyItem[] }>({
     queryKey: ["/api/account/api-keys"],
@@ -95,6 +97,42 @@ export default function Account() {
     },
     onError: () => {
       toast({ title: "Failed to revoke API key", variant: "destructive" });
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("GET", "/api/account/export");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "plan2prompt-data-export.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Data exported successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to export data", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/account");
+    },
+    onSuccess: () => {
+      setDeleteDialogOpen(false);
+      setDeleteConfirmText("");
+      window.location.href = "/";
+    },
+    onError: () => {
+      toast({ title: "Failed to delete account", variant: "destructive" });
     },
   });
 
@@ -347,6 +385,101 @@ X-Project-Id: <your-project-id>`}
               <li><code>list_clarifications</code> — List active clarification contracts</li>
               <li><code>resolve_clarification</code> — Resolve a clarification from within the IDE</li>
             </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Management</CardTitle>
+          <CardDescription>Export or delete your account data</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1">
+              <h4 className="font-medium text-sm">Export My Data</h4>
+              <p className="text-sm text-muted-foreground">
+                Download all your data as a JSON file including your profile, projects, artifacts, API keys, and billing usage.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => exportMutation.mutate()}
+              disabled={exportMutation.isPending}
+              data-testid="button-export-data"
+            >
+              {exportMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Export Data
+            </Button>
+          </div>
+
+          <div className="border-t pt-6">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm text-destructive">Delete My Account</h4>
+                <p className="text-sm text-muted-foreground">
+                  Permanently delete your account. This will revoke all API keys, remove project memberships, and anonymize your user record. Shared artifacts and projects will not be deleted.
+                </p>
+              </div>
+              <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+                setDeleteDialogOpen(open);
+                if (!open) setDeleteConfirmText("");
+              }}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    data-testid="button-delete-account"
+                  >
+                    <UserX className="mr-2 h-4 w-4" />
+                    Delete Account
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Your Account</DialogTitle>
+                    <DialogDescription>
+                      This action cannot be undone. Your account will be permanently deleted.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-sm text-destructive">
+                        All API keys will be revoked, project memberships removed, and your profile anonymized.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delete-confirm">Type "DELETE" to confirm</Label>
+                      <Input
+                        id="delete-confirm"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="DELETE"
+                        data-testid="input-delete-confirm"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={deleteConfirmText !== "DELETE" || deleteMutation.isPending}
+                      data-testid="button-confirm-delete-account"
+                    >
+                      {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Permanently Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -3,6 +3,8 @@ import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { rateLimit } from "express-rate-limit";
+import { PostgresRateLimitStore } from "../../middleware/rate-limit";
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -14,6 +16,34 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore(),
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many login attempts. Please try again in 15 minutes." },
+    });
+  },
+});
+
+const registerRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore(),
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many registration attempts. Please try again later." },
+    });
+  },
 });
 
 export function registerAuthRoutes(app: Express): void {
@@ -44,7 +74,7 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", registerRateLimiter, async (req, res) => {
     try {
       const parsed = registerSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -81,7 +111,7 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
     try {
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) {

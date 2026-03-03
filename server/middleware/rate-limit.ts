@@ -6,20 +6,25 @@ import { pool } from "../db";
 const WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS = 5;
 
-class PostgresRateLimitStore implements Store {
-  private initialized = false;
+let sharedInitPromise: Promise<void> | null = null;
 
-  private async init(): Promise<void> {
-    if (this.initialized) return;
-    await pool.query(`
+function ensureRateLimitTable(): Promise<void> {
+  if (!sharedInitPromise) {
+    sharedInitPromise = pool.query(`
       CREATE TABLE IF NOT EXISTS rate_limit_hits (
         key VARCHAR PRIMARY KEY,
         hits INTEGER NOT NULL DEFAULT 1,
         reset_time TIMESTAMPTZ NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
-    `);
-    this.initialized = true;
+    `).then(() => {}).catch(() => {});
+  }
+  return sharedInitPromise;
+}
+
+export class PostgresRateLimitStore implements Store {
+  private async init(): Promise<void> {
+    await ensureRateLimitTable();
   }
 
   async increment(key: string): Promise<IncrementResponse> {

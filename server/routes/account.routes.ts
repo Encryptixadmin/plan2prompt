@@ -93,6 +93,54 @@ router.get("/api-keys", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/export", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } });
+    }
+
+    const data = await storage.exportUserData(userId);
+    res.setHeader("Content-Disposition", "attachment; filename=plan2prompt-data-export.json");
+    res.setHeader("Content-Type", "application/json");
+    res.json({ success: true, data, exportedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error("Error exporting user data:", error);
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "Failed to export user data" },
+    });
+  }
+});
+
+router.delete("/", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } });
+    }
+
+    await storage.deleteUserData(userId);
+
+    if (req.session) {
+      delete (req.session as any).localUserId;
+    }
+    req.session?.destroy((err) => {
+      if (err) {
+        console.error("Error destroying session:", err);
+      }
+    });
+
+    res.json({ success: true, data: { deleted: true } });
+  } catch (error) {
+    console.error("Error deleting user account:", error);
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "Failed to delete account" },
+    });
+  }
+});
+
 router.delete("/api-keys/:id", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
