@@ -1,0 +1,89 @@
+# Plan2Prompt MCP Server — Gap Resolution Prompt
+
+## Context
+
+The Plan2Prompt MCP server is built and operational at `/mcp`. It has 10 tools (7 execution, 3 clarification), 5 resources, API key authentication, and Streamable HTTP transport. The implementation summary is in `mcp-implementation-summary.md`. The user-facing reference is in `plan2prompt-mcp-server-reference.md`. Read both before starting.
+
+The MCP server is a thin transport layer over existing services — ClassifierService, ArtifactService, storage layer, execution sessions, clarification contracts. It shares the same database and business logic as the web UI. Keep it that way.
+
+---
+
+## Constraints
+
+- **No refactoring of existing MCP code.** The 10 tools, 5 resources, auth system, and transport layer all work. Do not restructure, rename, or reorganise them.
+- **No changes to existing behaviour.** Every tool and resource must return identical responses after your changes. Do not alter parameter shapes, response formats, or enforcement rules.
+- **All existing tests must pass.** Run the full suite after each item. If a test breaks, your change is wrong.
+- **Follow existing patterns.** Study `server/mcp/tools/execution.ts`, `server/mcp/tools/clarifications.ts`, and `server/mcp/resources/context.ts`. Match their style exactly.
+- **Before implementing any item**, describe your approach — what files you'll touch, what you'll change, and how you'll test it. Wait for confirmation before writing code.
+
+---
+
+## The Gaps (7 items, prioritised)
+
+### 1. MCP Rate Limiting
+
+MCP tool calls have no rate limiting. An IDE agent could hammer execution tools or classifier calls without restriction.
+
+**What's needed:** Per-user rate limiting on MCP tool calls, separate from the web UI's existing rate limits. The generation routes already use `express-rate-limit` — apply the same approach to `/mcp` POST requests. Suggested limits: 30 requests per minute per user for execution tools, 10 per minute for clarification tools. Return a clear error message the IDE can understand, not a raw 429.
+
+### 2. MCP Session Persistence
+
+MCP sessions are stored in an in-memory Map. A server restart drops all active sessions. Clients must reconnect and re-initialise.
+
+**What's needed:** This doesn't need full database persistence — MCP sessions are lightweight and short-lived. But the server should handle restarts gracefully. When a client sends a request with an expired `mcp-session-id`, the server should detect this and return a clear error telling the client to re-initialise, rather than failing silently or throwing an unhandled error. Document this reconnection behaviour in the error response so IDE clients can handle it automatically.
+
+If there's a clean way to persist session mappings (session ID → userId, projectId) in the database so that reconnecting clients can resume without a full re-initialise handshake, implement that. But only if it doesn't add complexity to the transport layer — the `@modelcontextprotocol/sdk` manages the transport lifecycle and we shouldn't fight it.
+
+### 3. MCP Push Notifications
+
+The server is request/response only. IDEs must poll to discover new clarification contracts, session invalidation, or upstream artefact changes.
+
+**What's needed:** Use the existing SSE channel (`GET /mcp`) to push events to connected clients. The `StreamableHTTPServerTransport` already supports server-initiated messages via the SSE connection. Implement notifications for:
+
+- **Blocker created** — when `report_failure` creates a clarification contract at escalation level 2+
+- **Session invalidated** — when the upstream prompt artifact changes while a session is active
+- **Clarification resolved** — when a clarification contract linked to the current session is resolved (from the web UI or another client)
+
+Each notification should include the event type, a human-readable message, and the relevant resource ID (session ID, clarification ID, artifact ID) so the IDE can take action.
+
+### 4. Step Time Tracking
+
+Steps have no `startedAt` or `completedAt` timestamps. Actual execution duration is never recorded.
+
+**What's needed:** Add `startedAt` and `completedAt` timestamp columns to `execution_steps`. Set `startedAt` when `get_current_step` is called for a step that is `not_started` (transition it to `in_progress` at the same time). Set `completedAt` when `complete_step` is called. Expose these timestamps in the `get_session_status` and `project://session-state` responses. This enables future analytics without changing any existing tool behaviour.
+
+### 5. Multi-Project Support
+
+Each MCP connection is bound to a single project via `X-Project-Id`. Switching projects requires disconnecting and reconnecting.
+
+**What's needed:** Allow the `X-Project-Id` header to be sent per-request rather than only at initialisation. The auth check already runs per-request — extend it to read the project ID from the request headers each time, falling back to the session-level project ID if the header isn't present. This way a client can override the project context on any individual tool call without reconnecting. Verify project membership on every override.
+
+### 6. IDE Template Deprecation
+
+The six hardcoded IDE format templates (Replit, Cursor, Lovable, Antigravity, Warp, Generic) are still in the codebase. The MCP server serves structured step data, making the templates redundant for MCP clients.
+
+**What's needed:** Do not remove the templates — they're still used by the web UI. Instead, add a new resource `project://prompt-steps-structured` that returns prompt steps as a JSON array rather than formatted Markdown. Each step object should include: `stepNumber`, `title`, `body` (raw, unformatted), `integrityLevel`, `isIdempotent`, `requirementsCovered`, and `dependencies`. This gives IDE clients the raw data to format however suits their agent model, while the existing `project://prompt-steps` Markdown resource continues to work as before.
+
+### 7. Offline Reconciliation
+
+If an IDE loses connection mid-execution, there's no way to report a batch of step completions when it reconnects.
+
+**What's needed:** Add a new tool `batch_complete_steps` that accepts an array of step completions: `[{ stepNumber, completedAt }]`. The tool validates that all steps are in sequential order and that no steps are skipped, then marks them all as completed in a single transaction. This handles the reconnection case where the IDE completed steps 3, 4, and 5 while disconnected and needs to sync them all at once. Apply the same sequential enforcement rules as `complete_step` — just applied across the batch.
+
+---
+
+## Order of Work
+
+| Priority | Item | Why |
+|---|---|---|
+| 1 | Rate limiting | Security gap — must be closed before wider adoption |
+| 2 | Session persistence / graceful reconnection | Reliability — IDE experience degrades on every restart |
+| 3 | Push notifications | Removes polling dependency, makes the integration feel live |
+| 4 | Step time tracking | Data foundation for future analytics, quick win |
+| 5 | Multi-project support | Quality of life for power users |
+| 6 | Structured step resource | Enables IDE-native rendering, future-proofs the format layer |
+| 7 | Batch reconciliation | Edge case handling for disconnected clients |
+
+---
+
+*MTE Software Ltd — March 2026*
