@@ -1,0 +1,157 @@
+You are acting as a senior product analyst, systems architect, and technical investigator.
+
+Your task is to analyse the existing Replit project in its entirety (codebase, configuration, UI, routes, APIs, data models, and documentation) to determine:
+
+1. What functional capabilities the platform actually provides
+2. What workflows those capabilities enable
+3. What outputs the platform produces
+4. How the platform is intended to be used in real-world operation
+
+You must base all conclusions strictly on evidence in the codebase.
+Do not invent features.
+Do not redesign behaviour.
+Do not assume roadmap intentions.
+
+────────────────────────────────────────
+PRIMARY OBJECTIVE
+────────────────────────────────────────
+
+Produce a factual, implementation-aware explanation of the platform’s capabilities and intended usage so that:
+• A user understands how to operate the platform correctly
+• A product owner understands what the platform is truly capable of today
+• A developer understands how flows and outputs are meant to work together
+
+────────────────────────────────────────
+ANALYSIS SCOPE (MANDATORY)
+────────────────────────────────────────
+
+You MUST analyse:
+
+• UI pages, components, and navigation
+• Backend routes, controllers, and services
+• Data models and persistence
+• Auth and role logic
+• State management and side effects
+• External integrations (AI, payments, email, storage, etc.)
+• Any outputs generated (files, records, messages, UI results)
+• Existing documentation or inline comments
+
+────────────────────────────────────────
+OUTPUT FORMAT (STRICT)
+────────────────────────────────────────
+
+Return a single markdown document using the exact section structure below.
+No emojis. No marketing language. No speculation.
+
+────────────────────────────────────────
+SECTION 1 — PLATFORM CAPABILITIES
+────────────────────────────────────────
+
+List the platform’s functional capabilities.
+
+For each capability describe:
+• What the platform can do
+• Which user role(s) can access it
+• Where it exists in the codebase (high-level)
+• What conditions must be met for it to function
+
+Focus on capability, not UI detail.
+
+────────────────────────────────────────
+SECTION 2 — WORKFLOWS & PROCESS FLOWS
+────────────────────────────────────────
+
+Describe the workflows enabled by the platform.
+
+For each workflow include:
+• Entry point (UI, API, background process)
+• Step-by-step sequence
+• Decision points and branching logic
+• Required data and state
+• Success and failure paths
+
+These should reflect how the platform is realistically operated.
+
+────────────────────────────────────────
+SECTION 3 — INPUTS & OUTPUTS
+────────────────────────────────────────
+
+Document what the platform consumes and produces.
+
+Inputs:
+• User inputs
+• Uploaded data
+• API payloads
+• AI prompts (if applicable)
+
+Outputs:
+• UI-rendered results
+• Stored records
+• Files, exports, or reports
+• AI-generated content
+• Side effects (emails, webhooks, status changes)
+
+Describe format, persistence, and ownership.
+
+────────────────────────────────────────
+SECTION 4 — INTENDED USAGE MODEL
+────────────────────────────────────────
+
+Based on the above, infer how the platform is intended to be used.
+
+Describe:
+• Typical user behaviour
+• Frequency of use (one-off, recurring, ongoing)
+• Primary value delivered per session
+• Whether the platform supports operational use, analysis, automation, or decision support
+• Whether users are expected to act on outputs inside or outside the platform
+
+This section must be reasoned from actual functionality, not branding.
+
+────────────────────────────────────────
+SECTION 5 — OPERATIONAL ASSUMPTIONS & CONSTRAINTS
+────────────────────────────────────────
+
+Identify assumptions the platform makes, such as:
+• Required user knowledge
+• Expected data completeness
+• Environmental dependencies
+• Sequential vs parallel usage
+• Single-user vs multi-user behaviour
+
+Also list constraints that limit usage.
+
+────────────────────────────────────────
+SECTION 6 — MISMATCHES OR AMBIGUITIES
+────────────────────────────────────────
+
+Call out areas where:
+• Capabilities do not clearly map to workflows
+• Outputs are generated but not obviously used
+• UI suggests functionality that logic does not support
+• Intended usage is unclear or inconsistent
+
+Explain why this matters.
+
+────────────────────────────────────────
+SECTION 7 — USAGE SUMMARY (PLAIN ENGLISH)
+────────────────────────────────────────
+
+In 1–2 concise paragraphs, explain:
+
+“How a real user is supposed to use this platform from start to finish.”
+
+This must align with all previous sections.
+
+────────────────────────────────────────
+CRITICAL CONSTRAINTS
+────────────────────────────────────────
+
+• Do NOT modify code
+• Do NOT suggest new features
+• Do NOT redesign flows
+• Do NOT assume future roadmap
+• Use evidence from the codebase
+• Be explicit, technical, and precise
+
+Your output must accurately reflect how the platform functions today.

@@ -1,538 +1,416 @@
-# Plan2Prompt — Platform Analysis
+# Plan2Prompt -- Platform Analysis
 
-**Version 1.0.5 | MTE Software Ltd**
-**Date: February 2026**
+**Version 2.0 | MTE Software Ltd**
+**Date: March 2026**
 **Prepared for: Internal Review**
 
----
-
-## Executive Overview
-
-Plan2Prompt is a well-architected AI-powered build planning platform with a sophisticated product design. The pipeline enforcement model, multi-provider AI consensus, clarification contracts system, and execution integrity controls are all genuinely production-grade. The platform has strong bones.
-
-What follows is a complete, honest assessment across two dimensions:
-
-1. **Operational Readiness** — is the platform safe to run in production at scale?
-2. **Feature Completeness** — does the platform have the features a real product of this type needs?
-
-The conclusion is that the platform is a strong v0.8 rather than a true v1.0. The gaps are real but well-defined, and none require architectural changes. They are engineering work, not redesign work.
-
----
-
-## Part 1 — Operational Readiness
-
-### Overall Score: 67 / 100
-
----
-
-### 1.1 Dimension Scores
-
-| Dimension | Score | Notes |
-|---|---|---|
-| Pipeline architecture and enforcement | 9/10 | Stage gating enforced at both frontend and backend independently |
-| AI integration layer | 8/10 | ConsensusService with retry, health checks, and usage tracking |
-| Type safety and shared contracts | 8/10 | TypeScript throughout, Zod at API boundaries, shared `@shared/*` types |
-| Invariant test coverage | 8/10 | 224 tests covering pipeline, integrity, traceability, escalation, delta |
-| Authentication (dual-mode, session store) | 7/10 | Replit OAuth + local email/password; PostgreSQL-backed sessions |
-| Security model | 7/10 | Database-driven admin, bcrypt, project isolation via `X-Project-Id` |
-| Clarification contracts system | 7/10 | SHA256 de-duplication, upward-only escalation, severity rules |
-| Execution integrity controls | 7/10 | Deterministic keyword classification, re-run enforcement, success hashes |
-| Artifact storage (filesystem) | 5/10 | Not compatible with multi-instance or ephemeral deployment |
-| Integration and E2E test coverage | 5/10 | No HTTP-level or browser-level tests |
-| Scalability | 5/10 | Single-instance assumption throughout |
-| AI cost protection and rate limiting | 4/10 | No HTTP-level rate limiting; billing limits reset on restart |
-| Observability and error monitoring | 4/10 | No structured logging, no APM, no error monitoring |
-| Billing persistence | 3/10 | In-memory JavaScript Maps — resets on every server restart |
-
----
-
-### 1.2 Critical Operational Gaps
-
-#### Billing is In-Memory
-
-The `BillingService` stores user plan assignments and monthly usage in JavaScript `Map` objects in process memory. Every server restart — whether from a deployment, crash, or idle timeout — resets all billing state to zero:
-
-- All plan assignments revert to `free`
-- All monthly generation and token counts reset to zero
-- Rate limiting and usage enforcement become ineffective
-- A malicious user can reset their limits by triggering a restart
-
-**Fix**: Migrate `BillingService` to PostgreSQL — add `user_plans` and `usage_records` tables. Estimated: 1–2 days.
-
----
-
-#### Artifact Storage is on the Local Filesystem
-
-All ideas, requirements, and prompts are written as Markdown files to `artifacts/` on the server's local disk. This means:
-
-- A second server instance has no access to files written by the first
-- Ephemeral cloud hosting environments don't guarantee persistent disk
-- A crash mid-write can produce partially written artifacts
-- Backups require separate procedures outside the database
-
-**Fix**: Move artifact content to a `text` column in PostgreSQL. The existing file format (Markdown with YAML frontmatter) can be stored verbatim. Estimated: 2–3 days.
-
----
-
-#### No Rate Limiting on AI Generation Routes
-
-The three AI generation endpoints (`/api/ideas/analyze`, `/api/requirements/generate`, `/api/prompts/generate`) have soft billing limits that are stored in-memory (reset on restart) and no HTTP-level rate limiting. A single user or script can trigger unlimited parallel generation requests, incurring significant OpenAI, Anthropic, and Gemini API costs.
-
-**Fix**: Add `express-rate-limit` middleware to generation routes — 5 requests per minute per user. Estimated: 1 day.
-
----
-
-#### No Observability Stack
-
-The platform has no structured logging, no APM integration, no error tracking service, and no alerting. If something fails silently in production — a provider returning malformed JSON, a database query timing out, an unexpected process exit — there is no mechanism to detect it without a user reporting it.
-
-**Fix**: Add `pino` for structured logging and Sentry for error capture. Estimated: 1–2 days.
-
----
-
-### 1.3 Operational Roadmap to 100/100
-
-| Priority | Work | Score After |
-|---|---|---|
-| Current | — | 67/100 |
-| 1 — Critical | Persist billing to PostgreSQL; add rate limiting on AI routes | 76/100 |
-| 2 — High | Move artifacts to database; add structured logging + Sentry; add integration tests | 84/100 |
-| 3 — Medium | E2E browser tests; multi-instance readiness audit; CSRF protection; input sanitisation | 92/100 |
-| 4 — Polish | Security headers (helmet); graceful shutdown; env validation on startup; dependency audits; AI performance monitoring | 98/100 |
-
-The final 2 points come from operational data that can only be gathered after the platform is running in production — connection pool tuning, alert threshold calibration, load test results.
-
----
-
-## Part 2 — Feature Completeness
-
-### Overview: 51 Gaps Identified
-
-| Severity | Count | Meaning |
-|---|---|---|
-| Critical | 2 | Must be resolved before any paid users |
-| High | 11 | Must be resolved before v1.0 launch |
-| Medium | 24 | Needed for a polished, competitive product |
-| Low | 14 | Quality-of-life improvements for future iterations |
-
----
-
-### 2.1 Pipeline Gaps (4 total)
-
-#### [A1] Build Prompts Count Hardcoded to Zero — Medium — 2 hours
-
-`client/src/pages/home.tsx` line 63 sets the Build Prompts count to `0` permanently. The dashboard stat never updates regardless of how many prompt artifacts exist. Fix: query `/api/prompts` and wire the result to the count.
-
----
-
-#### [A2] No Project Deletion — Medium — 1 day
+A factual, implementation-aware explanation of the platform's capabilities and intended usage, derived from the codebase as of March 2026.
 
-The project routes expose GET, POST, and PUT but no DELETE. Users accumulate projects with no way to remove test or abandoned ones. Fix: add a DELETE endpoint with cascade handling and a confirmation dialog in the UI.
-
----
-
-#### [A3] No Per-Idea Pipeline Status on Dashboard — Medium — 2–3 days
-
-The dashboard shows total idea and requirement counts but not which specific idea is at which pipeline stage. Users with more than one idea cannot see at a glance which is ready for requirements generation.
-
----
-
-#### [A4] No Back-Link from Requirements/Prompts to Source Idea — Low — Half a day
-
-The Requirements and Prompts pages have no "View Source Idea" link. Users lose context when reviewing generated documents.
-
 ---
 
-### 2.2 Ideas Module Gaps (6 total)
+## Section 1 -- Platform Capabilities
 
-#### [B1] Ideas Cannot Be Edited After Submission — High — 1–2 days
+### 1.1 User Authentication and Account Management
 
-Once an analysis is accepted, the title, description, and context fields are locked. The only option to make corrections is to discard and re-run a full analysis, consuming AI tokens for what may be a minor text fix.
+**What it does:** Allows users to register and sign in via two methods: Replit Auth (OpenID Connect redirect flow) and local email/password credentials (bcryptjs, 12 salt rounds). Authenticated users receive a PostgreSQL-backed session (connect-pg-simple, 1-week TTL). Users can export all their data as JSON, permanently delete their account (anonymises PII, revokes API keys, destroys session), and generate API keys for MCP access.
 
----
+**Roles:** All users. Account deletion and data export are self-service.
 
-#### [B2] Workshop Can Only Be Run Once — Medium — 2–3 days
+**Codebase location:** `server/replit_integrations/auth/`, `server/routes/account.routes.ts`, `client/src/pages/auth.tsx`, `client/src/pages/account.tsx`.
 
-After one round of workshop refinement, there is no mechanism to run a second round. Users who want to address commercial risks in one session and technical risks in another cannot do so. They must discard and restart.
+**Conditions:** Registration and login routes are rate-limited (login: 10/15min per IP; register: 5/hour per IP). Passwords must meet minimum requirements enforced by Zod validation.
 
 ---
-
-#### [B3] No Idea Archiving — Only Discard — Medium — 1 day
 
-Ideas that receive a `stop` recommendation can only be permanently discarded. There is no archive or soft-delete. This loses valuable institutional knowledge about why certain ideas were rejected.
+### 1.2 Project Management
 
----
+**What it does:** Users create named projects that serve as isolation boundaries for all pipeline artifacts. Each project has members with roles (owner, collaborator, viewer) that control permissions. A user must have at least one project to access pipeline features; a "No Project Gate" enforces this.
 
-#### [B4] Signal Sharpening Fields Not Rendered — High — 2–3 days
+**Roles:** Any authenticated user can create projects. Owners can edit, delete, and manage members. Collaborators can edit and generate. Viewers have read-only access.
 
-The `IdeaAnalysis` type includes `confidenceAssessment`, `primaryRiskDrivers`, `scopeWarnings`, `assumptionDependencies`, and `failureModeNarrative`. These fields are populated by the AI during analysis but **none of them are rendered in the current UI**. A significant portion of the analysis output is generated and then silently discarded. Specifically missing:
+**Codebase location:** `server/routes/project.routes.ts`, `client/src/components/project-context.tsx`, `server/middleware/project-context.ts`.
 
-- **Confidence Assessment**: score, rationale, key factors, and explicit limitations
-- **Primary Risk Drivers**: ranked by impact with failure triggers and controllability ratings
-- **Scope Warnings**: hidden complexity flags across technical, UX, compliance, and integration areas
-- **Assumption Dependencies**: tracked assumptions with validation status and "risk if wrong" notes
-- **Failure Mode Narrative**: a prose account of how the idea is most likely to fail
+**Conditions:** An `X-Project-Id` header or active project context is required for all pipeline operations. Membership is verified server-side on every request.
 
 ---
 
-#### [B5] No Side-by-Side Idea Comparison — Low — 2–3 days
+### 1.3 Idea Validation (Ideas Module)
 
-No comparison view exists for evaluating two ideas within the same project side by side.
+**What it does:** Accepts a raw application idea (title, description, purpose category) and runs it through multi-provider AI consensus analysis. Returns structured JSON scoring the idea across four profiles: Technical, Commercial, Execution, and Viability. Includes strengths, weaknesses, risks, feasibility assessment, domain research (competitors, market signals), and a weighted recommendation. Offers a guided refinement workshop that generates purpose-adaptive follow-up questions to strengthen weak areas. Produces a Risk Resolution Delta Model showing how workshop answers change the risk profile. Validated ideas are saved as versioned Markdown artifacts with YAML frontmatter.
 
----
+**Roles:** Authenticated users with collaborator or owner role on the active project.
 
-#### [B6] Research Brief Not Shown to User — Medium — 1 day
+**Codebase location:** `server/services/ideas.service.ts`, `server/routes/ideas.routes.ts`, `client/src/pages/ideas.tsx`.
 
-The `ResearchService` generates a research brief covering competitors, regulations, and market signals before analysis. This brief is injected into the AI context but never shown to the user. If the brief contains inaccurate assumptions, the user has no way to know or correct them.
+**Conditions:** Requires at least one active AI provider. Generation can be disabled per-user or per-project by an admin. Rate-limited to 5 generation requests per minute per user.
 
 ---
 
-### 2.3 Requirements Module Gaps (3 total)
+### 1.4 Requirements Generation (Requirements Module)
 
-#### [C1] Requirements Cannot Be Manually Edited — High — 3–4 days
+**What it does:** Converts a validated (accepted) idea artifact into a comprehensive requirements document. The output includes a system overview, functional requirements, non-functional requirements, data models, API contracts, architecture decisions (ADRs), and risk traceability entries linking idea-level risks to specific requirement IDs. Requirements are saved as versioned Markdown artifacts and can be "locked" to signal readiness for prompt generation.
 
-Requirements are rendered read-only. If the AI produces an incorrect or incomplete requirement, the only option is a full regeneration. There is no way to:
-- Edit a requirement's description
-- Add a missing requirement
-- Remove an irrelevant one
+**Roles:** Authenticated users with collaborator or owner role.
 
-This is a significant friction point because requirement quality directly determines the quality of the generated build prompts.
+**Codebase location:** `server/services/requirements.service.ts`, `server/routes/requirements.routes.ts`, `client/src/pages/requirements.tsx`.
 
----
-
-#### [C2] No Requirements Prioritisation Interface — High — 1–2 days
-
-AI assigns `high`, `medium`, and `low` priority to Functional Requirements. Priority directly determines whether a requirement gets its own dedicated build step. Users cannot adjust these priorities even if the AI has misclassified them.
+**Conditions:** Requires at least one accepted idea artifact in the active project. Pipeline sequencing is enforced: requirements generation is blocked if no validated ideas exist.
 
 ---
 
-#### [C3] No Requirements Export — Medium — 1 day
+### 1.5 Build Prompt Generation (Prompts Module)
 
-The pipeline stage definition for `LOCKED_REQUIREMENTS` lists `"download"` as an allowed action, but no download button is implemented. Users who want to share requirements outside the platform must manually copy the rendered content.
+**What it does:** Generates sequential, IDE-specific build prompts from locked requirements. Supports six target IDEs: Replit, Cursor, Lovable, Antigravity, Warp, and Generic. Each prompt step includes a title, body text, integrity level (safe, caution, critical), idempotency flag, requirements coverage, and dependencies. Steps can be individually compiled by Anthropic Opus into deterministic IDE-executable instructions with stop conditions and failure recovery. Prompts are saved as versioned Markdown artifacts.
 
----
-
-### 2.4 Prompts Module Gaps (4 total)
+**Roles:** Authenticated users with collaborator or owner role.
 
-#### [D1] No Prompt Download Button — Medium — Half a day
+**Codebase location:** `server/services/prompts.service.ts`, `server/routes/prompts.routes.ts`, `client/src/pages/prompts.tsx`.
 
-The pipeline type definition lists `"download"` as an allowed action for `PROMPTS_GENERATED`, but no download button exists. Users can only copy individual steps.
+**Conditions:** Requires at least one locked requirements artifact. Pipeline sequencing is enforced: prompt generation is blocked if no locked requirements exist.
 
 ---
 
-#### [D2] IDE Cannot Be Changed Without Full Regeneration — Medium — 2–3 days
+### 1.6 Execution Session Tracking
 
-Switching the target IDE after prompts are generated requires a full AI regeneration. Since IDE adaptation is a formatting-only layer that does not change step content, this is wasteful. A re-format should be a local transformation.
+**What it does:** Tracks the progress of implementing build prompts step-by-step. Users start an execution session tied to a prompt artifact, then mark each step as completed or report failures. The system classifies failures deterministically (known vs unknown), escalates after repeated failures (creating clarification contracts at escalation level 2+), and tracks step timing (startedAt/completedAt). Steps have integrity levels and idempotency flags that warn users before executing critical, non-idempotent operations.
 
----
+**Roles:** Authenticated users with collaborator or owner role.
 
-#### [D3] Prompt Step Content Cannot Be Edited — High — 2–3 days
+**Codebase location:** `server/routes/execution.routes.ts`, `client/src/pages/prompts.tsx` (execution session UI).
 
-Like requirements, generated prompt steps are read-only. If a step has an incorrect instruction or missing detail, the user must regenerate all prompts. There is no inline step editing.
+**Conditions:** Requires a generated prompt artifact. Sequential execution is enforced: steps cannot be completed out of order.
 
 ---
-
-#### [D4] No Step Notes or Annotations — Low — 1 day
 
-Users working through a build cannot attach notes, decisions, or context to individual steps. This information is lost once the session ends.
+### 1.7 Clarification Contract System
 
----
+**What it does:** Provides an upward-only clarification mechanism where downstream modules (requirements, prompts, execution) can request clarification from upstream artifacts. Each contract has a category (missing_information, contradiction, scope_conflict, execution_failure), severity (advisory or blocker), and a SHA-256 deterministic hash to prevent duplicates. Blockers halt pipeline progress until resolved. Contracts can be resolved from the web UI or via MCP tools.
 
-### 2.5 Execution Module Gaps (5 total)
+**Roles:** System-generated. Resolved by authenticated users or IDE agents via MCP.
 
-#### [E1] Failure Output Not Stored — High — Half a day
+**Codebase location:** `server/services/clarification.service.ts`, `server/routes/clarification.routes.ts`.
 
-When a step fails, the platform hashes the failure output (SHA256) for comparison, but does not store the raw text. Users and admins cannot review what the actual error was for previous attempts. The clarification contract references a hash with no way to look up the original message.
+**Conditions:** Contracts are created automatically during generation or execution failure escalation.
 
-**This is a quick win** — adding a `lastFailureOutput` text column (truncated to 2,000 characters) takes half a day and meaningfully improves debuggability.
-
 ---
 
-#### [E2] No Way to Abandon a Session — Medium — Half a day
+### 1.8 Artifact Management
 
-Sessions can be `active`, `blocked`, or `completed`. There is no `abandoned` status. Users who decide mid-execution to start fresh have no way to close the current session. They are left with a perpetually active session they cannot clear.
+**What it does:** All pipeline outputs (ideas, requirements, prompts) are stored as immutable, versioned artifacts in PostgreSQL. Each artifact has a module, filename, content (Markdown with YAML frontmatter), metadata (JSON), and lineage references (parentId for versions, sourceArtifactId for cross-module links). Artifacts can be exported as downloadable Markdown files. Version history is viewable through Sheet overlay panels with diff comparison.
 
----
+**Roles:** Any authenticated project member (read). Collaborators and owners (create/version).
 
-#### [E3] No Session History View — Medium — 1 day
+**Codebase location:** `server/routes/artifact.routes.ts`, `client/src/components/version-history-panel.tsx`, `client/src/components/version-compare-panel.tsx`.
 
-The execution routes only return the current active session. Completed sessions cannot be reviewed after the fact. Users cannot look back at a finished execution to review failure counts, step durations, or escalation events.
+**Conditions:** Export requires the artifact to be in a terminal state (accepted idea, locked requirements, generated prompts).
 
 ---
 
-#### [E4] No Step Time Tracking — Low — Half a day
+### 1.9 MCP Server (v1.2)
 
-Steps have no `startedAt` or `completedAt` timestamps. Actual execution duration per step is never recorded, even though this data would improve MVP effort estimates in idea analysis over time.
+**What it does:** Exposes the platform's pipeline context and execution tracking to IDE AI assistants (Cursor, Windsurf, Claude Code) via the Model Context Protocol. Uses Streamable HTTP transport at `/mcp`. Authenticates via API keys (SHA-256 hashed, `p2p_` prefix). Provides 11 tools (start_session, get_session_status, get_current_step, complete_step, batch_complete_steps, report_failure, skip_to_step, classify_failure, list_clarifications, get_clarification, resolve_clarification) and 6 resources (project://requirements, project://idea-analysis, project://prompt-steps, project://prompt-steps-structured, project://session-state, project://execution-progress). Supports per-request project switching via `X-Project-Id` header override.
 
----
+**Roles:** Any user with a valid API key and project membership.
 
-#### [E5] Execution Progress Not Visible on Dashboard — Low — 1 day
+**Codebase location:** `server/mcp/server.ts`, `server/mcp/tools/`, `server/mcp/resources/`, `server/mcp/auth.ts`.
 
-The dashboard has no execution progress indicator. A user mid-execution cannot see their progress from the dashboard — they must navigate to the Prompts page.
+**Conditions:** Requires a generated API key. Rate-limited to 60 requests per minute per user. Expired sessions return 409 with reconnection instructions.
 
 ---
-
-### 2.6 Clarification System Gaps (3 total)
 
-#### [F1] Resolving a Contract Does Not Trigger Upstream Regeneration — High — 2 days
+### 1.10 Admin Console
 
-This is the most significant logical gap in the clarification system. When a user resolves a clarification contract, the platform marks it as resolved and stores the resolution data. **It does nothing else.** The underlying gap in requirements or the flawed prompt step remains until the user manually navigates to the appropriate module and triggers regeneration. The resolution data is stored but never used. The loop is not closed.
+**What it does:** Provides platform-wide management for administrators across 8 tabs. Overview shows KPI stat cards, user growth, plan distribution, and recent signups. Users tab supports search, filtering by plan, inline plan changes, and enabling/disabling generation. Projects tab shows member and artifact counts with enable/disable controls. Health tab displays AI provider status including circuit breaker state. Billing, Usage, Artifacts, and Audit Log tabs provide operational visibility. All admin actions are logged to the `admin_action_log` table.
 
----
+**Roles:** Admin users only (verified by `requireAdmin` middleware).
 
-#### [F2] No Notifications for Blocker Contracts — Medium — 2–3 days
+**Codebase location:** `server/routes/admin.routes.ts`, `server/middleware/admin.ts`, `client/src/pages/admin.tsx`.
 
-There are no notifications (in-app, email, or push) when a new blocker clarification contract is created. A user who leaves their browser after starting execution will not know the pipeline is stuck.
+**Conditions:** User must have `isAdmin` set to `"true"` in the database.
 
 ---
-
-#### [F3] No Blocker Summary on Dashboard — Medium — 1 day
 
-Pending blocker clarifications are not surfaced on the dashboard. Users must navigate to the Prompts page to discover them.
+### 1.11 Prompt Feedback and Failure Classification
 
----
+**What it does:** Accepts raw IDE output when a build step fails and classifies it deterministically into known failure patterns with recovery instructions (retry_step, stop_execution, regenerate_prompts). Records feedback events to `prompt_feedback_events` table for pattern analysis.
 
-### 2.7 Admin Console Gaps (4 total)
+**Roles:** Authenticated users (web UI) or MCP clients (IDE).
 
-#### [G1] No Plan Assignment UI — Critical — 1 day
+**Codebase location:** `server/services/classifier.service.ts`, `server/routes/prompts.routes.ts`.
 
-The `BillingService` has a `setUserPlan()` method but there is no UI in the Admin Console to use it. Assigning or changing a user's billing plan requires direct database access. This is not viable for managing paying customers.
+**Conditions:** Requires an active execution session with a failing step.
 
 ---
 
-#### [G2] No Project-Level Admin View — Medium — 2 days
+### 1.12 Usage and Billing Tracking
 
-The Admin Console shows user management but has no view of projects across the platform. Admins cannot see how many projects a user has, what stage each is at, or whether projects have been inactive.
+**What it does:** Records per-provider token consumption and estimated costs for every AI generation call. Tracks monthly per-user generation counts and token totals in the `billing_usage` table. Supports four plan tiers (free, starter, professional, team) assigned by admins. No payment processing is implemented; plans are assigned manually.
 
----
+**Roles:** Usage is tracked for all users. Billing data is viewable by admins and the individual user.
 
-#### [G3] No Admin Project Access — Medium — 2–3 days
+**Codebase location:** `server/services/usage.service.ts`, `server/services/billing.service.ts`, `shared/schema.ts` (billingUsage, usageRecords tables).
 
-When a user reports a problem, the admin must ask the user to relay artifact IDs, session IDs, and clarification details rather than being able to inspect the project directly.
+**Conditions:** Usage recording happens automatically during AI generation. Plan assignment is admin-only.
 
 ---
-
-#### [G4] Audit Log Has No Filtering — Medium — 1 day
 
-The audit log returns all entries with no date range, action type, or actor filter. In production with many admin actions, the log is unusable for finding a specific event.
+## Section 2 -- Workflows and Process Flows
 
----
+### 2.1 Idea Validation Workflow
 
-### 2.8 User Account Gaps (3 total)
+**Entry point:** Ideas page (`/ideas`) in the web UI.
 
-#### [H1] No Password Reset — Critical — 2 days
+**Sequence:**
+1. User enters an idea title, description, and selects a purpose category (Commercial, Dev Tool, Internal, Learning, Open Source).
+2. User clicks "Analyse." The frontend opens an SSE connection to `/api/ideas/analyze-stream`.
+3. The server builds an analysis prompt incorporating domain research (competitors, market signals) and sends it to all active AI providers in parallel via ConsensusService.
+4. Each provider returns structured JSON with scores, strengths, weaknesses, risks, and profiles. The ConsensusService aggregates results, calculates agreement scores, and synthesises a unified analysis.
+5. Real-time progress updates stream to the UI via SSE.
+6. The analysis result is displayed with profile cards (Technical, Commercial, Execution, Viability), risk cards, and a recommendation.
+7. **Decision point:** User can accept the idea (saves as versioned artifact), refine it (enters the guided workshop), or discard it.
+8. If workshop is chosen: the server generates purpose-adaptive follow-up questions. The user answers them. The system recalculates the analysis incorporating workshop answers and produces a Risk Resolution Delta showing how risks changed.
+9. User accepts the refined idea, creating a versioned artifact.
 
-Local auth users who forget their password have no self-service recovery path. There is no "Forgot Password" flow, no reset endpoint, and no token-based email recovery. Admin intervention is the only option.
+**Failure paths:** AI provider failures are caught by the circuit breaker. If all providers fail, the user receives an error message. Mock responses are generated if API keys are missing (development only).
 
 ---
-
-#### [H2] No Account Settings Page — High — 1–2 days
 
-There is no profile or settings page. Users cannot change their display name, email, or password after registration. This is a standard feature expectation for any web application.
+### 2.2 Requirements Generation Workflow
 
----
+**Entry point:** Requirements page (`/requirements`) in the web UI.
 
-#### [H3] No Team Collaboration Features — Medium — 1–2 weeks
+**Sequence:**
+1. User selects a validated idea from the dropdown of accepted ideas.
+2. User clicks "Generate Requirements." The frontend opens an SSE connection to `/api/requirements/generate-stream`.
+3. The server retrieves the idea artifact, constructs a requirements generation prompt, and sends it to the configured AI provider with high token limits (8000).
+4. The AI returns structured JSON with system overview, functional requirements, non-functional requirements, data models, API contracts, architecture decisions, and risk traceability entries.
+5. The server validates and normalises the AI response, resolving cross-references between requirements and risks.
+6. Progress streams to the UI via SSE.
+7. The requirements document is displayed with expandable sections for each category.
+8. **Decision point:** User can edit individual requirements, regenerate, or accept ("lock") the document.
+9. Locking creates a versioned artifact and makes it available for prompt generation.
 
-Projects are single-owner. There is no concept of project members, shared access, or invitations. The platform cannot be used collaboratively by a team.
+**Failure paths:** Validation failures in the AI response trigger re-prompting or error display. If the idea artifact is not found, the generation is blocked.
 
 ---
-
-### 2.9 Billing and Plans Gaps (3 total)
 
-#### [I1] No Payment Integration — Critical — 1–2 weeks
+### 2.3 Build Prompt Generation Workflow
 
-The billing tiers (Free, Pro, Team) exist in the data model but there is no payment processing. No Stripe integration, no checkout flow, no subscription management. Plan assignment requires database access. The billing model is entirely decorative in the current version.
+**Entry point:** Prompts page (`/prompts`) in the web UI.
 
----
+**Sequence:**
+1. User selects a locked requirements artifact.
+2. User chooses a target IDE from the dropdown (Replit, Cursor, Lovable, Antigravity, Warp, Generic).
+3. User clicks "Generate Prompts." The server derives sequential build steps from the requirements document.
+4. Steps are sent to AI providers (in race mode) for enrichment into IDE-specific, copy-paste-ready instructions.
+5. Optionally, individual steps can be further compiled by Anthropic Opus into deterministic instructions with stop conditions.
+6. The generated prompt document is displayed as a numbered list of steps with integrity level badges (safe/caution/critical) and idempotency indicators.
+7. User can edit individual steps, regenerate, or accept the prompt set.
+8. Accepting saves a versioned prompt artifact.
 
-#### [I2] No Invoice or Receipt History — Medium — 1 day (once Stripe exists)
+**Failure paths:** If no locked requirements exist, the UI blocks generation and explains the prerequisite. AI failures fall through to the circuit breaker.
 
-No invoice or payment history UI exists. Stripe Customer Portal provides this automatically once integrated.
-
 ---
-
-#### [I3] No Usage History or Trend View — Low — 2 days
 
-The billing status panel shows current month usage only. Users cannot see how their usage has changed over time.
+### 2.4 Execution Session Workflow
 
----
-
-### 2.10 API and Integration Gaps (3 total)
+**Entry point:** Prompts page (execution panel) or MCP `start_session` tool.
 
-#### [J1] No Webhook Support — Medium — 3–4 days
+**Sequence:**
+1. User starts an execution session for a prompt artifact.
+2. The system creates a session record and individual step records (one per prompt step, all in `not_started` state).
+3. The user (or IDE agent via MCP) retrieves the current step via the UI or `get_current_step`.
+4. The step transitions to `in_progress` (sets `startedAt` timestamp).
+5. The user implements the step in their IDE and marks it as completed (sets `completedAt`).
+6. **Failure path:** If the step fails, the user submits the error output. The ClassifierService identifies the failure pattern and returns a recommendation (retry, stop, regenerate). The system increments the attempt counter and escalation level.
+7. At escalation level 2+, a clarification contract is automatically created as a blocker.
+8. Steps proceed sequentially until all are completed or the session is blocked.
+9. Batch completion via `batch_complete_steps` handles the reconnection case where multiple steps were completed offline.
 
-There are no webhook endpoints or event dispatch mechanisms. External tools (CI/CD, Slack, Notion) cannot be notified when pipeline events occur.
+**Decision points:** After each failure, the system recommends an action. Critical, non-idempotent steps require explicit user confirmation before execution.
 
 ---
 
-#### [J2] No Public API for Programmatic Access — Low — 1–2 weeks
+### 2.5 MCP Integration Workflow
 
-All API routes are session-authenticated and designed for browser use. There are no API keys, no machine-to-machine authentication, and no public API documentation.
-
----
+**Entry point:** IDE (Cursor, Windsurf, Claude Code) connecting to `POST /mcp`.
 
-#### [J3] No Import from External Documents — Low — 2–3 days
+**Sequence:**
+1. IDE sends an `initialize` JSON-RPC request with Bearer API key and `X-Project-Id` header.
+2. Server authenticates the key, verifies project membership, and creates a session.
+3. IDE discovers available tools and resources.
+4. IDE reads `project://requirements` and `project://prompt-steps-structured` to understand the project context.
+5. IDE calls `start_session` or retrieves existing session via `get_session_status`.
+6. IDE enters a loop: `get_current_step` -> implement -> `complete_step` or `report_failure`.
+7. If failures escalate, the IDE can `list_clarifications` and `resolve_clarification` directly.
+8. Session completes when all steps are done.
 
-Ideas can only be created by filling in the submission form. Users with an existing concept document (Notion, Google Docs, PDF) cannot feed it directly into the platform.
+**Failure paths:** Expired sessions return 409 with reconnection instructions. Rate limit exceeded returns JSON-RPC error code -32029. Invalid API key returns 401.
 
 ---
 
-### 2.11 UX and Navigation Gaps (5 total)
+### 2.6 Admin Management Workflow
 
-#### [K1] No Search — Medium — 2–3 days
+**Entry point:** Admin Console (`/admin`) in the web UI.
 
-There is no search functionality anywhere in the application. Users with many ideas or multiple projects cannot find content without manually browsing.
+**Sequence:**
+1. Admin navigates to the Admin Console (only visible if `isAdmin` is true).
+2. Overview tab shows KPIs: total users, active projects, generation counts, plan distribution.
+3. Admin can search and filter users, change billing plans inline, enable/disable generation for specific users or projects.
+4. Health tab shows AI provider status with circuit breaker state (CLOSED/OPEN/HALF_OPEN).
+5. Admin can disable a provider, which prevents it from being used in consensus queries.
+6. All admin actions are logged to the audit log with timestamps, previous state, and new state.
 
 ---
 
-#### [K2] No Empty States for Requirements and Prompts — Medium — 1 day
+## Section 3 -- Inputs and Outputs
 
-When a user navigates to Requirements or Prompts before generating anything, there are no illustrated empty states with clear CTAs. First-time users can feel lost.
+### 3.1 Inputs
 
----
+**User inputs:**
+- Idea submissions: title (string), description (string), purpose category (enum).
+- Workshop answers: free-text responses to AI-generated follow-up questions.
+- Requirements edits: inline modifications to generated requirement text.
+- Prompt step edits: inline modifications to generated prompt step text.
+- IDE selection: dropdown choice from 6 supported IDEs.
+- Execution step status: completed or failed (with error output text).
+- Clarification resolutions: free-text response to clarification contract questions.
+- Project creation: name (string), description (string).
+- Account credentials: email, password (local auth).
+- API key labels: user-defined string for MCP key identification.
 
-#### [K3] No In-App Help or Contextual Tooltips — Medium — 2–3 days
+**API payloads (MCP):**
+- JSON-RPC requests with tool name, arguments object, session ID header, project ID header, Bearer API key.
 
-There are no help tooltips, guidance panels, or documentation links. The platform uses specialised terminology (consensus confidence, integrity level, clarification contract) without explanation.
+**AI prompts:**
+- Structured system prompts with JSON schema enforcement for each pipeline stage.
+- Domain research queries for competitor and market signal discovery.
+- Workshop question generation prompts conditioned on idea purpose and weakness areas.
 
----
+### 3.2 Outputs
 
-#### [K4] No Loading Skeleton on Dashboard Stats — Low — Half a day
+**UI-rendered results:**
+- Idea analysis cards with profile scores, strengths, weaknesses, risks, recommendation.
+- Requirements documents with expandable sections, cross-referenced IDs.
+- Build prompt step lists with integrity badges, dependency indicators, and execution progress.
+- Pipeline dashboard showing each idea's journey through the pipeline.
+- Admin dashboard with charts, tables, and health indicators.
 
-Dashboard stat cards briefly show `0` while data loads rather than a skeleton state. Minor but noticeable.
+**Stored records (PostgreSQL):**
+- Artifacts table: versioned Markdown content with YAML frontmatter and JSON metadata.
+- Execution sessions and steps: status, timing, failure hashes, escalation levels.
+- Clarification contracts: category, severity, resolution status, contract hash.
+- Usage records: per-provider token counts and estimated costs.
+- Billing usage: monthly per-user generation and token aggregates.
+- Admin action log: timestamped audit trail of all admin operations.
+- Prompt feedback events: failure classification records.
+- API keys: SHA-256 hashed keys with usage timestamps.
 
----
+**Files and exports:**
+- Markdown artifact export: downloadable `.md` files with Content-Disposition headers.
+- Account data export: JSON file containing user profile, projects, API keys, billing, artifacts, and sessions.
 
-#### [K5] Discard Has No Alternative to Permanent Deletion — Medium — Half a day
+**AI-generated content:**
+- Idea analysis: structured JSON with scores, profiles, risks, market research.
+- Requirements documents: structured JSON with FRs, NFRs, data models, API contracts, ADRs.
+- Build prompts: sequential step arrays with integrity classification.
+- Workshop questions: contextual follow-up questions for idea refinement.
+- Failure classifications: pattern matching results with recovery instructions.
 
-Discarding an analysis permanently destroys it. A misclick on "Discard" loses an AI analysis that may have taken 30+ seconds and significant tokens to produce. There is no archive option as an alternative.
+**Side effects:**
+- Session creation/destruction on login/logout.
+- Circuit breaker state changes on AI provider failures.
+- Clarification contract creation on execution failure escalation.
+- Billing usage increment on every AI generation call.
 
 ---
 
-### 2.12 Security Gaps (3 total)
+## Section 4 -- Intended Usage Model
 
-#### [L1] No Email Verification at Registration — High — 1–2 days
+### 4.1 Typical User Behaviour
 
-Local auth registration creates an account immediately without verifying the email address. Fake accounts can be created with any email, and password reset (once added) would be unsafe without verified email ownership.
+A user begins by creating a project, then submitting an application idea for AI validation. The platform scores the idea across multiple dimensions and highlights risks. If the idea has weaknesses, the user engages with the guided workshop to refine it. Once satisfied, the user accepts the idea and moves to requirements generation, which produces a comprehensive technical specification. After reviewing and locking the requirements, the user generates IDE-specific build prompts. These prompts are either followed manually in the web UI (marking steps complete/failed) or consumed directly by an IDE AI assistant via the MCP server.
 
----
-
-#### [L2] No Session Timeout — Medium — Half a day
+### 4.2 Frequency of Use
 
-There is no configured idle timeout or maximum session lifetime. A user who leaves a browser tab open indefinitely remains authenticated. `maxAge` and `rolling` options should be set on the session middleware.
-
----
+The platform supports both one-off and recurring use patterns. A single project may go through the full pipeline once (idea to prompts) and then shift entirely to execution tracking. Users with multiple project ideas would return repeatedly to validate and develop each one. The MCP integration is designed for sustained use during the active build phase.
 
-#### [L3] No Account Lockout After Failed Logins — High — Half a day
+### 4.3 Primary Value Per Session
 
-The login route does not rate-limit or lock accounts after repeated failed attempts. Brute-force attacks against local auth accounts are possible.
+Each session produces a concrete, progressively more detailed artifact: a validated idea analysis, a structured requirements document, or a set of executable build prompts. The value compounds through the pipeline -- each stage builds on verified outputs from the previous stage, reducing the risk of building the wrong thing.
 
----
+### 4.4 Platform Category
 
-### 2.13 Missing Platform Features (5 total)
+Plan2Prompt is a decision support and automation platform. It supports decision-making (should this idea be built?) and automates the translation of validated ideas into actionable build instructions. It does not build the application itself; it produces the instructions for building it.
 
-#### [M1] No Notifications System — High — 3–5 days
+### 4.5 Acting on Outputs
 
-No in-app notification bell, no email notifications, and no notification preferences exist anywhere. Users are not informed of pipeline events unless they are actively viewing the relevant page. This is a foundational gap for any platform with async operations.
+Users are expected to act on outputs outside the platform. The final build prompts are executed in an external IDE. The MCP server bridges this gap by allowing the IDE's AI assistant to consume prompts and report progress back to the platform, but the actual code generation and execution happens in the IDE environment.
 
 ---
 
-#### [M2] No Saved Templates or Reusable Contexts — Low — 1–2 days
+## Section 5 -- Operational Assumptions and Constraints
 
-Users who frequently analyse similar idea types must re-enter the same context fields every time. No template or context library exists.
+### 5.1 Assumptions
 
----
+- **AI API keys are available and funded.** The platform requires at least one of OpenAI, Anthropic, or Gemini API keys to function. Without keys, it falls back to mock responses that are useful only for UI testing.
+- **Users understand the concept of an application idea.** The platform does not teach product thinking. It assumes the user has a concept they want to validate.
+- **IDE users are technically proficient.** The MCP integration assumes the user is working with an AI-capable IDE and understands how to configure MCP servers, manage API keys, and interpret build instructions.
+- **Sequential pipeline usage.** The platform enforces Ideas -> Requirements -> Prompts ordering. Users cannot skip stages.
+- **Single active execution session per prompt artifact.** Only one execution session can be active for a given prompt at a time.
 
-#### [M3] No Onboarding Tutorial — Medium — 2 days
+### 5.2 Constraints
 
-After creating a first project, there is no guided tour. Users unfamiliar with the platform may not understand the pipeline or where to start.
+- **No payment processing.** Billing plans (free, starter, professional, team) exist in the data model but are assigned manually by admins. There is no Stripe integration, checkout flow, or automated plan enforcement beyond usage tracking.
+- **No email system.** The platform does not send emails for any purpose (verification, notifications, password reset).
+- **No real-time collaboration.** While projects support multiple members, there is no presence awareness, live cursors, or real-time sync between users viewing the same artifact.
+- **In-memory MCP sessions.** MCP sessions are stored in memory and lost on server restart. The server handles this gracefully with 409 reconnection messages, but clients must re-initialise.
+- **Single-server deployment.** The in-memory MCP session store and circuit breaker state do not sync across multiple server instances. The platform assumes a single-process deployment.
+- **AI response quality varies.** The consensus approach mitigates this, but individual provider responses may contain hallucinated requirements, unrealistic architecture decisions, or superficial risk assessments. The platform validates and normalises AI responses but does not guarantee correctness.
+- **No offline mode.** The platform requires an active server connection for all operations.
 
 ---
-
-#### [M4] No Activity Feed or Project Timeline — Low — 2 days
 
-There is no timeline showing when artifacts were created, ideas validated, requirements generated, etc. Project history is invisible.
+## Section 6 -- Mismatches or Ambiguities
 
----
+### 6.1 Billing Plans Without Enforcement
 
-#### [M5] Theme Preference Not Persisted to Account — Low — Half a day
+The `billingPlan` field on users and the `billing_usage` table track plan tiers and usage metrics, but no logic enforces plan limits. A "free" user and a "professional" user have identical access to all features. The admin can change plans, and usage is tracked, but there are no gates that restrict generation counts, token limits, or feature access based on plan tier. This creates a data model that suggests monetisation but does not implement it.
 
-Dark/light mode preference is stored in `localStorage` only. It is lost when a user clears their browser or switches devices.
+**Why it matters:** Users or stakeholders may expect plan-based restrictions that do not exist. The billing tab in the admin console displays data but does not reflect enforced constraints.
 
----
+### 6.2 Generation Disabled Flag Without User-Facing Explanation
 
-## Part 3 — Combined Gap Summary
+Admins can disable generation for specific users or projects via the admin console, setting a `generationDisabled` flag and optional `generationDisabledReason`. However, the reason is stored in the database and surfaced in admin views -- it is not clear whether the affected user sees a meaningful explanation in the UI when they attempt to generate and are blocked.
 
-### By Severity
+**Why it matters:** A user whose generation is disabled may encounter a generic error without understanding why or how to resolve it.
 
-| Severity | Operational Gaps | Feature Gaps | Total |
-|---|---|---|---|
-| Critical | 2 | 2 | 4 |
-| High | 3 | 11 | 14 |
-| Medium | 4 | 24 | 28 |
-| Low | 5 | 14 | 19 |
-| **Total** | **14** | **51** | **65** |
+### 6.3 MCP Push Notifications Not Implemented
 
----
+The MCP gap resolution document (referenced in project history) identified push notifications as gap item 3 -- the ability to push events (blocker created, session invalidated, clarification resolved) to connected IDE clients via SSE. This was evaluated and intentionally deferred because the SDK transport layer does not cleanly support server-initiated messages. IDE clients must poll for state changes.
 
-### Prioritised Backlog — Top 20 Items
-
-Items that should be addressed first, ranked by combined severity and user impact:
-
-| # | ID | Gap | Type | Effort |
-|---|---|---|---|---|
-| 1 | I1 | No payment integration (Stripe) | Feature | 1–2 weeks |
-| 2 | H1 | No password reset | Feature | 2 days |
-| 3 | G1 | No plan assignment UI in Admin Console | Feature | 1 day |
-| 4 | — | Persist billing to PostgreSQL | Operational | 1–2 days |
-| 5 | — | Rate limit AI generation routes | Operational | 1 day |
-| 6 | — | Move artifact storage to database | Operational | 2–3 days |
-| 7 | E1 | Store failure output text (not just hash) | Feature | Half a day |
-| 8 | B4 | Render signal sharpening fields (hidden AI output) | Feature | 2–3 days |
-| 9 | F1 | Post-resolution regeneration prompt | Feature | 2 days |
-| 10 | L1 | Email verification at registration | Feature | 1–2 days |
-| 11 | L3 | Account lockout after failed logins | Feature | Half a day |
-| 12 | M1 | In-app notifications system | Feature | 3–5 days |
-| 13 | C1 | Manual editing of requirements | Feature | 3–4 days |
-| 14 | C2 | Requirements prioritisation interface | Feature | 1–2 days |
-| 15 | D3 | Inline prompt step editing | Feature | 2–3 days |
-| 16 | H2 | Account settings page | Feature | 1–2 days |
-| 17 | B1 | Edit idea after submission | Feature | 1–2 days |
-| 18 | — | Add structured logging (pino) + Sentry | Operational | 1–2 days |
-| 19 | A2 | Project deletion | Feature | 1 day |
-| 20 | A1 | Fix hardcoded prompts count on dashboard | Feature | 2 hours |
+**Why it matters:** IDE integrations feel less responsive than they could. Clients must periodically check for new clarifications or session invalidation rather than being notified.
 
----
+### 6.4 Six IDE Templates Coexist With Structured Resource
 
-## Part 4 — Effort and Timeline Estimate
+The platform maintains six hardcoded IDE format templates (Replit, Cursor, Lovable, Antigravity, Warp, Generic) used by the web UI for Markdown-formatted prompt display. The MCP server also provides `project://prompt-steps-structured` which returns raw JSON for programmatic consumption. Both serve the same content in different formats, which is intentional, but the templates are not configurable or extensible by users.
 
-Assuming a single focused developer:
+**Why it matters:** Adding support for a new IDE requires code changes to the template system rather than configuration.
 
-| Phase | Items | Calendar Time |
-|---|---|---|
-| Phase 1 — Critical fixes (items 1–6 above) | Payment, password reset, billing DB, rate limiting, artifact DB | 3–4 weeks |
-| Phase 2 — High severity features (items 7–16) | Notifications, editing, signal fields, resolution loop, account settings | 3–4 weeks |
-| Phase 3 — Medium polish (remaining medium severity) | Session history, team features, search, export, empty states, admin views | 4–6 weeks |
-| Phase 4 — Low priority and QoL | Templates, timeline, tooltips, theme persistence | 2–3 weeks |
+### 6.5 Workshop Refinement Not Persisted Independently
 
-**Estimated total to a complete, polished v1.0: 12–17 weeks of focused engineering.**
+The guided workshop flow (questions, answers, risk delta) is part of the idea analysis process. Workshop answers influence the final accepted idea artifact, but the individual question-answer pairs and the risk delta calculation are not stored as separate queryable records. They are embedded in the artifact content or metadata.
 
-The platform today represents approximately 60–65% of a complete v1.0 product. The core pipeline logic is done and done well. What remains is the commercial plumbing (payments, accounts, team access) and product polish (editing, notifications, search, export).
+**Why it matters:** Analysing workshop effectiveness or extracting common refinement patterns across ideas requires parsing artifact content rather than querying structured data.
 
 ---
 
-## Part 5 — Strengths to Preserve
+## Section 7 -- Usage Summary (Plain English)
 
-These aspects of the platform are well-designed and should not be changed as improvements are made:
+A user signs in, creates a project, and submits an application idea -- a title and description of something they want to build. The platform sends that idea to multiple AI models simultaneously and returns a structured analysis covering technical feasibility, commercial viability, risks, and a recommendation. If the idea has weaknesses, the user works through a guided workshop to strengthen it. Once the idea passes validation, the user generates a full requirements document from it -- functional requirements, data models, API contracts, and architecture decisions. After reviewing and locking the requirements, the user selects their target IDE and generates a set of sequential build prompts: step-by-step instructions for building the application. These prompts can be followed manually through the web UI's execution tracker, or consumed directly by an IDE's AI assistant through the MCP server, which lets the IDE read requirements, receive instructions, mark steps complete, and report failures back to the platform without leaving the editor.
 
-- **Pipeline stage enforcement model** — the sequential gating and dual enforcement (frontend + backend) is exactly right
-- **IAIProvider interface and ConsensusService** — the multi-provider abstraction is clean and extensible
-- **Clarification contract schema** — the hash-based de-duplication, upward-only direction, and severity escalation model are solid; the resolution loop just needs closing
-- **Execution integrity classification** — deterministic keyword scanning is the correct approach; do not replace with AI classification
-- **Invariant test suite** — the 224 tests encoding behavioural contracts should be expanded, not replaced
-- **Shared type contracts** — the `@shared/*` alias structure and Zod validation at boundaries is the right pattern
+The core value proposition is structured risk reduction: the platform ensures an idea is validated before requirements are written, and requirements are locked before build instructions are generated. Each stage produces a versioned, exportable artifact that serves as the verified input for the next stage. The MCP server closes the gap between planning (in the browser) and building (in the IDE) by giving the IDE's AI assistant direct access to the project's context and execution state.
 
 ---
 
-*© 2026 MTE Software Ltd. All rights reserved.*
+*MTE Software Ltd -- March 2026*
